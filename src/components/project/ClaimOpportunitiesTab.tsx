@@ -337,6 +337,7 @@ function StatusBadge({ status }: { status: Claim["status"] }) {
     Suggested: "bg-secondary text-foreground",
     Approved: "bg-green-500/15 text-green-500",
     Rejected: "bg-destructive/15 text-destructive",
+    "Moved To Basket": "bg-gold-foreground/15 text-gold-foreground",
     "Added To Valuation": "bg-primary/15 text-primary",
   };
   return (
