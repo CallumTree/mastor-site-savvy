@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Sparkles, Check, X, Pencil, Save, ChevronDown, ChevronRight, ShoppingBasket } from "lucide-react";
+import { Sparkles, Check, X, Pencil, Save, ChevronDown, ChevronRight, ClipboardCheck } from "lucide-react";
 
 const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
 
@@ -131,22 +131,13 @@ export function ClaimOpportunitiesTab({ projectId }: { projectId: string }) {
     load();
   };
 
-  const moveToBasket = async (c: Claim) => {
-    const { error: insErr } = await (supabase as any).from("valuation_basket_items").insert({
-      project_id: c.project_id,
-      claim_id: c.id,
-      title: c.claim_title,
-      description: c.claim_description,
-      value: c.contract_value,
-      status: "In Basket",
-    });
-    if (insErr) return toast.error(insErr.message);
+  const markReadyToClaim = async (c: Claim) => {
     const { error } = await supabase
       .from("potential_claims")
-      .update({ status: "Moved To Basket" })
+      .update({ status: "Ready To Claim", ready_to_claim_at: new Date().toISOString() })
       .eq("id", c.id);
     if (error) return toast.error(error.message);
-    toast.success("Moved to basket");
+    toast.success("Marked Ready To Claim");
     load();
   };
 
@@ -325,8 +316,8 @@ export function ClaimOpportunitiesTab({ projectId }: { projectId: string }) {
                 )}
                 {c.status === "Approved" && (
                   <div className="flex gap-2 justify-end pt-2 border-t border-border">
-                    <Button size="sm" onClick={() => moveToBasket(c)}>
-                      <ShoppingBasket className="w-3 h-3 mr-1" />Move to Basket
+                    <Button size="sm" onClick={() => markReadyToClaim(c)}>
+                      <ClipboardCheck className="w-3 h-3 mr-1" />Mark Ready To Claim
                     </Button>
                   </div>
                 )}

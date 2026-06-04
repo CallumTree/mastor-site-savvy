@@ -11,7 +11,7 @@ import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
 import { ClaimOpportunitiesTab } from "@/components/project/ClaimOpportunitiesTab";
-import { ValuationBasketTab } from "@/components/project/ValuationBasketTab";
+import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 
 type Project = {
   id: string;
@@ -27,6 +27,10 @@ type HeaderStats = {
   openVariations: number;
   procurementOutstanding: number;
   potentialClaim: number;
+  approvedClaim: number;
+  readyToClaim: number;
+  includedInValuation: number;
+  paid: number;
 };
 
 export const Route = createFileRoute("/_authenticated/projects/$id")({
@@ -39,7 +43,15 @@ const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP",
 function ProjectDetail() {
   const { id } = Route.useParams();
   const [project, setProject] = useState<Project | null>(null);
-  const [stats, setStats] = useState<HeaderStats>({ openVariations: 0, procurementOutstanding: 0, potentialClaim: 0 });
+  const [stats, setStats] = useState<HeaderStats>({
+    openVariations: 0,
+    procurementOutstanding: 0,
+    potentialClaim: 0,
+    approvedClaim: 0,
+    readyToClaim: 0,
+    includedInValuation: 0,
+    paid: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,10 +67,19 @@ function ProjectDetail() {
       setProject((p as Project) ?? null);
       const openVariations = (vars ?? []).filter((v: any) => v.status !== "Approved" && v.status !== "Rejected").length;
       const procurementOutstanding = (procs ?? []).filter((x: any) => x.status === "Required" || x.status === "Quoted").length;
-      const potentialClaim = (pcs ?? [])
-        .filter((c: any) => c.status === "Suggested")
-        .reduce((s: number, c: any) => s + Number(c.contract_value ?? 0), 0);
-      setStats({ openVariations, procurementOutstanding, potentialClaim });
+      const sumBy = (status: string) =>
+        (pcs ?? [])
+          .filter((c: any) => c.status === status)
+          .reduce((s: number, c: any) => s + Number(c.contract_value ?? 0), 0);
+      setStats({
+        openVariations,
+        procurementOutstanding,
+        potentialClaim: sumBy("Suggested"),
+        approvedClaim: sumBy("Approved"),
+        readyToClaim: sumBy("Ready To Claim"),
+        includedInValuation: sumBy("Included In Valuation"),
+        paid: sumBy("Paid"),
+      });
       setLoading(false);
     })();
   }, [id]);
@@ -127,21 +148,23 @@ function ProjectDetail() {
           <Section title="Claim Opportunities">
             <ClaimOpportunitiesTab projectId={project.id} />
           </Section>
-          <Section title="Valuation Basket">
-            <ValuationBasketTab projectId={project.id} />
-          </Section>
-          <Section title="Procurement">
-            <ProcurementTab projectId={project.id} />
+          <Section title="Ready To Claim">
+            <ReadyToClaimTab projectId={project.id} />
           </Section>
           <Section title="Valuations">
             <ValuationsTab projectId={project.id} />
           </Section>
-          <Section title="Commercial Summary">
+          <Section title="Procurement">
+            <ProcurementTab projectId={project.id} />
+          </Section>
+          <Section title="Commercial Dashboard">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <Metric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} />
-              <Metric label="Open Variations" value={String(stats.openVariations)} />
-              <Metric label="Procurement Outstanding" value={String(stats.procurementOutstanding)} />
-              <Metric label="Potential Claim" value={GBP.format(stats.potentialClaim)} />
+              <Metric label="Potential Claims" value={GBP.format(stats.potentialClaim)} />
+              <Metric label="Approved Claims" value={GBP.format(stats.approvedClaim)} />
+              <Metric label="Ready To Claim" value={GBP.format(stats.readyToClaim)} />
+              <Metric label="Included In Valuation" value={GBP.format(stats.includedInValuation)} />
+              <Metric label="Paid" value={GBP.format(stats.paid)} />
             </div>
           </Section>
         </TabsContent>

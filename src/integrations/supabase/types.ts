@@ -132,6 +132,7 @@ export type Database = {
           created_at: string
           id: string
           project_id: string
+          ready_to_claim_at: string | null
           rejected_at: string | null
           scope_element_id: string | null
           status: string
@@ -147,6 +148,7 @@ export type Database = {
           created_at?: string
           id?: string
           project_id: string
+          ready_to_claim_at?: string | null
           rejected_at?: string | null
           scope_element_id?: string | null
           status?: string
@@ -162,6 +164,7 @@ export type Database = {
           created_at?: string
           id?: string
           project_id?: string
+          ready_to_claim_at?: string | null
           rejected_at?: string | null
           scope_element_id?: string | null
           status?: string
