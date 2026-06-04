@@ -19,7 +19,7 @@ type Claim = {
   claim_description: string | null;
   contract_value: number | null;
   confidence_score: "high" | "medium" | "low";
-  status: "Suggested" | "Approved" | "Rejected" | "Added To Valuation";
+  status: "Suggested" | "Approved" | "Rejected" | "Moved To Basket" | "Added To Valuation";
   approved_at: string | null;
   rejected_at: string | null;
   created_at: string;
