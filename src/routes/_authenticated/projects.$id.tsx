@@ -123,8 +123,9 @@ function ProjectDetail() {
         </TabsContent>
 
         <TabsContent value="commercial" className="mt-4 space-y-8">
-          <Section title="Valuation Intelligence">
-            <ValuationIntelligenceTab projectId={project.id} />
+          <Section title="Claim Opportunities">
+            <ClaimOpportunitiesTab projectId={project.id} />
+
           </Section>
           <Section title="Procurement">
             <ProcurementTab projectId={project.id} />
