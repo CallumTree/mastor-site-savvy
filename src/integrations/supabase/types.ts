@@ -14,51 +14,245 @@ export type Database = {
   }
   public: {
     Tables: {
+      contract_items: {
+        Row: {
+          code: string | null
+          created_at: string
+          description: string | null
+          id: string
+          project_id: string
+          total_qty: number | null
+          unit: string | null
+          unit_rate: number | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          project_id: string
+          total_qty?: number | null
+          unit?: string | null
+          unit_rate?: number | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          project_id?: string
+          total_qty?: number | null
+          unit?: string | null
+          unit_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      progress_logs: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          transcript: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          transcript?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          transcript?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progress_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           client: string | null
+          client_name: string | null
           contract_value: number | null
           created_at: string
+          gross_value: number | null
           id: string
           location: string | null
           name: string
           progress: number
+          site_address: string | null
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
           client?: string | null
+          client_name?: string | null
           contract_value?: number | null
           created_at?: string
+          gross_value?: number | null
           id?: string
           location?: string | null
           name: string
           progress?: number
+          site_address?: string | null
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           client?: string | null
+          client_name?: string | null
           contract_value?: number | null
           created_at?: string
+          gross_value?: number | null
           id?: string
           location?: string | null
           name?: string
           progress?: number
+          site_address?: string | null
           status?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: []
       }
+      valuation_items: {
+        Row: {
+          claimed_qty: number | null
+          claimed_value: number | null
+          contract_item_id: string
+          id: string
+          valuation_id: string
+        }
+        Insert: {
+          claimed_qty?: number | null
+          claimed_value?: number | null
+          contract_item_id: string
+          id?: string
+          valuation_id: string
+        }
+        Update: {
+          claimed_qty?: number | null
+          claimed_value?: number | null
+          contract_item_id?: string
+          id?: string
+          valuation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valuation_items_contract_item_id_fkey"
+            columns: ["contract_item_id"]
+            isOneToOne: false
+            referencedRelation: "contract_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_items_valuation_id_fkey"
+            columns: ["valuation_id"]
+            isOneToOne: false
+            referencedRelation: "valuations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      valuations: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          status: string
+          valuation_date: string | null
+          valuation_number: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          status?: string
+          valuation_date?: string | null
+          valuation_number?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          status?: string
+          valuation_date?: string | null
+          valuation_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valuations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      variations: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          project_id: string
+          qty: number | null
+          rate: number | null
+          status: string
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          project_id: string
+          qty?: number | null
+          rate?: number | null
+          status?: string
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          project_id?: string
+          qty?: number | null
+          rate?: number | null
+          status?: string
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      user_owns_project: { Args: { _project_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
