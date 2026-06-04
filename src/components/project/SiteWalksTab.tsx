@@ -122,6 +122,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const recognitionRef = useRef<SR | null>(null);
   const shouldRestartRef = useRef(false);
   const transcriptRef = useRef("");
+  const sessionBaseRef = useRef("");
 
   const analyseFn = useServerFn(analyseSiteWalk);
   const speechSupported = !!getSpeechRecognition();
