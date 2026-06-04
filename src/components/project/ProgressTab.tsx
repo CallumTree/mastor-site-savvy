@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { SiteWalkRecorder } from "./SiteWalkRecorder";
 
 type Log = { id: string; transcript: string | null; created_at: string };
 
