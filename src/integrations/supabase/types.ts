@@ -176,6 +176,41 @@ export type Database = {
         }
         Relationships: []
       }
+      site_walks: {
+        Row: {
+          created_at: string
+          duration_seconds: number
+          id: string
+          project_id: string
+          title: string | null
+          transcript: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number
+          id?: string
+          project_id: string
+          title?: string | null
+          transcript?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number
+          id?: string
+          project_id?: string
+          title?: string | null
+          transcript?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_walks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       valuation_items: {
         Row: {
           claimed_qty: number | null
