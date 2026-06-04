@@ -33,15 +33,25 @@ function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [ai, setAi] = useState({ awaiting: 0, approvedWeek: 0, variations: 0, procurement: 0, risks: 0 });
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("projects")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const [{ data, error }, { data: findings }] = await Promise.all([
+      supabase.from("projects").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("approved_findings").select("finding_type, status, approved_at"),
+    ]);
     if (error) toast.error(error.message);
     setProjects((data ?? []) as Project[]);
+    const f = (findings ?? []) as { finding_type: string; status: string; approved_at: string | null }[];
+    setAi({
+      awaiting: f.filter((x) => x.status === "Awaiting Review").length,
+      approvedWeek: f.filter((x) => x.status === "Approved" && x.approved_at && x.approved_at >= weekAgo).length,
+      variations: f.filter((x) => x.finding_type === "variation").length,
+      procurement: f.filter((x) => x.finding_type === "procurement").length,
+      risks: f.filter((x) => x.finding_type === "risk").length,
+    });
     setLoading(false);
   };
 
