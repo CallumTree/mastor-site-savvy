@@ -458,6 +458,57 @@ export type Database = {
           },
         ]
       }
+      valuation_basket_items: {
+        Row: {
+          claim_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          project_id: string
+          status: string
+          title: string
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          claim_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          project_id: string
+          status?: string
+          title: string
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          claim_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          project_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valuation_basket_items_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "potential_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_basket_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       valuation_items: {
         Row: {
           claimed_qty: number | null
