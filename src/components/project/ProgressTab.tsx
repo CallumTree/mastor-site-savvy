@@ -62,7 +62,7 @@ export function ProgressTab({ projectId }: { projectId: string }) {
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : logs.length === 0 ? (
           <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
-            No site logs yet.
+            No progress records logged yet.
           </div>
         ) : (
           logs.map((l) => (
