@@ -544,6 +544,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               value={transcript}
               onChange={(e) => {
                 transcriptRef.current = e.target.value;
+                sessionBaseRef.current = e.target.value;
                 setTranscript(e.target.value);
               }}
               placeholder={
