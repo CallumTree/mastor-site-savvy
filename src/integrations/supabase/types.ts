@@ -38,6 +38,48 @@ export type Database = {
         }
         Relationships: []
       }
+      approved_findings: {
+        Row: {
+          analysis_id: string | null
+          approved_at: string | null
+          confidence: string | null
+          created_at: string
+          finding_text: string
+          finding_type: string
+          id: string
+          original_text: string
+          project_id: string
+          site_walk_id: string | null
+          status: string
+        }
+        Insert: {
+          analysis_id?: string | null
+          approved_at?: string | null
+          confidence?: string | null
+          created_at?: string
+          finding_text: string
+          finding_type: string
+          id?: string
+          original_text: string
+          project_id: string
+          site_walk_id?: string | null
+          status?: string
+        }
+        Update: {
+          analysis_id?: string | null
+          approved_at?: string | null
+          confidence?: string | null
+          created_at?: string
+          finding_text?: string
+          finding_type?: string
+          id?: string
+          original_text?: string
+          project_id?: string
+          site_walk_id?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       contract_items: {
         Row: {
           code: string | null
