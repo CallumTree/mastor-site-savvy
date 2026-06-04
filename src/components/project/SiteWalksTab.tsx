@@ -181,21 +181,31 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "en-GB";
+    // Per-instance dedup: each final result index is committed exactly once.
+    const committed = new Set<number>();
     rec.onresult = (event: any) => {
-      let finalChunk = "";
+      let newFinal = "";
       let interimChunk = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const res = event.results[i];
-        if (res.isFinal) finalChunk += res[0].transcript;
-        else interimChunk += res[0].transcript;
+        const text = (res[0]?.transcript ?? "").trim();
+        if (!text) continue;
+        if (res.isFinal) {
+          if (committed.has(i)) continue;
+          committed.add(i);
+          newFinal += (newFinal ? " " : "") + text;
+        } else {
+          interimChunk += (interimChunk ? " " : "") + text;
+        }
       }
-      if (finalChunk) {
+      if (newFinal) {
         const current = transcriptRef.current;
         const sep = current && !/\s$/.test(current) ? " " : "";
-        const next = current + sep + finalChunk.trim();
+        const next = current + sep + newFinal;
         transcriptRef.current = next;
         setTranscript(next);
       }
+      // Interim is preview-only — never written into the saved transcript.
       setInterim(interimChunk);
     };
     rec.onerror = (e: any) => {
@@ -209,6 +219,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       }
     };
     rec.onend = () => {
+      // Drop any uncommitted interim from the ended session.
+      setInterim("");
       if (shouldRestartRef.current) {
         try {
           rec.start();
@@ -518,15 +530,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         {/* Transcript */}
         {(isActive || transcript) && (
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Live Transcript {isActive && "· editable"}
-              </div>
-              {interim && (
-                <div className="text-[10px] text-muted-foreground italic truncate max-w-[60%]">
-                  …{interim}
-                </div>
-              )}
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Transcript {isActive && "· editable · final results only"}
             </div>
             <Textarea
               ref={textareaRef}
@@ -537,12 +542,22 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               }}
               placeholder={
                 voiceActive
-                  ? "Listening… speak naturally and your words will appear here."
+                  ? "Listening… confirmed speech will appear here."
                   : "Type notes as you walk the site…"
               }
               rows={10}
               className="min-h-[220px] text-base leading-relaxed"
             />
+            {voiceActive && (
+              <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 min-h-[2.25rem]">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">
+                  Live preview (not saved)
+                </div>
+                <div className="text-sm italic text-muted-foreground">
+                  {interim || "…"}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>
