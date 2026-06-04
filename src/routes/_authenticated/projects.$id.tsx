@@ -8,6 +8,7 @@ import { ScopeTab } from "@/components/project/ScopeTab";
 import { ProgressTab } from "@/components/project/ProgressTab";
 import { ValuationsTab } from "@/components/project/ValuationsTab";
 import { ProcurementTab } from "@/components/project/ProcurementTab";
+import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 
 type Project = {
   id: string;
@@ -83,6 +84,7 @@ function ProjectDetail() {
           <TabsTrigger value="progress" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Site Progress</TabsTrigger>
           <TabsTrigger value="valuations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Valuations</TabsTrigger>
           <TabsTrigger value="procurement" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Procurement</TabsTrigger>
+          <TabsTrigger value="sitewalks" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Site Walks</TabsTrigger>
         </TabsList>
 
         <TabsContent value="scope" className="mt-4">
@@ -96,6 +98,9 @@ function ProjectDetail() {
         </TabsContent>
         <TabsContent value="procurement" className="mt-4">
           <ProcurementTab projectId={project.id} />
+        </TabsContent>
+        <TabsContent value="sitewalks" className="mt-4">
+          <SiteWalksTab projectId={project.id} />
         </TabsContent>
       </Tabs>
     </main>
