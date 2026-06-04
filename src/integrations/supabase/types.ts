@@ -55,6 +55,50 @@ export type Database = {
           },
         ]
       }
+      procurement_items: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          package_name: string
+          project_id: string
+          status: string
+          supplier: string | null
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          package_name: string
+          project_id: string
+          status?: string
+          supplier?: string | null
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          package_name?: string
+          project_id?: string
+          status?: string
+          supplier?: string | null
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       progress_logs: {
         Row: {
           created_at: string
