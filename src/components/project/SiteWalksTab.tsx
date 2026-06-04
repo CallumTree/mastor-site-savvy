@@ -300,6 +300,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     const inserted = needsLeadingNl + marker;
     const next = before + inserted + after;
     transcriptRef.current = next;
+    sessionBaseRef.current = next;
     setTranscript(next);
     requestAnimationFrame(() => {
       const pos = (before + inserted).length;
