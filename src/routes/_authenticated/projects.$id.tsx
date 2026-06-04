@@ -148,21 +148,23 @@ function ProjectDetail() {
           <Section title="Claim Opportunities">
             <ClaimOpportunitiesTab projectId={project.id} />
           </Section>
-          <Section title="Valuation Basket">
-            <ValuationBasketTab projectId={project.id} />
-          </Section>
-          <Section title="Procurement">
-            <ProcurementTab projectId={project.id} />
+          <Section title="Ready To Claim">
+            <ReadyToClaimTab projectId={project.id} />
           </Section>
           <Section title="Valuations">
             <ValuationsTab projectId={project.id} />
           </Section>
-          <Section title="Commercial Summary">
+          <Section title="Procurement">
+            <ProcurementTab projectId={project.id} />
+          </Section>
+          <Section title="Commercial Dashboard">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <Metric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} />
-              <Metric label="Open Variations" value={String(stats.openVariations)} />
-              <Metric label="Procurement Outstanding" value={String(stats.procurementOutstanding)} />
-              <Metric label="Potential Claim" value={GBP.format(stats.potentialClaim)} />
+              <Metric label="Potential Claims" value={GBP.format(stats.potentialClaim)} />
+              <Metric label="Approved Claims" value={GBP.format(stats.approvedClaim)} />
+              <Metric label="Ready To Claim" value={GBP.format(stats.readyToClaim)} />
+              <Metric label="Included In Valuation" value={GBP.format(stats.includedInValuation)} />
+              <Metric label="Paid" value={GBP.format(stats.paid)} />
             </div>
           </Section>
         </TabsContent>
