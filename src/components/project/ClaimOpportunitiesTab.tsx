@@ -43,7 +43,7 @@ type Finding = {
 
 type Doc = { id: string; file_name: string };
 
-export function ValuationIntelligenceTab({ projectId }: { projectId: string }) {
+export function ClaimOpportunitiesTab({ projectId }: { projectId: string }) {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [scopeMap, setScopeMap] = useState<Record<string, ScopeEl>>({});
   const [findingMap, setFindingMap] = useState<Record<string, Finding>>({});
