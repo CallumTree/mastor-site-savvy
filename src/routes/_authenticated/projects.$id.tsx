@@ -11,6 +11,7 @@ import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
 import { ClaimOpportunitiesTab } from "@/components/project/ClaimOpportunitiesTab";
+import { ValuationBasketTab } from "@/components/project/ValuationBasketTab";
 
 type Project = {
   id: string;
@@ -125,7 +126,9 @@ function ProjectDetail() {
         <TabsContent value="commercial" className="mt-4 space-y-8">
           <Section title="Claim Opportunities">
             <ClaimOpportunitiesTab projectId={project.id} />
-
+          </Section>
+          <Section title="Valuation Basket">
+            <ValuationBasketTab projectId={project.id} />
           </Section>
           <Section title="Procurement">
             <ProcurementTab projectId={project.id} />
