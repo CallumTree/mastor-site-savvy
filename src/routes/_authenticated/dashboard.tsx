@@ -158,10 +158,8 @@ function NewProjectDialog({ onCreated }: { onCreated: () => void }) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { toast.error("Not signed in"); setBusy(false); return; }
     const { error } = await supabase.from("projects").insert({
-      user_id: user.id,
+      user_id: DEV_USER.id,
       name,
       client: client || null,
       location: location || null,
