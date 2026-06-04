@@ -530,15 +530,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         {/* Transcript */}
         {(isActive || transcript) && (
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Live Transcript {isActive && "· editable"}
-              </div>
-              {interim && (
-                <div className="text-[10px] text-muted-foreground italic truncate max-w-[60%]">
-                  …{interim}
-                </div>
-              )}
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Transcript {isActive && "· editable · final results only"}
             </div>
             <Textarea
               ref={textareaRef}
@@ -549,12 +542,22 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               }}
               placeholder={
                 voiceActive
-                  ? "Listening… speak naturally and your words will appear here."
+                  ? "Listening… confirmed speech will appear here."
                   : "Type notes as you walk the site…"
               }
               rows={10}
               className="min-h-[220px] text-base leading-relaxed"
             />
+            {voiceActive && (
+              <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 min-h-[2.25rem]">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">
+                  Live preview (not saved)
+                </div>
+                <div className="text-sm italic text-muted-foreground">
+                  {interim || "…"}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>
