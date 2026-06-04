@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, HardHat, ClipboardCheck, AlertTriangle, MapPin } from "lucide-react";
+import { Plus, HardHat, ClipboardCheck, AlertTriangle, MapPin, Sparkles, Inbox, CheckCircle2, FileEdit, Package, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { DEV_USER } from "@/lib/dev-user";
 
@@ -33,15 +33,25 @@ function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [ai, setAi] = useState({ awaiting: 0, approvedWeek: 0, variations: 0, procurement: 0, risks: 0 });
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("projects")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const [{ data, error }, { data: findings }] = await Promise.all([
+      supabase.from("projects").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("approved_findings").select("finding_type, status, approved_at"),
+    ]);
     if (error) toast.error(error.message);
     setProjects((data ?? []) as Project[]);
+    const f = (findings ?? []) as { finding_type: string; status: string; approved_at: string | null }[];
+    setAi({
+      awaiting: f.filter((x) => x.status === "Awaiting Review").length,
+      approvedWeek: f.filter((x) => x.status === "Approved" && x.approved_at && x.approved_at >= weekAgo).length,
+      variations: f.filter((x) => x.finding_type === "variation").length,
+      procurement: f.filter((x) => x.finding_type === "procurement").length,
+      risks: f.filter((x) => x.finding_type === "risk").length,
+    });
     setLoading(false);
   };
 
@@ -68,6 +78,24 @@ function Dashboard() {
           </div>
         </div>
       </section>
+
+      {/* AI Activity */}
+      <section className="mb-8">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <div className="bg-primary text-primary-foreground px-4 py-3 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-gold" />
+            <h2 className="text-sm font-semibold uppercase tracking-wider">AI Activity</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-border">
+            <Stat icon={<Inbox className="w-4 h-4" />} label="Awaiting Review" value={ai.awaiting} />
+            <Stat icon={<CheckCircle2 className="w-4 h-4" />} label="Approved (7d)" value={ai.approvedWeek} />
+            <Stat icon={<FileEdit className="w-4 h-4" />} label="Variations" value={ai.variations} />
+            <Stat icon={<Package className="w-4 h-4" />} label="Procurement" value={ai.procurement} />
+            <Stat icon={<ShieldAlert className="w-4 h-4" />} label="Risks" value={ai.risks} />
+          </div>
+        </div>
+      </section>
+
 
       {/* Projects header */}
       <section>

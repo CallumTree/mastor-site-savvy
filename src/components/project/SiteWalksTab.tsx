@@ -772,6 +772,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           {viewingAnalysis && (
             <AnalysisViewer
               row={viewingAnalysis}
+              projectId={projectId}
               walkTitle={walkById.get(viewingAnalysis.site_walk_id)?.title ?? "Site walk"}
             />
           )}
@@ -783,15 +784,169 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
 /* -------------------------- Analysis Viewer -------------------------- */
 
-function AnalysisViewer({ row, walkTitle }: { row: AnalysisRow; walkTitle: string }) {
-  const a = row.analysis_json;
-  // Local-only states — no records are created. User stays in control.
-  const [states, setStates] = useState<Record<string, ItemState>>({});
-  const [edits, setEdits] = useState<Record<string, string>>({});
-  const [editingKey, setEditingKey] = useState<string | null>(null);
+type FindingType = "progress" | "procurement" | "variation" | "risk";
+type FindingRow = {
+  id: string;
+  finding_type: FindingType;
+  original_text: string;
+  finding_text: string;
+  status: string;
+};
 
-  const setState = (k: string, s: ItemState) =>
-    setStates((p) => ({ ...p, [k]: p[k] === s ? "suggested" : s }));
+function AnalysisViewer({
+  row,
+  projectId,
+  walkTitle,
+}: {
+  row: AnalysisRow;
+  projectId: string;
+  walkTitle: string;
+}) {
+  const a = row.analysis_json;
+  const [findings, setFindings] = useState<Record<string, FindingRow>>({});
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  const keyOf = (type: FindingType, original: string) => `${type}|${original}`;
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("approved_findings")
+        .select("*")
+        .eq("analysis_id", row.id);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      const map: Record<string, FindingRow> = {};
+      for (const f of (data ?? []) as FindingRow[]) {
+        map[keyOf(f.finding_type, f.original_text)] = f;
+      }
+      setFindings(map);
+    })();
+  }, [row.id]);
+
+  const upsertFinding = async (
+    type: FindingType,
+    originalText: string,
+    findingText: string,
+    confidence: string,
+    status: "Approved" | "Rejected" | "Awaiting Review",
+  ) => {
+    const key = keyOf(type, originalText);
+    setBusyKey(key);
+    const existing = findings[key];
+    const payload: any = {
+      project_id: projectId,
+      analysis_id: row.id,
+      site_walk_id: row.site_walk_id,
+      finding_type: type,
+      original_text: originalText,
+      finding_text: findingText,
+      confidence,
+      status,
+      approved_at: status === "Approved" ? new Date().toISOString() : null,
+    };
+    let saved: FindingRow | null = null;
+    if (existing) {
+      const { data, error } = await (supabase as any)
+        .from("approved_findings")
+        .update(payload)
+        .eq("id", existing.id)
+        .select("*")
+        .single();
+      if (error) {
+        toast.error(error.message);
+        setBusyKey(null);
+        return;
+      }
+      saved = data as FindingRow;
+    } else {
+      const { data, error } = await (supabase as any)
+        .from("approved_findings")
+        .insert(payload)
+        .select("*")
+        .single();
+      if (error) {
+        toast.error(error.message);
+        setBusyKey(null);
+        return;
+      }
+      saved = data as FindingRow;
+    }
+    setFindings((p) => ({ ...p, [key]: saved! }));
+
+    // Downstream records on approval
+    if (status === "Approved") {
+      if (type === "procurement") {
+        const { error } = await (supabase as any).from("procurement_items").insert({
+          project_id: projectId,
+          description: findingText,
+          status: "Required",
+        });
+        if (error) toast.error(`Procurement: ${error.message}`);
+        else toast.success("Approved — Procurement item created");
+      } else if (type === "variation") {
+        const { error } = await (supabase as any).from("variations").insert({
+          project_id: projectId,
+          description: findingText,
+          status: "Draft",
+        });
+        if (error) toast.error(`Variation: ${error.message}`);
+        else toast.success("Approved — Variation created");
+      } else {
+        toast.success("Finding approved");
+      }
+    } else if (status === "Rejected") {
+      toast.success("Finding rejected");
+    }
+    setBusyKey(null);
+  };
+
+  const renderRow = (
+    type: FindingType,
+    originalText: string,
+    confidence: Confidence,
+  ) => {
+    const key = keyOf(type, originalText);
+    const existing = findings[key];
+    const currentText = drafts[key] ?? existing?.finding_text ?? originalText;
+    const state: ItemState =
+      existing?.status === "Approved"
+        ? "approved"
+        : existing?.status === "Rejected"
+        ? "rejected"
+        : "suggested";
+    const editing = editingKey === key;
+    return (
+      <ReviewRow
+        key={key}
+        text={currentText}
+        confidence={confidence}
+        state={state}
+        editing={editing}
+        busy={busyKey === key}
+        onEdit={() => {
+          if (editing) {
+            // Save edit if approved already, persist new text
+            if (existing && existing.status === "Approved") {
+              upsertFinding(type, originalText, currentText, confidence, "Approved");
+            } else if (existing) {
+              upsertFinding(type, originalText, currentText, confidence, existing.status as any);
+            }
+          } else {
+            setDrafts((d) => ({ ...d, [key]: currentText }));
+          }
+          setEditingKey(editing ? null : key);
+        }}
+        onChange={(v) => setDrafts((d) => ({ ...d, [key]: v }))}
+        onApprove={() => upsertFinding(type, originalText, currentText, confidence, "Approved")}
+        onReject={() => upsertFinding(type, originalText, currentText, confidence, "Rejected")}
+      />
+    );
+  };
 
   const counts = {
     progress: a.progress_items?.length ?? 0,
@@ -811,7 +966,6 @@ function AnalysisViewer({ row, walkTitle }: { row: AnalysisRow; walkTitle: strin
         })}
       </div>
 
-      {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <SummaryCard label="Progress" value={counts.progress} />
         <SummaryCard label="Procurement" value={counts.procurement} />
@@ -819,7 +973,6 @@ function AnalysisViewer({ row, walkTitle }: { row: AnalysisRow; walkTitle: strin
         <SummaryCard label="Risks" value={counts.risk} />
       </div>
 
-      {/* Site Diary */}
       {a.site_diary_summary && (
         <Section title="Site Diary Summary">
           <div className="rounded-md border border-border bg-background p-3 text-sm leading-relaxed">
@@ -828,98 +981,38 @@ function AnalysisViewer({ row, walkTitle }: { row: AnalysisRow; walkTitle: strin
         </Section>
       )}
 
-      {/* Progress */}
-      <Section title="Progress Identified" badge="Suggested" empty={counts.progress === 0}>
-        {a.progress_items?.map((p, i) => {
-          const key = `p${i}`;
-          return (
-            <ReviewRow
-              key={key}
-              text={edits[key] ?? `${p.description}${p.location ? ` — ${p.location}` : ""}`}
-              confidence={p.confidence}
-              state={states[key] ?? "suggested"}
-              editing={editingKey === key}
-              onEdit={() => setEditingKey(editingKey === key ? null : key)}
-              onChange={(v) => setEdits((e) => ({ ...e, [key]: v }))}
-              onApprove={() => setState(key, "approved")}
-              onReject={() => setState(key, "rejected")}
-            />
-          );
+      <Section title="Progress Identified" empty={counts.progress === 0}>
+        {a.progress_items?.map((p) => {
+          const original = `${p.description}${p.location ? ` — ${p.location}` : ""}`;
+          return renderRow("progress", original, p.confidence);
         })}
       </Section>
 
-      {/* Procurement */}
-      <Section title="Procurement Requirements" badge="Suggested" empty={counts.procurement === 0}>
-        {a.procurement_items?.map((p, i) => {
-          const key = `m${i}`;
-          const base = `${p.quantity ? `${p.quantity} ` : ""}${p.unit ? `${p.unit} ` : ""}${p.description}${
+      <Section title="Procurement Requirements" empty={counts.procurement === 0}>
+        {a.procurement_items?.map((p) => {
+          const original = `${p.quantity ? `${p.quantity} ` : ""}${p.unit ? `${p.unit} ` : ""}${p.description}${
             p.location ? ` — ${p.location}` : ""
           }`.trim();
-          return (
-            <ReviewRow
-              key={key}
-              text={edits[key] ?? base}
-              confidence={p.confidence}
-              state={states[key] ?? "suggested"}
-              editing={editingKey === key}
-              onEdit={() => setEditingKey(editingKey === key ? null : key)}
-              onChange={(v) => setEdits((e) => ({ ...e, [key]: v }))}
-              onApprove={() => setState(key, "approved")}
-              onReject={() => setState(key, "rejected")}
-            />
-          );
+          return renderRow("procurement", original, p.confidence);
         })}
       </Section>
 
-      {/* Variations */}
-      <Section title="Potential Variations" badge="Suggested" empty={counts.variation === 0}>
-        {a.variation_items?.map((p, i) => {
-          const key = `v${i}`;
-          return (
-            <ReviewRow
-              key={key}
-              text={edits[key] ?? `${p.description}${p.location ? ` — ${p.location}` : ""}`}
-              confidence={p.confidence}
-              state={states[key] ?? "suggested"}
-              editing={editingKey === key}
-              onEdit={() => setEditingKey(editingKey === key ? null : key)}
-              onChange={(v) => setEdits((e) => ({ ...e, [key]: v }))}
-              onApprove={() => setState(key, "approved")}
-              onReject={() => setState(key, "rejected")}
-            />
-          );
+      <Section title="Potential Variations" empty={counts.variation === 0}>
+        {a.variation_items?.map((p) => {
+          const original = `${p.description}${p.location ? ` — ${p.location}` : ""}`;
+          return renderRow("variation", original, p.confidence);
         })}
       </Section>
 
-      {/* Risks */}
-      <Section title="Risks & Delays" badge="Information Only" empty={counts.risk === 0}>
-        {a.risk_items?.map((p, i) => {
-          const key = `r${i}`;
-          return (
-            <div
-              key={key}
-              className="flex items-start justify-between gap-3 p-3 rounded-md border border-border bg-background"
-            >
-              <div className="text-sm flex-1">
-                {p.description}
-                {p.location && (
-                  <span className="text-muted-foreground"> — {p.location}</span>
-                )}
-              </div>
-              <span
-                className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${confidenceClass(
-                  p.confidence,
-                )}`}
-              >
-                {p.confidence}
-              </span>
-            </div>
-          );
+      <Section title="Risks & Delays" empty={counts.risk === 0}>
+        {a.risk_items?.map((p) => {
+          const original = `${p.description}${p.location ? ` — ${p.location}` : ""}`;
+          return renderRow("risk", original, p.confidence);
         })}
       </Section>
 
       <p className="text-[11px] text-muted-foreground text-center pt-2">
-        All findings are <strong>suggestions only</strong>. No project records have been created or modified.
+        Approving a procurement or variation finding creates a real record. Progress &amp; risk approvals are stored for audit only.
       </p>
     </div>
   );
@@ -971,6 +1064,7 @@ function ReviewRow({
   confidence,
   state,
   editing,
+  busy,
   onEdit,
   onChange,
   onApprove,
@@ -980,6 +1074,7 @@ function ReviewRow({
   confidence: Confidence;
   state: ItemState;
   editing: boolean;
+  busy?: boolean;
   onEdit: () => void;
   onChange: (v: string) => void;
   onApprove: () => void;
@@ -1012,17 +1107,20 @@ function ReviewRow({
           size="sm"
           variant={state === "approved" ? "default" : "outline"}
           className="gap-1 h-8"
+          disabled={busy}
           onClick={onApprove}
         >
-          <Check className="w-3 h-3" /> Approve
+          {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+          Approve
         </Button>
-        <Button size="sm" variant="ghost" className="gap-1 h-8" onClick={onEdit}>
-          <Pencil className="w-3 h-3" /> {editing ? "Done" : "Edit"}
+        <Button size="sm" variant="ghost" className="gap-1 h-8" onClick={onEdit} disabled={busy}>
+          <Pencil className="w-3 h-3" /> {editing ? "Save" : "Edit"}
         </Button>
         <Button
           size="sm"
           variant={state === "rejected" ? "destructive" : "ghost"}
           className="gap-1 h-8"
+          disabled={busy}
           onClick={onReject}
         >
           <X className="w-3 h-3" /> Reject
@@ -1031,3 +1129,4 @@ function ReviewRow({
     </div>
   );
 }
+

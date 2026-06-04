@@ -9,6 +9,7 @@ import { ProgressTab } from "@/components/project/ProgressTab";
 import { ValuationsTab } from "@/components/project/ValuationsTab";
 import { ProcurementTab } from "@/components/project/ProcurementTab";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
+import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
 
 type Project = {
   id: string;
@@ -85,6 +86,7 @@ function ProjectDetail() {
           <TabsTrigger value="valuations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Valuations</TabsTrigger>
           <TabsTrigger value="procurement" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Procurement</TabsTrigger>
           <TabsTrigger value="sitewalks" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Site Walks</TabsTrigger>
+          <TabsTrigger value="review" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">AI Review</TabsTrigger>
         </TabsList>
 
         <TabsContent value="scope" className="mt-4">
@@ -101,6 +103,9 @@ function ProjectDetail() {
         </TabsContent>
         <TabsContent value="sitewalks" className="mt-4">
           <SiteWalksTab projectId={project.id} />
+        </TabsContent>
+        <TabsContent value="review" className="mt-4">
+          <ReviewQueueTab projectId={project.id} />
         </TabsContent>
       </Tabs>
     </main>
