@@ -316,8 +316,8 @@ export function ClaimOpportunitiesTab({ projectId }: { projectId: string }) {
                 )}
                 {c.status === "Approved" && (
                   <div className="flex gap-2 justify-end pt-2 border-t border-border">
-                    <Button size="sm" onClick={() => moveToBasket(c)}>
-                      <ShoppingBasket className="w-3 h-3 mr-1" />Move to Basket
+                    <Button size="sm" onClick={() => markReadyToClaim(c)}>
+                      <ClipboardCheck className="w-3 h-3 mr-1" />Mark Ready To Claim
                     </Button>
                   </div>
                 )}
