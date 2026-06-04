@@ -303,6 +303,12 @@ export function ClaimOpportunitiesTab({ projectId }: { projectId: string }) {
                       </>
                     )}
                   </div>
+                {c.status === "Approved" && (
+                  <div className="flex gap-2 justify-end pt-2 border-t border-border">
+                    <Button size="sm" variant="ghost" onClick={() => updateStatus(c.id, "Moved To Basket")}>
+                      <ShoppingBasket className="w-3 h-3 mr-1" />Move to Basket
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
