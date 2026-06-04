@@ -43,7 +43,15 @@ const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP",
 function ProjectDetail() {
   const { id } = Route.useParams();
   const [project, setProject] = useState<Project | null>(null);
-  const [stats, setStats] = useState<HeaderStats>({ openVariations: 0, procurementOutstanding: 0, potentialClaim: 0 });
+  const [stats, setStats] = useState<HeaderStats>({
+    openVariations: 0,
+    procurementOutstanding: 0,
+    potentialClaim: 0,
+    approvedClaim: 0,
+    readyToClaim: 0,
+    includedInValuation: 0,
+    paid: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,10 +67,19 @@ function ProjectDetail() {
       setProject((p as Project) ?? null);
       const openVariations = (vars ?? []).filter((v: any) => v.status !== "Approved" && v.status !== "Rejected").length;
       const procurementOutstanding = (procs ?? []).filter((x: any) => x.status === "Required" || x.status === "Quoted").length;
-      const potentialClaim = (pcs ?? [])
-        .filter((c: any) => c.status === "Suggested")
-        .reduce((s: number, c: any) => s + Number(c.contract_value ?? 0), 0);
-      setStats({ openVariations, procurementOutstanding, potentialClaim });
+      const sumBy = (status: string) =>
+        (pcs ?? [])
+          .filter((c: any) => c.status === status)
+          .reduce((s: number, c: any) => s + Number(c.contract_value ?? 0), 0);
+      setStats({
+        openVariations,
+        procurementOutstanding,
+        potentialClaim: sumBy("Suggested"),
+        approvedClaim: sumBy("Approved"),
+        readyToClaim: sumBy("Ready To Claim"),
+        includedInValuation: sumBy("Included In Valuation"),
+        paid: sumBy("Paid"),
+      });
       setLoading(false);
     })();
   }, [id]);
