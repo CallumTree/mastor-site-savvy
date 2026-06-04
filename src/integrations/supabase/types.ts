@@ -194,6 +194,50 @@ export type Database = {
           },
         ]
       }
+      project_documents: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_type: string
+          id: string
+          parsed_at: string | null
+          project_id: string
+          size_bytes: number | null
+          uploaded_at: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_type: string
+          id?: string
+          parsed_at?: string | null
+          project_id: string
+          size_bytes?: number | null
+          uploaded_at?: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_type?: string
+          id?: string
+          parsed_at?: string | null
+          project_id?: string
+          size_bytes?: number | null
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           client: string | null
@@ -241,6 +285,73 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      scope_elements: {
+        Row: {
+          confidence: string
+          created_at: string
+          description: string | null
+          document_id: string | null
+          element_type: string
+          id: string
+          parent_id: string | null
+          project_id: string
+          quantity: number | null
+          source_reference: string | null
+          title: string
+          unit: string | null
+        }
+        Insert: {
+          confidence?: string
+          created_at?: string
+          description?: string | null
+          document_id?: string | null
+          element_type: string
+          id?: string
+          parent_id?: string | null
+          project_id: string
+          quantity?: number | null
+          source_reference?: string | null
+          title: string
+          unit?: string | null
+        }
+        Update: {
+          confidence?: string
+          created_at?: string
+          description?: string | null
+          document_id?: string | null
+          element_type?: string
+          id?: string
+          parent_id?: string | null
+          project_id?: string
+          quantity?: number | null
+          source_reference?: string | null
+          title?: string
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scope_elements_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "project_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scope_elements_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "scope_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scope_elements_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       site_walks: {
         Row: {
