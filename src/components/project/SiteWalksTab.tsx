@@ -122,6 +122,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const recognitionRef = useRef<SR | null>(null);
   const shouldRestartRef = useRef(false);
   const transcriptRef = useRef("");
+  const sessionBaseRef = useRef("");
 
   const analyseFn = useServerFn(analyseSiteWalk);
   const speechSupported = !!getSpeechRecognition();
@@ -181,32 +182,30 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "en-GB";
-    // Per-instance dedup: each final result index is committed exactly once.
-    const committed = new Set<number>();
+    // Android Chrome emits cumulative final results (each new final extends
+    // the previous text). Instead of dedup-by-index + append, we treat the
+    // engine's current result set as authoritative for THIS session and
+    // overwrite the session portion of the transcript on every event.
     rec.onresult = (event: any) => {
-      let newFinal = "";
-      let interimChunk = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      let sessionFinal = "";
+      let sessionInterim = "";
+      for (let i = 0; i < event.results.length; i++) {
         const res = event.results[i];
         const text = (res[0]?.transcript ?? "").trim();
         if (!text) continue;
         if (res.isFinal) {
-          if (committed.has(i)) continue;
-          committed.add(i);
-          newFinal += (newFinal ? " " : "") + text;
+          sessionFinal += (sessionFinal ? " " : "") + text;
         } else {
-          interimChunk += (interimChunk ? " " : "") + text;
+          sessionInterim += (sessionInterim ? " " : "") + text;
         }
       }
-      if (newFinal) {
-        const current = transcriptRef.current;
-        const sep = current && !/\s$/.test(current) ? " " : "";
-        const next = current + sep + newFinal;
-        transcriptRef.current = next;
-        setTranscript(next);
-      }
+      const base = sessionBaseRef.current;
+      const sep = base && sessionFinal && !/\s$/.test(base) ? " " : "";
+      const next = base + (sessionFinal ? sep + sessionFinal : "");
+      transcriptRef.current = next;
+      setTranscript(next);
       // Interim is preview-only — never written into the saved transcript.
-      setInterim(interimChunk);
+      setInterim(sessionInterim);
     };
     rec.onerror = (e: any) => {
       const err = e?.error;
@@ -221,6 +220,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     rec.onend = () => {
       // Drop any uncommitted interim from the ended session.
       setInterim("");
+      // Fold completed session into the base so the next session starts clean.
+      sessionBaseRef.current = transcriptRef.current;
       if (shouldRestartRef.current) {
         try {
           rec.start();
@@ -236,6 +237,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     if (!rec) return;
     recognitionRef.current = rec;
     shouldRestartRef.current = true;
+    // New session: anchor to whatever is already in the transcript.
+    sessionBaseRef.current = transcriptRef.current;
     try {
       rec.start();
     } catch {}
@@ -252,6 +255,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const handleStart = () => {
     setTranscript("");
     transcriptRef.current = "";
+    sessionBaseRef.current = "";
     setInterim("");
     setSeconds(0);
     setMicDenied(false);
@@ -285,6 +289,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       const prefix = current && !current.endsWith("\n") ? "\n" : "";
       const next = current + prefix + marker;
       transcriptRef.current = next;
+      sessionBaseRef.current = next;
       setTranscript(next);
       return;
     }
@@ -296,6 +301,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     const inserted = needsLeadingNl + marker;
     const next = before + inserted + after;
     transcriptRef.current = next;
+    sessionBaseRef.current = next;
     setTranscript(next);
     requestAnimationFrame(() => {
       const pos = (before + inserted).length;
@@ -538,6 +544,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               value={transcript}
               onChange={(e) => {
                 transcriptRef.current = e.target.value;
+                sessionBaseRef.current = e.target.value;
                 setTranscript(e.target.value);
               }}
               placeholder={

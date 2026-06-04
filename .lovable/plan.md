@@ -1,48 +1,37 @@
-## Valuation engine
+## Problem
 
-Build on the existing schema — no migration needed. `contract_items` holds `total_qty` + `unit_rate`; each claim is a row in `valuation_items` (`claimed_qty`, `claimed_value`) belonging to a `valuations` period. The "engine" is just an aggregation across all valuation_items for the project, sliced by current vs. previous draft.
+On Android Chrome, the Web Speech API emits final results that **grow cumulatively** — each new final result repeats and extends the previous one ("so" → "so in" → "so in the" → "so in the kitchen" → "so in the kitchen suite is ready"). The current code dedupes by `resultIndex` and appends each new final as if it were a new phrase, so a single spoken sentence ("the kitchen is ready to be ordered") gets appended dozens of times in growing fragments.
 
-## Workflow
+The current `committed: Set<number>` strategy is the wrong model for Android — the engine reuses/grows indices instead of producing one immutable final per index.
 
-1. User opens the Valuations tab → sees list of periods (existing).
-2. User creates or expands a **Draft** valuation. A draft is the "current claim period". Only one draft should be active at a time (enforced softly: "New draft" disabled while a Draft exists).
-3. Inside the draft, Mastor renders a **Claim Progress** table — one row per contract item — with the engine columns and an editable "This Claim" qty input + Save per row.
-4. On Save, upsert one `valuation_items` row keyed by `(valuation_id, contract_item_id)` with `claimed_qty = thisClaim` and `claimed_value = thisClaim × unit_rate`. Then refetch.
+## Fix (single file: `src/components/project/SiteWalksTab.tsx`)
 
-## Engine columns (per contract item)
+Rewrite the recognition result handling in `createRecognition` and the session lifecycle:
 
-| Column | Source |
-|---|---|
-| Code | `contract_items.code` |
-| Description | `contract_items.description` |
-| Total Qty | `contract_items.total_qty` |
-| Unit Rate | `contract_items.unit_rate` |
-| Previously Claimed | Σ `valuation_items.claimed_qty` for this contract_item across valuations **other than the current draft** |
-| This Claim | `valuation_items.claimed_qty` in the current draft (0 if no row) |
-| Total Claimed | Previously + This Claim |
-| Remaining Qty | `total_qty − Total Claimed` |
-| % Complete | `Total Claimed / total_qty × 100` |
-| Value Claimed | `Total Claimed × unit_rate` |
+1. **Snapshot a session base.** When a recognition session starts (and on every auto-restart inside `onend`), capture `sessionBaseRef = transcriptRef.current` — the committed transcript from all *previous* sessions.
 
-All numbers are recomputed from a fresh fetch of `contract_items` + `valuation_items` (filtered by `project_id`); nothing is held in local state beyond the edit input value.
+2. **Rebuild, don't append.** In `onresult`, iterate the full `event.results` from index 0 (not from `event.resultIndex`):
+   - Concatenate all `isFinal` transcripts into `sessionFinal`.
+   - Concatenate all non-final transcripts into `sessionInterim`.
+   - Set `transcript = sessionBase + (sep) + sessionFinal` (always overwrite, never append).
+   - Set `interim = sessionInterim` (preview only).
 
-## Data fetch (single load per draft expansion)
+   This makes the latest cumulative final result authoritative — duplicates collapse naturally because we replace instead of append.
 
-Two queries in parallel:
-- `contract_items` where `project_id = …`
-- `valuation_items` joined inline via `.in('valuation_id', allValuationIdsForProject)` — already grouped client-side into `previousByItem` (sum) and `currentByItem` (lookup) using the current draft id.
+3. **Auto-restart handling.** In `onend`, before restarting, fold the just-completed session's final text into `transcriptRef` (it already is, via step 2) and reset `sessionBaseRef` to the new `transcriptRef.current` so the next session starts from a clean base. Clear interim.
 
-Per Save, only re-run the valuation_items query (contract_items don't change here).
+4. **Pause/Resume.** `handlePause` already calls `stopRecognition` and `handleResume` calls `startRecognition` — both will get a fresh session base via step 1, so resumed speech appends cleanly after the paused transcript.
 
-## UX details
+5. **Manual area markers** (e.g. "[Kitchen]") inserted while recording also become part of the new `sessionBaseRef` automatically on the next restart; to be safe, refresh `sessionBaseRef = transcriptRef.current` whenever an area marker is inserted mid-recording.
 
-- Engine table is mobile-first, two-row stacked layout under `sm`, full table at `sm+`.
-- Per-row Save button enabled only when input differs from stored `currentByItem` qty.
-- Footer row shows totals: Σ Value Claimed (this draft), Σ Value Claimed (cumulative).
-- Existing "view items" list inside non-draft (Submitted) valuations stays read-only as today.
+6. Remove the now-unused `committed: Set<number>`.
 
-## Files touched
+## Out of scope
 
-- `src/components/project/ValuationsTab.tsx` — extend to render the engine inside the expanded draft. New subcomponent `ClaimProgressTable` colocated in the same file (small, single-purpose).
+- No change to the analysis engine, approval workflow, DB schema, or UI layout.
+- No switch to ElevenLabs realtime (can be a follow-up if Web Speech remains unreliable on other devices).
+- Save flow already uses `transcript.trim()` (final-only state), so saved data is correct once the live state is correct.
 
-No schema, RLS, or route changes. No new dependencies.
+## Expected result
+
+Saying "the kitchen is ready to be ordered" once produces exactly that text in the transcript, regardless of how many cumulative interim/final updates Android Chrome emits.
