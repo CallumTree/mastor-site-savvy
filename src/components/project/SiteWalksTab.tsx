@@ -288,6 +288,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       const prefix = current && !current.endsWith("\n") ? "\n" : "";
       const next = current + prefix + marker;
       transcriptRef.current = next;
+      sessionBaseRef.current = next;
       setTranscript(next);
       return;
     }
