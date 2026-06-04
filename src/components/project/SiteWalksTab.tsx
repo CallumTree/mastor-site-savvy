@@ -255,6 +255,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const handleStart = () => {
     setTranscript("");
     transcriptRef.current = "";
+    sessionBaseRef.current = "";
     setInterim("");
     setSeconds(0);
     setMicDenied(false);
