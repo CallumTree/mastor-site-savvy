@@ -1,0 +1,2 @@
+ALTER TABLE public.potential_claims DROP CONSTRAINT potential_claims_status_check;
+ALTER TABLE public.potential_claims ADD CONSTRAINT potential_claims_status_check CHECK (status = ANY (ARRAY['Suggested'::text, 'Approved'::text, 'Rejected'::text, 'Moved To Basket'::text, 'Added To Valuation'::text]));

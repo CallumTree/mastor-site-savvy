@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Sparkles, Check, X, Pencil, Save, ChevronDown, ChevronRight } from "lucide-react";
+import { Sparkles, Check, X, Pencil, Save, ChevronDown, ChevronRight, ShoppingBasket } from "lucide-react";
 
 const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
 
@@ -19,7 +19,7 @@ type Claim = {
   claim_description: string | null;
   contract_value: number | null;
   confidence_score: "high" | "medium" | "low";
-  status: "Suggested" | "Approved" | "Rejected" | "Added To Valuation";
+  status: "Suggested" | "Approved" | "Rejected" | "Moved To Basket" | "Added To Valuation";
   approved_at: string | null;
   rejected_at: string | null;
   created_at: string;
@@ -43,7 +43,7 @@ type Finding = {
 
 type Doc = { id: string; file_name: string };
 
-export function ValuationIntelligenceTab({ projectId }: { projectId: string }) {
+export function ClaimOpportunitiesTab({ projectId }: { projectId: string }) {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [scopeMap, setScopeMap] = useState<Record<string, ScopeEl>>({});
   const [findingMap, setFindingMap] = useState<Record<string, Finding>>({});
@@ -163,7 +163,7 @@ export function ValuationIntelligenceTab({ projectId }: { projectId: string }) {
 
   // Summary stats
   const potential = claims.filter((c) => c.status === "Suggested");
-  const approved = claims.filter((c) => c.status === "Approved" || c.status === "Added To Valuation");
+  const approved = claims.filter((c) => c.status === "Approved" || c.status === "Moved To Basket" || c.status === "Added To Valuation");
   const potentialValue = potential.reduce((s, c) => s + Number(c.contract_value ?? 0), 0);
   const approvedValue = approved.reduce((s, c) => s + Number(c.contract_value ?? 0), 0);
 
@@ -304,6 +304,13 @@ export function ValuationIntelligenceTab({ projectId }: { projectId: string }) {
                     )}
                   </div>
                 )}
+                {c.status === "Approved" && (
+                  <div className="flex gap-2 justify-end pt-2 border-t border-border">
+                    <Button size="sm" variant="ghost" onClick={() => updateStatus(c.id, "Moved To Basket")}>
+                      <ShoppingBasket className="w-3 h-3 mr-1" />Move to Basket
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -337,6 +344,7 @@ function StatusBadge({ status }: { status: Claim["status"] }) {
     Suggested: "bg-secondary text-foreground",
     Approved: "bg-green-500/15 text-green-500",
     Rejected: "bg-destructive/15 text-destructive",
+    "Moved To Basket": "bg-gold-foreground/15 text-gold-foreground",
     "Added To Valuation": "bg-primary/15 text-primary",
   };
   return (
