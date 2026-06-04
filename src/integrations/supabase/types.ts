@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      analysis_results: {
+        Row: {
+          analysis_json: Json
+          created_at: string
+          id: string
+          project_id: string
+          site_walk_id: string
+        }
+        Insert: {
+          analysis_json: Json
+          created_at?: string
+          id?: string
+          project_id: string
+          site_walk_id: string
+        }
+        Update: {
+          analysis_json?: Json
+          created_at?: string
+          id?: string
+          project_id?: string
+          site_walk_id?: string
+        }
+        Relationships: []
+      }
       contract_items: {
         Row: {
           code: string | null

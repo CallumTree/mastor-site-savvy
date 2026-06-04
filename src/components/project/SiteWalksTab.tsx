@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { analyseSiteWalk } from "@/lib/analysis.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +13,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Mic, MicOff, Pause, Play, Square, Eye, Trash2, Plus } from "lucide-react";
+import {
+  Mic,
+  MicOff,
+  Pause,
+  Play,
+  Square,
+  Eye,
+  Trash2,
+  Plus,
+  Sparkles,
+  Check,
+  X,
+  Pencil,
+  Loader2,
+} from "lucide-react";
 
 type SiteWalk = {
   id: string;
@@ -21,13 +37,41 @@ type SiteWalk = {
   created_at: string;
 };
 
+type Confidence = "high" | "medium" | "low";
+
+type ProgressItem = { description: string; location: string; confidence: Confidence };
+type ProcurementItem = {
+  description: string;
+  quantity: number;
+  unit: string;
+  location: string;
+  confidence: Confidence;
+};
+type VariationItem = { description: string; location: string; confidence: Confidence };
+type RiskItem = { description: string; location: string; confidence: Confidence };
+
+type Analysis = {
+  progress_items: ProgressItem[];
+  procurement_items: ProcurementItem[];
+  variation_items: VariationItem[];
+  risk_items: RiskItem[];
+  site_diary_summary: string;
+};
+
+type AnalysisRow = {
+  id: string;
+  site_walk_id: string;
+  project_id: string;
+  created_at: string;
+  analysis_json: Analysis;
+};
+
 type Status = "idle" | "recording" | "paused" | "finished";
+type ItemState = "suggested" | "approved" | "rejected";
 
 const QUICK_AREAS = ["Bedroom", "Bathroom", "Kitchen", "External"];
 
-// Minimal SpeechRecognition typing
 type SR = any;
-
 function getSpeechRecognition(): SR | null {
   if (typeof window === "undefined") return null;
   const w = window as any;
@@ -40,11 +84,15 @@ function formatDuration(total: number) {
   const s = Math.floor(total % 60).toString().padStart(2, "0");
   return `${h}:${m}:${s}`;
 }
-
 function formatMinutes(secs: number) {
   if (secs < 60) return `${secs}s`;
   const m = Math.round(secs / 60);
   return `${m} min${m === 1 ? "" : "s"}`;
+}
+function confidenceClass(c: Confidence) {
+  if (c === "high") return "border-emerald-500/40 text-emerald-700 bg-emerald-500/10";
+  if (c === "medium") return "border-amber-500/40 text-amber-700 bg-amber-500/10";
+  return "border-rose-500/40 text-rose-700 bg-rose-500/10";
 }
 
 export function SiteWalksTab({ projectId }: { projectId: string }) {
@@ -65,32 +113,46 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
   const [viewing, setViewing] = useState<SiteWalk | null>(null);
 
+  const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
+  const [analysingId, setAnalysingId] = useState<string | null>(null);
+  const [viewingAnalysis, setViewingAnalysis] = useState<AnalysisRow | null>(null);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const recognitionRef = useRef<SR | null>(null);
   const shouldRestartRef = useRef(false);
   const transcriptRef = useRef("");
 
+  const analyseFn = useServerFn(analyseSiteWalk);
   const speechSupported = !!getSpeechRecognition();
 
   useEffect(() => {
     transcriptRef.current = transcript;
   }, [transcript]);
 
-  const loadWalks = async () => {
+  const loadAll = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("site_walks")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: false });
-    if (error) toast.error(error.message);
-    setWalks((data ?? []) as SiteWalk[]);
+    const [{ data: walkData, error: we }, { data: anData, error: ae }] = await Promise.all([
+      supabase
+        .from("site_walks")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("analysis_results")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false }),
+    ]);
+    if (we) toast.error(we.message);
+    if (ae) toast.error(ae.message);
+    setWalks((walkData ?? []) as SiteWalk[]);
+    setAnalyses((anData ?? []) as unknown as AnalysisRow[]);
     setLoading(false);
   };
 
   useEffect(() => {
-    loadWalks();
+    loadAll();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       shouldRestartRef.current = false;
@@ -262,7 +324,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     setSeconds(0);
     setTitle("");
     setMicDenied(false);
-    loadWalks();
+    loadAll();
   };
 
   const handleCancelSave = () => {
@@ -275,8 +337,60 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     const { error } = await supabase.from("site_walks").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Deleted");
-    loadWalks();
+    loadAll();
   };
+
+  const analyseWalk = async (walk: SiteWalk) => {
+    if (!walk.transcript || !walk.transcript.trim()) {
+      toast.error("This site walk has no transcript to analyse.");
+      return;
+    }
+    setAnalysingId(walk.id);
+    try {
+      const result = await analyseFn({ data: { transcript: walk.transcript } });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("analysis_results")
+        .insert({
+          project_id: projectId,
+          site_walk_id: walk.id,
+          analysis_json: result.analysis as any,
+        })
+        .select("*")
+        .single();
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Analysis complete");
+      const row = data as unknown as AnalysisRow;
+      setAnalyses((prev) => [row, ...prev]);
+      setViewingAnalysis(row);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "Analysis failed");
+    } finally {
+      setAnalysingId(null);
+    }
+  };
+
+  const deleteAnalysis = async (id: string) => {
+    if (!confirm("Delete this analysis?")) return;
+    const { error } = await supabase.from("analysis_results").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    setAnalyses((prev) => prev.filter((a) => a.id !== id));
+    if (viewingAnalysis?.id === id) setViewingAnalysis(null);
+    toast.success("Analysis deleted");
+  };
+
+  const analysesByWalk = analyses.reduce<Record<string, AnalysisRow[]>>((acc, a) => {
+    (acc[a.site_walk_id] ||= []).push(a);
+    return acc;
+  }, {});
+  const walkById = new Map(walks.map((w) => [w.id, w]));
 
   const isActive = status === "recording" || status === "paused";
   const statusLabel =
@@ -318,7 +432,9 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 {voiceActive ? "Listening" : "Mic off"}
               </span>
             )}
-            <span className={`text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusColor}`}>
+            <span
+              className={`text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusColor}`}
+            >
               {statusLabel}
             </span>
           </div>
@@ -447,42 +563,120 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           </div>
         ) : (
           <div className="space-y-2">
-            {walks.map((w) => (
-              <div
-                key={w.id}
-                className="flex items-center justify-between gap-3 p-4 rounded-lg bg-card border border-border hover:border-primary/40 transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-foreground truncate">
-                    {w.title || "Untitled site walk"}
+            {walks.map((w) => {
+              const count = analysesByWalk[w.id]?.length ?? 0;
+              const busy = analysingId === w.id;
+              return (
+                <div
+                  key={w.id}
+                  className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-card border border-border hover:border-primary/40 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-foreground truncate">
+                      {w.title || "Untitled site walk"}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      {new Date(w.created_at).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}{" "}
+                      · {formatMinutes(w.duration_seconds)}
+                      {count > 0 && (
+                        <span className="ml-2 text-primary">
+                          · {count} analysis{count === 1 ? "" : "es"}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
-                    {new Date(w.created_at).toLocaleDateString("en-GB", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}{" "}
-                    · {formatMinutes(w.duration_seconds)}
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="sm" variant="ghost" className="gap-1" onClick={() => setViewing(w)}>
+                      <Eye className="w-4 h-4" /> View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                      disabled={busy}
+                      onClick={() => analyseWalk(w)}
+                    >
+                      {busy ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                      {busy ? "Analysing…" : "Analyse Walk"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1 text-destructive hover:text-destructive"
+                      onClick={() => deleteWalk(w.id)}
+                    >
+                      <Trash2 className="w-4 h-4" /> Delete
+                    </Button>
                   </div>
                 </div>
-                <div className="flex gap-1 shrink-0">
-                  <Button size="sm" variant="ghost" className="gap-1" onClick={() => setViewing(w)}>
-                    <Eye className="w-4 h-4" /> View
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="gap-1 text-destructive hover:text-destructive"
-                    onClick={() => deleteWalk(w.id)}
-                  >
-                    <Trash2 className="w-4 h-4" /> Delete
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
+
+      {/* Previous Analyses */}
+      {analyses.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            Previous Analyses
+          </h3>
+          <div className="space-y-2">
+            {analyses.map((a) => {
+              const walk = walkById.get(a.site_walk_id);
+              const aj = a.analysis_json;
+              return (
+                <div
+                  key={a.id}
+                  className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-card border border-border"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate">
+                      {walk?.title || "Site walk"}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      {new Date(a.created_at).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}{" "}
+                      · Progress {aj.progress_items?.length ?? 0} · Procurement{" "}
+                      {aj.procurement_items?.length ?? 0} · Variations{" "}
+                      {aj.variation_items?.length ?? 0} · Risks {aj.risk_items?.length ?? 0}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1"
+                      onClick={() => setViewingAnalysis(a)}
+                    >
+                      <Eye className="w-4 h-4" /> View Analysis
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1 text-destructive hover:text-destructive"
+                      onClick={() => deleteAnalysis(a.id)}
+                    >
+                      <Trash2 className="w-4 h-4" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Custom area dialog */}
       <Dialog open={customOpen} onOpenChange={setCustomOpen}>
@@ -543,7 +737,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* View dialog */}
+      {/* View transcript dialog */}
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -566,6 +760,274 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Analysis viewer */}
+      <Dialog open={!!viewingAnalysis} onOpenChange={(o) => !o && setViewingAnalysis(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" /> AI Review Queue
+            </DialogTitle>
+          </DialogHeader>
+          {viewingAnalysis && (
+            <AnalysisViewer
+              row={viewingAnalysis}
+              walkTitle={walkById.get(viewingAnalysis.site_walk_id)?.title ?? "Site walk"}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/* -------------------------- Analysis Viewer -------------------------- */
+
+function AnalysisViewer({ row, walkTitle }: { row: AnalysisRow; walkTitle: string }) {
+  const a = row.analysis_json;
+  // Local-only states — no records are created. User stays in control.
+  const [states, setStates] = useState<Record<string, ItemState>>({});
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+
+  const setState = (k: string, s: ItemState) =>
+    setStates((p) => ({ ...p, [k]: p[k] === s ? "suggested" : s }));
+
+  const counts = {
+    progress: a.progress_items?.length ?? 0,
+    procurement: a.procurement_items?.length ?? 0,
+    variation: a.variation_items?.length ?? 0,
+    risk: a.risk_items?.length ?? 0,
+  };
+
+  return (
+    <div className="space-y-5 overflow-y-auto pr-1">
+      <div className="text-[11px] text-muted-foreground">
+        {walkTitle} ·{" "}
+        {new Date(row.created_at).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })}
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <SummaryCard label="Progress" value={counts.progress} />
+        <SummaryCard label="Procurement" value={counts.procurement} />
+        <SummaryCard label="Variations" value={counts.variation} />
+        <SummaryCard label="Risks" value={counts.risk} />
+      </div>
+
+      {/* Site Diary */}
+      {a.site_diary_summary && (
+        <Section title="Site Diary Summary">
+          <div className="rounded-md border border-border bg-background p-3 text-sm leading-relaxed">
+            {a.site_diary_summary}
+          </div>
+        </Section>
+      )}
+
+      {/* Progress */}
+      <Section title="Progress Identified" badge="Suggested" empty={counts.progress === 0}>
+        {a.progress_items?.map((p, i) => {
+          const key = `p${i}`;
+          return (
+            <ReviewRow
+              key={key}
+              text={edits[key] ?? `${p.description}${p.location ? ` — ${p.location}` : ""}`}
+              confidence={p.confidence}
+              state={states[key] ?? "suggested"}
+              editing={editingKey === key}
+              onEdit={() => setEditingKey(editingKey === key ? null : key)}
+              onChange={(v) => setEdits((e) => ({ ...e, [key]: v }))}
+              onApprove={() => setState(key, "approved")}
+              onReject={() => setState(key, "rejected")}
+            />
+          );
+        })}
+      </Section>
+
+      {/* Procurement */}
+      <Section title="Procurement Requirements" badge="Suggested" empty={counts.procurement === 0}>
+        {a.procurement_items?.map((p, i) => {
+          const key = `m${i}`;
+          const base = `${p.quantity ? `${p.quantity} ` : ""}${p.unit ? `${p.unit} ` : ""}${p.description}${
+            p.location ? ` — ${p.location}` : ""
+          }`.trim();
+          return (
+            <ReviewRow
+              key={key}
+              text={edits[key] ?? base}
+              confidence={p.confidence}
+              state={states[key] ?? "suggested"}
+              editing={editingKey === key}
+              onEdit={() => setEditingKey(editingKey === key ? null : key)}
+              onChange={(v) => setEdits((e) => ({ ...e, [key]: v }))}
+              onApprove={() => setState(key, "approved")}
+              onReject={() => setState(key, "rejected")}
+            />
+          );
+        })}
+      </Section>
+
+      {/* Variations */}
+      <Section title="Potential Variations" badge="Suggested" empty={counts.variation === 0}>
+        {a.variation_items?.map((p, i) => {
+          const key = `v${i}`;
+          return (
+            <ReviewRow
+              key={key}
+              text={edits[key] ?? `${p.description}${p.location ? ` — ${p.location}` : ""}`}
+              confidence={p.confidence}
+              state={states[key] ?? "suggested"}
+              editing={editingKey === key}
+              onEdit={() => setEditingKey(editingKey === key ? null : key)}
+              onChange={(v) => setEdits((e) => ({ ...e, [key]: v }))}
+              onApprove={() => setState(key, "approved")}
+              onReject={() => setState(key, "rejected")}
+            />
+          );
+        })}
+      </Section>
+
+      {/* Risks */}
+      <Section title="Risks & Delays" badge="Information Only" empty={counts.risk === 0}>
+        {a.risk_items?.map((p, i) => {
+          const key = `r${i}`;
+          return (
+            <div
+              key={key}
+              className="flex items-start justify-between gap-3 p-3 rounded-md border border-border bg-background"
+            >
+              <div className="text-sm flex-1">
+                {p.description}
+                {p.location && (
+                  <span className="text-muted-foreground"> — {p.location}</span>
+                )}
+              </div>
+              <span
+                className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${confidenceClass(
+                  p.confidence,
+                )}`}
+              >
+                {p.confidence}
+              </span>
+            </div>
+          );
+        })}
+      </Section>
+
+      <p className="text-[11px] text-muted-foreground text-center pt-2">
+        All findings are <strong>suggestions only</strong>. No project records have been created or modified.
+      </p>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-3 text-center">
+      <div className="text-2xl font-semibold text-primary tabular-nums">{value}</div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  badge,
+  empty,
+  children,
+}: {
+  title: string;
+  badge?: string;
+  empty?: boolean;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{title}</h4>
+        {badge && (
+          <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-primary/30 text-primary bg-primary/5">
+            {badge}
+          </span>
+        )}
+      </div>
+      {empty ? (
+        <p className="text-xs text-muted-foreground italic">None identified.</p>
+      ) : (
+        <div className="space-y-2">{children}</div>
+      )}
+    </div>
+  );
+}
+
+function ReviewRow({
+  text,
+  confidence,
+  state,
+  editing,
+  onEdit,
+  onChange,
+  onApprove,
+  onReject,
+}: {
+  text: string;
+  confidence: Confidence;
+  state: ItemState;
+  editing: boolean;
+  onEdit: () => void;
+  onChange: (v: string) => void;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  const stateRing =
+    state === "approved"
+      ? "border-emerald-500/50 bg-emerald-500/5"
+      : state === "rejected"
+      ? "border-rose-500/40 bg-rose-500/5 opacity-70"
+      : "border-border bg-background";
+  return (
+    <div className={`flex flex-wrap items-start gap-2 p-3 rounded-md border ${stateRing}`}>
+      <div className="flex-1 min-w-0">
+        {editing ? (
+          <Input value={text} onChange={(e) => onChange(e.target.value)} className="text-sm" />
+        ) : (
+          <div className="text-sm break-words">{text}</div>
+        )}
+      </div>
+      <span
+        className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${confidenceClass(
+          confidence,
+        )}`}
+      >
+        {confidence}
+      </span>
+      <div className="flex gap-1 shrink-0">
+        <Button
+          size="sm"
+          variant={state === "approved" ? "default" : "outline"}
+          className="gap-1 h-8"
+          onClick={onApprove}
+        >
+          <Check className="w-3 h-3" /> Approve
+        </Button>
+        <Button size="sm" variant="ghost" className="gap-1 h-8" onClick={onEdit}>
+          <Pencil className="w-3 h-3" /> {editing ? "Done" : "Edit"}
+        </Button>
+        <Button
+          size="sm"
+          variant={state === "rejected" ? "destructive" : "ghost"}
+          className="gap-1 h-8"
+          onClick={onReject}
+        >
+          <X className="w-3 h-3" /> Reject
+        </Button>
+      </div>
     </div>
   );
 }
