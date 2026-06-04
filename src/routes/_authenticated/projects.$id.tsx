@@ -5,7 +5,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ChevronLeft, MapPin, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { ScopeTab } from "@/components/project/ScopeTab";
-import { ProgressTab } from "@/components/project/ProgressTab";
 import { ValuationsTab } from "@/components/project/ValuationsTab";
 import { ProcurementTab } from "@/components/project/ProcurementTab";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
@@ -21,6 +20,12 @@ type Project = {
   progress: number;
 };
 
+type HeaderStats = {
+  openVariations: number;
+  procurementOutstanding: number;
+  potentialClaim: number;
+};
+
 export const Route = createFileRoute("/_authenticated/projects/$id")({
   head: () => ({ meta: [{ title: "Project — Mastor" }] }),
   component: ProjectDetail,
@@ -31,14 +36,31 @@ const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP",
 function ProjectDetail() {
   const { id } = Route.useParams();
   const [project, setProject] = useState<Project | null>(null);
+  const [stats, setStats] = useState<HeaderStats>({ openVariations: 0, procurementOutstanding: 0, potentialClaim: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase.from("projects").select("*").eq("id", id).maybeSingle();
-      if (error) toast.error(error.message);
-      setProject(data as Project | null);
+      const [{ data: p, error: pe }, { data: vars }, { data: procs }, { data: vals }] = await Promise.all([
+        supabase.from("projects").select("*").eq("id", id).maybeSingle(),
+        supabase.from("variations").select("status").eq("project_id", id),
+        (supabase as any).from("procurement_items").select("status, estimated_cost").eq("project_id", id),
+        supabase
+          .from("valuations")
+          .select("id, status, valuation_items(claimed_value)")
+          .eq("project_id", id)
+          .eq("status", "Draft"),
+      ]);
+      if (pe) toast.error(pe.message);
+      setProject((p as Project) ?? null);
+      const openVariations = (vars ?? []).filter((v: any) => v.status !== "Approved" && v.status !== "Rejected").length;
+      const procurementOutstanding = (procs ?? []).filter((x: any) => x.status === "Required" || x.status === "Quoted").length;
+      const potentialClaim = (vals ?? []).reduce((s: number, v: any) => {
+        const items = v.valuation_items ?? [];
+        return s + items.reduce((ss: number, it: any) => ss + Number(it.claimed_value ?? 0), 0);
+      }, 0);
+      setStats({ openVariations, procurementOutstanding, potentialClaim });
       setLoading(false);
     })();
   }, [id]);
@@ -73,39 +95,54 @@ function ProjectDetail() {
           {project.client && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{project.client}</span>}
           {project.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location}</span>}
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
           <Metric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} />
           <Metric label="Progress" value={`${project.progress ?? 0}%`} />
+          <Metric label="Open Variations" value={String(stats.openVariations)} />
+          <Metric label="Procurement Outstanding" value={String(stats.procurementOutstanding)} />
+          <Metric label="Potential Claim" value={GBP.format(stats.potentialClaim)} />
         </div>
       </header>
 
       <Tabs defaultValue="scope">
-        <TabsList className="w-full justify-start overflow-x-auto bg-secondary p-1 h-auto flex-wrap">
-          <TabsTrigger value="scope" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Scope & Variations</TabsTrigger>
-          <TabsTrigger value="progress" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Site Progress</TabsTrigger>
-          <TabsTrigger value="valuations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Valuations</TabsTrigger>
-          <TabsTrigger value="procurement" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Procurement</TabsTrigger>
+        <TabsList className="w-full grid grid-cols-3 bg-secondary p-1 h-auto">
+          <TabsTrigger value="scope" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Scope</TabsTrigger>
           <TabsTrigger value="sitewalks" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Site Walks</TabsTrigger>
-          <TabsTrigger value="review" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">AI Review</TabsTrigger>
+          <TabsTrigger value="commercial" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Commercial</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="scope" className="mt-4">
+        <TabsContent value="scope" className="mt-4 space-y-8">
           <ScopeTab projectId={project.id} />
+          <Section title="Project Documents">
+            <Placeholder message="No documents uploaded yet. Drawings, contracts and specifications will appear here." />
+          </Section>
+          <Section title="Upload Centre">
+            <Placeholder message="BoQ uploads, schedules and scope parser results coming soon." />
+          </Section>
         </TabsContent>
-        <TabsContent value="progress" className="mt-4">
-          <ProgressTab projectId={project.id} />
-        </TabsContent>
-        <TabsContent value="valuations" className="mt-4">
-          <ValuationsTab projectId={project.id} />
-        </TabsContent>
-        <TabsContent value="procurement" className="mt-4">
-          <ProcurementTab projectId={project.id} />
-        </TabsContent>
-        <TabsContent value="sitewalks" className="mt-4">
+
+        <TabsContent value="sitewalks" className="mt-4 space-y-8">
           <SiteWalksTab projectId={project.id} />
+          <Section title="Review Queue">
+            <ReviewQueueTab projectId={project.id} />
+          </Section>
         </TabsContent>
-        <TabsContent value="review" className="mt-4">
-          <ReviewQueueTab projectId={project.id} />
+
+        <TabsContent value="commercial" className="mt-4 space-y-8">
+          <Section title="Procurement">
+            <ProcurementTab projectId={project.id} />
+          </Section>
+          <Section title="Valuations">
+            <ValuationsTab projectId={project.id} />
+          </Section>
+          <Section title="Commercial Summary">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <Metric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} />
+              <Metric label="Open Variations" value={String(stats.openVariations)} />
+              <Metric label="Procurement Outstanding" value={String(stats.procurementOutstanding)} />
+              <Metric label="Potential Claim" value={GBP.format(stats.potentialClaim)} />
+            </div>
+          </Section>
         </TabsContent>
       </Tabs>
     </main>
@@ -117,6 +154,25 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border border-border bg-card p-3">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="text-lg font-semibold text-primary mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-primary border-b border-border pb-2">
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+function Placeholder({ message }: { message: string }) {
+  return (
+    <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
+      {message}
     </div>
   );
 }
