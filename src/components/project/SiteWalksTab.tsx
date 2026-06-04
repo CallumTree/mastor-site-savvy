@@ -772,6 +772,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           {viewingAnalysis && (
             <AnalysisViewer
               row={viewingAnalysis}
+              projectId={projectId}
               walkTitle={walkById.get(viewingAnalysis.site_walk_id)?.title ?? "Site walk"}
             />
           )}
