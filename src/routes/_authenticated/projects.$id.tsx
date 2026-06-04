@@ -27,6 +27,10 @@ type HeaderStats = {
   openVariations: number;
   procurementOutstanding: number;
   potentialClaim: number;
+  approvedClaim: number;
+  readyToClaim: number;
+  includedInValuation: number;
+  paid: number;
 };
 
 export const Route = createFileRoute("/_authenticated/projects/$id")({
