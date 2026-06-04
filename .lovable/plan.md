@@ -1,23 +1,15 @@
-## Problem
+## End-to-end CRUD verification
 
-`projects.user_id` has a foreign key to `auth.users(id)`. Since authentication is disabled and the app inserts a hardcoded `DEV_USER.id` (`00000000-…-0001`) that doesn't exist in `auth.users`, every insert fails with `projects_user_id_fkey`.
+Use the existing project `bf8242d0-a9f2-41e9-8bbc-89ef2e094e04` ("Jones Terrace") as the test fixture. For each of the 5 tables, run insert → select → update → select → delete → select, and report pass/fail per step.
 
-The same FK pattern likely blocks future user-scoped tables too, but `projects` is the only table with this constraint right now.
+Tables and minimal payloads:
 
-## Fix
+- **contract_items** — insert `{code:'T-001', description:'Test item', unit:'m2', total_qty:10, unit_rate:25}`; update description + unit_rate; delete.
+- **variations** — insert `{description:'Test variation', qty:5, unit:'no', rate:100, status:'Pending'}`; update status → `Approved`; delete.
+- **progress_logs** — insert `{transcript:'Test log entry'}`; update transcript; delete.
+- **valuations** — insert `{valuation_number:999, valuation_date:'2026-06-04', status:'Draft'}`; update status → `Submitted`; delete.
+- **procurement_items** — insert `{description:'Test package', quantity:2, estimated_cost:500, supplier:'ACME', status:'Required'}`; update status → `Ordered`; delete.
 
-Run a migration that drops the FK constraint:
+Execution uses `supabase--insert` for writes and `supabase--read_query` for reads. RETURNING-style read-back is done with an explicit SELECT keyed on a sentinel column (e.g. `code='T-001'` or `transcript='Test log entry'`) so we don't depend on capturing generated IDs between calls.
 
-```sql
-ALTER TABLE public.projects DROP CONSTRAINT IF EXISTS projects_user_id_fkey;
-```
-
-The `user_id` column stays (default still `00000000-…-0001`), so nothing in code needs to change. New projects, variations, progress logs, valuations, and procurement items will all save without requiring an `auth.users` row.
-
-## Why not seed a dev user into `auth.users`?
-
-Inserting directly into `auth.users` bypasses Supabase Auth's invariants and can break the auth schema on later upgrades. Dropping the FK is the clean dev-mode fix and matches the "auth disabled" posture already in place. When auth is re-enabled later, the constraint can be restored in one migration.
-
-## Verification
-
-After the migration, create a project from the dashboard — the insert should succeed and the row should appear after refresh.
+Output: a single markdown table — Table × {Insert, Read, Update, Read, Delete, Confirm} → ✅/❌ with the row count or error from each step. All rows are removed at the end so the project stays clean.
