@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, HardHat, ClipboardCheck, AlertTriangle, MapPin } from "lucide-react";
 import { toast } from "sonner";
+import { DEV_USER } from "@/lib/dev-user";
 
 type Project = {
   id: string;
