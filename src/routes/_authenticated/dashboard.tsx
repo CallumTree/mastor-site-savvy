@@ -79,6 +79,24 @@ function Dashboard() {
         </div>
       </section>
 
+      {/* AI Activity */}
+      <section className="mb-8">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <div className="bg-primary text-primary-foreground px-4 py-3 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-gold" />
+            <h2 className="text-sm font-semibold uppercase tracking-wider">AI Activity</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-border">
+            <Stat icon={<Inbox className="w-4 h-4" />} label="Awaiting Review" value={ai.awaiting} />
+            <Stat icon={<CheckCircle2 className="w-4 h-4" />} label="Approved (7d)" value={ai.approvedWeek} />
+            <Stat icon={<FileEdit className="w-4 h-4" />} label="Variations" value={ai.variations} />
+            <Stat icon={<Package className="w-4 h-4" />} label="Procurement" value={ai.procurement} />
+            <Stat icon={<ShieldAlert className="w-4 h-4" />} label="Risks" value={ai.risks} />
+          </div>
+        </div>
+      </section>
+
+
       {/* Projects header */}
       <section>
         <div className="flex items-center justify-between mb-4">
