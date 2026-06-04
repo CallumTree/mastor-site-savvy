@@ -44,24 +44,19 @@ function ProjectDetail() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: p, error: pe }, { data: vars }, { data: procs }, { data: vals }] = await Promise.all([
+      const [{ data: p, error: pe }, { data: vars }, { data: procs }, { data: pcs }] = await Promise.all([
         supabase.from("projects").select("*").eq("id", id).maybeSingle(),
         supabase.from("variations").select("status").eq("project_id", id),
         (supabase as any).from("procurement_items").select("status, estimated_cost").eq("project_id", id),
-        supabase
-          .from("valuations")
-          .select("id, status, valuation_items(claimed_value)")
-          .eq("project_id", id)
-          .eq("status", "Draft"),
+        (supabase as any).from("potential_claims").select("status, contract_value").eq("project_id", id),
       ]);
       if (pe) toast.error(pe.message);
       setProject((p as Project) ?? null);
       const openVariations = (vars ?? []).filter((v: any) => v.status !== "Approved" && v.status !== "Rejected").length;
       const procurementOutstanding = (procs ?? []).filter((x: any) => x.status === "Required" || x.status === "Quoted").length;
-      const potentialClaim = (vals ?? []).reduce((s: number, v: any) => {
-        const items = v.valuation_items ?? [];
-        return s + items.reduce((ss: number, it: any) => ss + Number(it.claimed_value ?? 0), 0);
-      }, 0);
+      const potentialClaim = (pcs ?? [])
+        .filter((c: any) => c.status === "Suggested")
+        .reduce((s: number, c: any) => s + Number(c.contract_value ?? 0), 0);
       setStats({ openVariations, procurementOutstanding, potentialClaim });
       setLoading(false);
     })();
