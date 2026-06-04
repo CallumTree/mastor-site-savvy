@@ -10,7 +10,7 @@ import { ProcurementTab } from "@/components/project/ProcurementTab";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
-import { ValuationIntelligenceTab } from "@/components/project/ValuationIntelligenceTab";
+import { ClaimOpportunitiesTab } from "@/components/project/ClaimOpportunitiesTab";
 
 type Project = {
   id: string;
