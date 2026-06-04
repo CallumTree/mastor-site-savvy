@@ -181,21 +181,31 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "en-GB";
+    // Per-instance dedup: each final result index is committed exactly once.
+    const committed = new Set<number>();
     rec.onresult = (event: any) => {
-      let finalChunk = "";
+      let newFinal = "";
       let interimChunk = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const res = event.results[i];
-        if (res.isFinal) finalChunk += res[0].transcript;
-        else interimChunk += res[0].transcript;
+        const text = (res[0]?.transcript ?? "").trim();
+        if (!text) continue;
+        if (res.isFinal) {
+          if (committed.has(i)) continue;
+          committed.add(i);
+          newFinal += (newFinal ? " " : "") + text;
+        } else {
+          interimChunk += (interimChunk ? " " : "") + text;
+        }
       }
-      if (finalChunk) {
+      if (newFinal) {
         const current = transcriptRef.current;
         const sep = current && !/\s$/.test(current) ? " " : "";
-        const next = current + sep + finalChunk.trim();
+        const next = current + sep + newFinal;
         transcriptRef.current = next;
         setTranscript(next);
       }
+      // Interim is preview-only — never written into the saved transcript.
       setInterim(interimChunk);
     };
     rec.onerror = (e: any) => {
@@ -209,6 +219,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       }
     };
     rec.onend = () => {
+      // Drop any uncommitted interim from the ended session.
+      setInterim("");
       if (shouldRestartRef.current) {
         try {
           rec.start();
