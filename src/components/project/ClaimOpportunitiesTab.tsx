@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Sparkles, Check, X, Pencil, Save, ChevronDown, ChevronRight } from "lucide-react";
+import { Sparkles, Check, X, Pencil, Save, ChevronDown, ChevronRight, ShoppingBasket } from "lucide-react";
 
 const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
 
