@@ -104,6 +104,9 @@ function ProjectDetail() {
         <TabsContent value="sitewalks" className="mt-4">
           <SiteWalksTab projectId={project.id} />
         </TabsContent>
+        <TabsContent value="review" className="mt-4">
+          <ReviewQueueTab projectId={project.id} />
+        </TabsContent>
       </Tabs>
     </main>
   );
