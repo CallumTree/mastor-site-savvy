@@ -58,36 +58,36 @@ export type Database = {
       procurement_items: {
         Row: {
           created_at: string
+          description: string | null
+          estimated_cost: number | null
           id: string
-          notes: string | null
-          package_name: string
           project_id: string
+          quantity: number | null
           status: string
           supplier: string | null
           updated_at: string
-          value: number | null
         }
         Insert: {
           created_at?: string
+          description?: string | null
+          estimated_cost?: number | null
           id?: string
-          notes?: string | null
-          package_name: string
           project_id: string
+          quantity?: number | null
           status?: string
           supplier?: string | null
           updated_at?: string
-          value?: number | null
         }
         Update: {
           created_at?: string
+          description?: string | null
+          estimated_cost?: number | null
           id?: string
-          notes?: string | null
-          package_name?: string
           project_id?: string
+          quantity?: number | null
           status?: string
           supplier?: string | null
           updated_at?: string
-          value?: number | null
         }
         Relationships: [
           {
