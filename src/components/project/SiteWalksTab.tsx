@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Mic, Pause, Play, Square, Eye, Trash2, Plus } from "lucide-react";
+import { Mic, MicOff, Pause, Play, Square, Eye, Trash2, Plus } from "lucide-react";
 
 type SiteWalk = {
   id: string;
@@ -24,6 +24,15 @@ type SiteWalk = {
 type Status = "idle" | "recording" | "paused" | "finished";
 
 const QUICK_AREAS = ["Bedroom", "Bathroom", "Kitchen", "External"];
+
+// Minimal SpeechRecognition typing
+type SR = any;
+
+function getSpeechRecognition(): SR | null {
+  if (typeof window === "undefined") return null;
+  const w = window as any;
+  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
+}
 
 function formatDuration(total: number) {
   const h = Math.floor(total / 3600).toString().padStart(2, "0");
@@ -41,9 +50,11 @@ function formatMinutes(secs: number) {
 export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [status, setStatus] = useState<Status>("idle");
   const [transcript, setTranscript] = useState("");
+  const [interim, setInterim] = useState("");
   const [seconds, setSeconds] = useState(0);
   const [walks, setWalks] = useState<SiteWalk[]>([]);
   const [loading, setLoading] = useState(true);
+  const [micDenied, setMicDenied] = useState(false);
 
   const [customOpen, setCustomOpen] = useState(false);
   const [customName, setCustomName] = useState("");
@@ -56,6 +67,15 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const recognitionRef = useRef<SR | null>(null);
+  const shouldRestartRef = useRef(false);
+  const transcriptRef = useRef("");
+
+  const speechSupported = !!getSpeechRecognition();
+
+  useEffect(() => {
+    transcriptRef.current = transcript;
+  }, [transcript]);
 
   const loadWalks = async () => {
     setLoading(true);
@@ -73,6 +93,10 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     loadWalks();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      shouldRestartRef.current = false;
+      try {
+        recognitionRef.current?.stop?.();
+      } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
@@ -88,22 +112,92 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     }
   };
 
+  const createRecognition = (): SR | null => {
+    const Ctor = getSpeechRecognition();
+    if (!Ctor) return null;
+    const rec: SR = new Ctor();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = "en-GB";
+    rec.onresult = (event: any) => {
+      let finalChunk = "";
+      let interimChunk = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        if (res.isFinal) finalChunk += res[0].transcript;
+        else interimChunk += res[0].transcript;
+      }
+      if (finalChunk) {
+        const current = transcriptRef.current;
+        const sep = current && !/\s$/.test(current) ? " " : "";
+        const next = current + sep + finalChunk.trim();
+        transcriptRef.current = next;
+        setTranscript(next);
+      }
+      setInterim(interimChunk);
+    };
+    rec.onerror = (e: any) => {
+      const err = e?.error;
+      if (err === "not-allowed" || err === "service-not-allowed") {
+        setMicDenied(true);
+        shouldRestartRef.current = false;
+        toast.error("Microphone access required for voice recording.");
+      } else if (err && err !== "no-speech" && err !== "aborted") {
+        toast.error(`Mic error: ${err}`);
+      }
+    };
+    rec.onend = () => {
+      if (shouldRestartRef.current) {
+        try {
+          rec.start();
+        } catch {}
+      }
+    };
+    return rec;
+  };
+
+  const startRecognition = () => {
+    if (!speechSupported) return;
+    const rec = createRecognition();
+    if (!rec) return;
+    recognitionRef.current = rec;
+    shouldRestartRef.current = true;
+    try {
+      rec.start();
+    } catch {}
+  };
+
+  const stopRecognition = () => {
+    shouldRestartRef.current = false;
+    try {
+      recognitionRef.current?.stop?.();
+    } catch {}
+    setInterim("");
+  };
+
   const handleStart = () => {
     setTranscript("");
+    transcriptRef.current = "";
+    setInterim("");
     setSeconds(0);
+    setMicDenied(false);
     startTimer();
     setStatus("recording");
+    startRecognition();
   };
   const handlePause = () => {
     stopTimer();
+    stopRecognition();
     setStatus("paused");
   };
   const handleResume = () => {
     startTimer();
     setStatus("recording");
+    startRecognition();
   };
   const handleFinish = () => {
     stopTimer();
+    stopRecognition();
     setStatus("finished");
     setTitle(`Site walk – ${new Date().toLocaleDateString("en-GB")}`);
     setSaveOpen(true);
@@ -112,10 +206,12 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const insertMarker = (name: string) => {
     const marker = `[${name}]\n`;
     const ta = textareaRef.current;
-    const current = transcript;
-    if (!ta) {
-      const prefix = current && !current.endsWith("\n") ? "\n\n" : current ? "\n" : "";
-      setTranscript(current + prefix + marker);
+    const current = transcriptRef.current;
+    if (!ta || document.activeElement !== ta) {
+      const prefix = current && !current.endsWith("\n") ? "\n" : "";
+      const next = current + prefix + marker;
+      transcriptRef.current = next;
+      setTranscript(next);
       return;
     }
     const start = ta.selectionStart ?? current.length;
@@ -125,6 +221,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     const needsLeadingNl = before && !before.endsWith("\n") ? "\n" : "";
     const inserted = needsLeadingNl + marker;
     const next = before + inserted + after;
+    transcriptRef.current = next;
     setTranscript(next);
     requestAnimationFrame(() => {
       const pos = (before + inserted).length;
@@ -160,14 +257,16 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     setSaveOpen(false);
     setStatus("idle");
     setTranscript("");
+    transcriptRef.current = "";
+    setInterim("");
     setSeconds(0);
     setTitle("");
+    setMicDenied(false);
     loadWalks();
   };
 
   const handleCancelSave = () => {
     setSaveOpen(false);
-    // keep transcript so user can finish later
     setStatus("paused");
   };
 
@@ -191,57 +290,84 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       ? "border-primary/40 text-primary bg-primary/5"
       : "border-border text-muted-foreground";
 
+  const voiceActive = status === "recording" && speechSupported && !micDenied;
+
   return (
     <div className="space-y-6">
       {/* Recorder */}
       <section className="rounded-xl border border-border bg-card p-5 space-y-5 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <div>
             <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
               Site Walk Recorder
             </h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Walk the site. Capture what you see.
+              Walk the site. Speak naturally — your words appear below.
             </p>
           </div>
-          <span className={`text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusColor}`}>
-            {statusLabel}
-          </span>
+          <div className="flex items-center gap-2">
+            {isActive && (
+              <span
+                className={`flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                  voiceActive
+                    ? "border-red-500/40 text-red-600 bg-red-500/10"
+                    : "border-border text-muted-foreground"
+                }`}
+              >
+                {voiceActive ? <Mic className="w-3 h-3" /> : <MicOff className="w-3 h-3" />}
+                {voiceActive ? "Listening" : "Mic off"}
+              </span>
+            )}
+            <span className={`text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusColor}`}>
+              {statusLabel}
+            </span>
+          </div>
         </div>
 
         <div className="text-center">
-          <div className="font-mono text-4xl md:text-5xl font-semibold tabular-nums text-primary">
+          <div className="font-mono text-5xl md:text-6xl font-semibold tabular-nums text-primary">
             {formatDuration(seconds)}
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2 justify-center">
           {status === "idle" && (
-            <Button onClick={handleStart} size="lg" className="gap-2">
-              <Mic className="w-4 h-4" /> Start Recording
+            <Button onClick={handleStart} size="lg" className="gap-2 h-14 px-8 text-base">
+              <Mic className="w-5 h-5" /> Start Recording
             </Button>
           )}
           {status === "recording" && (
             <>
-              <Button onClick={handlePause} size="lg" variant="secondary" className="gap-2">
-                <Pause className="w-4 h-4" /> Pause
+              <Button onClick={handlePause} size="lg" variant="secondary" className="gap-2 h-14 px-6 text-base">
+                <Pause className="w-5 h-5" /> Pause
               </Button>
-              <Button onClick={handleFinish} size="lg" variant="destructive" className="gap-2">
-                <Square className="w-4 h-4" /> Finish
+              <Button onClick={handleFinish} size="lg" variant="destructive" className="gap-2 h-14 px-6 text-base">
+                <Square className="w-5 h-5" /> Finish
               </Button>
             </>
           )}
           {status === "paused" && (
             <>
-              <Button onClick={handleResume} size="lg" className="gap-2">
-                <Play className="w-4 h-4" /> Resume
+              <Button onClick={handleResume} size="lg" className="gap-2 h-14 px-6 text-base">
+                <Play className="w-5 h-5" /> Resume
               </Button>
-              <Button onClick={handleFinish} size="lg" variant="destructive" className="gap-2">
-                <Square className="w-4 h-4" /> Finish
+              <Button onClick={handleFinish} size="lg" variant="destructive" className="gap-2 h-14 px-6 text-base">
+                <Square className="w-5 h-5" /> Finish
               </Button>
             </>
           )}
         </div>
+
+        {!speechSupported && (
+          <p className="text-xs text-amber-600 text-center">
+            Voice recognition not supported in this browser. Use Chrome on desktop or Android — you can still type notes manually.
+          </p>
+        )}
+        {speechSupported && micDenied && isActive && (
+          <p className="text-xs text-amber-600 text-center">
+            Microphone access required for voice recording. You can continue using manual text entry.
+          </p>
+        )}
 
         {/* Area markers */}
         {isActive && (
@@ -276,16 +402,30 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         {/* Transcript */}
         {(isActive || transcript) && (
           <div className="space-y-2">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Site Notes / Transcript
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Live Transcript {isActive && "· editable"}
+              </div>
+              {interim && (
+                <div className="text-[10px] text-muted-foreground italic truncate max-w-[60%]">
+                  …{interim}
+                </div>
+              )}
             </div>
             <Textarea
               ref={textareaRef}
               value={transcript}
-              onChange={(e) => setTranscript(e.target.value)}
-              placeholder="Type notes as you walk the site…"
-              rows={8}
-              className="min-h-[180px] font-mono text-sm leading-relaxed"
+              onChange={(e) => {
+                transcriptRef.current = e.target.value;
+                setTranscript(e.target.value);
+              }}
+              placeholder={
+                voiceActive
+                  ? "Listening… speak naturally and your words will appear here."
+                  : "Type notes as you walk the site…"
+              }
+              rows={10}
+              className="min-h-[220px] text-base leading-relaxed"
             />
           </div>
         )}
@@ -419,7 +559,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 })}{" "}
                 · {formatMinutes(viewing.duration_seconds)}
               </div>
-              <div className="max-h-[60vh] overflow-y-auto rounded-md border border-border bg-background p-3 text-sm whitespace-pre-wrap font-mono leading-relaxed">
+              <div className="max-h-[60vh] overflow-y-auto rounded-md border border-border bg-background p-3 text-sm whitespace-pre-wrap leading-relaxed">
                 {viewing.transcript || "(no notes recorded)"}
               </div>
             </div>
