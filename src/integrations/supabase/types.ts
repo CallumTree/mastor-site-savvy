@@ -121,6 +121,76 @@ export type Database = {
           },
         ]
       }
+      potential_claims: {
+        Row: {
+          approved_at: string | null
+          approved_finding_id: string | null
+          claim_description: string | null
+          claim_title: string
+          confidence_score: string
+          contract_value: number | null
+          created_at: string
+          id: string
+          project_id: string
+          rejected_at: string | null
+          scope_element_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_finding_id?: string | null
+          claim_description?: string | null
+          claim_title: string
+          confidence_score?: string
+          contract_value?: number | null
+          created_at?: string
+          id?: string
+          project_id: string
+          rejected_at?: string | null
+          scope_element_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_finding_id?: string | null
+          claim_description?: string | null
+          claim_title?: string
+          confidence_score?: string
+          contract_value?: number | null
+          created_at?: string
+          id?: string
+          project_id?: string
+          rejected_at?: string | null
+          scope_element_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "potential_claims_approved_finding_id_fkey"
+            columns: ["approved_finding_id"]
+            isOneToOne: false
+            referencedRelation: "approved_findings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "potential_claims_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "potential_claims_scope_element_id_fkey"
+            columns: ["scope_element_id"]
+            isOneToOne: false
+            referencedRelation: "scope_elements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       procurement_items: {
         Row: {
           created_at: string
