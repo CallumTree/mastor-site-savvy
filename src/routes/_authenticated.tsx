@@ -1,6 +1,4 @@
-import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
-import { LogOut } from "lucide-react";
+import { createFileRoute, Outlet, Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -8,13 +6,11 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthedLayout() {
-  const navigate = useNavigate();
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
-  };
   return (
     <div className="min-h-screen bg-background">
+      <div className="bg-gold text-primary text-center text-xs font-semibold tracking-wider uppercase py-1.5 px-3">
+        Development Mode — Authentication Disabled
+      </div>
       <header className="sticky top-0 z-30 bg-primary text-primary-foreground border-b border-primary/20">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-2">
@@ -23,9 +19,7 @@ function AuthedLayout() {
             </span>
             <span className="font-display text-lg font-semibold tracking-wide">Mastor</span>
           </Link>
-          <button onClick={signOut} className="text-xs uppercase tracking-wider opacity-80 hover:opacity-100 flex items-center gap-1.5">
-            <LogOut className="w-4 h-4" /> Sign out
-          </button>
+          <span className="text-xs uppercase tracking-wider opacity-80">Dev User</span>
         </div>
       </header>
       <Outlet />

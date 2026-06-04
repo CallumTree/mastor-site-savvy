@@ -113,7 +113,7 @@ export type Database = {
           site_address?: string | null
           status?: string
           updated_at?: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           client?: string | null
