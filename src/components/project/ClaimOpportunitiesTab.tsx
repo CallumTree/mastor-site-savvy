@@ -163,7 +163,7 @@ export function ClaimOpportunitiesTab({ projectId }: { projectId: string }) {
 
   // Summary stats
   const potential = claims.filter((c) => c.status === "Suggested");
-  const approved = claims.filter((c) => c.status === "Approved" || c.status === "Added To Valuation");
+  const approved = claims.filter((c) => c.status === "Approved" || c.status === "Moved To Basket" || c.status === "Added To Valuation");
   const potentialValue = potential.reduce((s, c) => s + Number(c.contract_value ?? 0), 0);
   const approvedValue = approved.reduce((s, c) => s + Number(c.contract_value ?? 0), 0);
 
