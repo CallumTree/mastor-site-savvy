@@ -11,7 +11,7 @@ import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
 import { ClaimOpportunitiesTab } from "@/components/project/ClaimOpportunitiesTab";
-import { ValuationBasketTab } from "@/components/project/ValuationBasketTab";
+import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 
 type Project = {
   id: string;
