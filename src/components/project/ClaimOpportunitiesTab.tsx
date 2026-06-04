@@ -131,22 +131,13 @@ export function ClaimOpportunitiesTab({ projectId }: { projectId: string }) {
     load();
   };
 
-  const moveToBasket = async (c: Claim) => {
-    const { error: insErr } = await (supabase as any).from("valuation_basket_items").insert({
-      project_id: c.project_id,
-      claim_id: c.id,
-      title: c.claim_title,
-      description: c.claim_description,
-      value: c.contract_value,
-      status: "In Basket",
-    });
-    if (insErr) return toast.error(insErr.message);
+  const markReadyToClaim = async (c: Claim) => {
     const { error } = await supabase
       .from("potential_claims")
-      .update({ status: "Moved To Basket" })
+      .update({ status: "Ready To Claim", ready_to_claim_at: new Date().toISOString() })
       .eq("id", c.id);
     if (error) return toast.error(error.message);
-    toast.success("Moved to basket");
+    toast.success("Marked Ready To Claim");
     load();
   };
 
