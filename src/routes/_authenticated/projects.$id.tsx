@@ -9,6 +9,7 @@ import { ValuationsTab } from "@/components/project/ValuationsTab";
 import { ProcurementTab } from "@/components/project/ProcurementTab";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
+import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
 
 type Project = {
   id: string;
