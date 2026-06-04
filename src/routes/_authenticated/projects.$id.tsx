@@ -36,8 +36,19 @@ function ProjectDetail() {
     })();
   }, [id]);
 
+  const demoProject: Project = {
+    id,
+    name: "Demo Project — Marylebone Mews Refurbishment",
+    client: "Berkeley Homes",
+    location: "London NW1",
+    contract_value: 2840000,
+    status: "On Site",
+    progress: 64,
+  };
+
+  const displayProject = project ?? demoProject;
+
   if (loading) return <main className="max-w-5xl mx-auto px-4 py-8 text-sm text-muted-foreground">Loading…</main>;
-  if (!project) return <main className="max-w-5xl mx-auto px-4 py-8 text-sm text-muted-foreground">Project not found.</main>;
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-5 pb-20">
@@ -46,15 +57,15 @@ function ProjectDetail() {
       </Link>
 
       <header className="mb-6">
-        <p className="text-xs uppercase tracking-[0.18em] text-gold-foreground/70">{project.status}</p>
-        <h1 className="text-2xl font-bold text-primary mt-1">{project.name}</h1>
+        <p className="text-xs uppercase tracking-[0.18em] text-gold-foreground/70">{displayProject.status}</p>
+        <h1 className="text-2xl font-bold text-primary mt-1">{displayProject.name}</h1>
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-          {project.client && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{project.client}</span>}
-          {project.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location}</span>}
+          {displayProject.client && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{displayProject.client}</span>}
+          {displayProject.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{displayProject.location}</span>}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <Metric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} />
-          <Metric label="Progress" value={`${project.progress}%`} />
+          <Metric label="Contract Value" value={displayProject.contract_value ? GBP.format(Number(displayProject.contract_value)) : "—"} />
+          <Metric label="Progress" value={`${displayProject.progress}%`} />
         </div>
       </header>
 
