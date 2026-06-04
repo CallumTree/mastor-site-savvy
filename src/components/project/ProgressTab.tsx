@@ -41,7 +41,9 @@ export function ProgressTab({ projectId }: { projectId: string }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <SiteWalkRecorder projectId={projectId} />
+
       <section className="p-3 rounded-md bg-card border border-border space-y-2">
         <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">New site log</h3>
         <Textarea
