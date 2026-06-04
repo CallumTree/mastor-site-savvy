@@ -115,10 +115,7 @@ function ProjectDetail() {
         <TabsContent value="scope" className="mt-4 space-y-8">
           <ScopeTab projectId={project.id} />
           <Section title="Project Documents">
-            <Placeholder message="No documents uploaded yet. Drawings, contracts and specifications will appear here." />
-          </Section>
-          <Section title="Upload Centre">
-            <Placeholder message="BoQ uploads, schedules and scope parser results coming soon." />
+            <ProjectDocumentsTab projectId={project.id} />
           </Section>
         </TabsContent>
 
