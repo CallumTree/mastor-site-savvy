@@ -6,13 +6,13 @@ import { ChevronLeft, MapPin, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { ScopeTab } from "@/components/project/ScopeTab";
 import { ValuationsTab } from "@/components/project/ValuationsTab";
-import { ProcurementTab } from "@/components/project/ProcurementTab";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
 import { ClaimOpportunitiesTab } from "@/components/project/ClaimOpportunitiesTab";
 import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 import { ConstructionIntelligenceTab } from "@/components/project/ConstructionIntelligenceTab";
+import { ProcurementRegisterTab } from "@/components/project/ProcurementRegisterTab";
 
 type Project = {
   id: string;
@@ -149,6 +149,9 @@ function ProjectDetail() {
         </TabsContent>
 
         <TabsContent value="commercial" className="mt-4 space-y-8">
+          <Section title="Procurement Register">
+            <ProcurementRegisterTab projectId={project.id} />
+          </Section>
           <Section title="Claim Opportunities">
             <ClaimOpportunitiesTab projectId={project.id} />
           </Section>
@@ -157,9 +160,6 @@ function ProjectDetail() {
           </Section>
           <Section title="Valuations">
             <ValuationsTab projectId={project.id} />
-          </Section>
-          <Section title="Procurement">
-            <ProcurementTab projectId={project.id} />
           </Section>
           <Section title="Commercial Dashboard">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
