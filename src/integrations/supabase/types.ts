@@ -357,6 +357,57 @@ export type Database = {
         }
         Relationships: []
       }
+      package_price_requests: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          package_id: string
+          project_id: string
+          quoted_price: number | null
+          status: string
+          supplier_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          package_id: string
+          project_id: string
+          quoted_price?: number | null
+          status?: string
+          supplier_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          package_id?: string
+          project_id?: string
+          quoted_price?: number | null
+          status?: string
+          supplier_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_price_requests_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_price_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       potential_claims: {
         Row: {
           approved_at: string | null

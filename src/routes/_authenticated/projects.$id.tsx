@@ -14,6 +14,7 @@ import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 import { ConstructionIntelligenceTab } from "@/components/project/ConstructionIntelligenceTab";
 import { ProcurementRegisterTab } from "@/components/project/ProcurementRegisterTab";
 import { ProcurementPackagesTab } from "@/components/project/ProcurementPackagesTab";
+import { PackagePricingTab } from "@/components/project/PackagePricingTab";
 import { MerchantIntelligenceTab } from "@/components/project/MerchantIntelligenceTab";
 import { TradeSqueezeTab } from "@/components/project/TradeSqueezeTab";
 
@@ -157,6 +158,9 @@ function ProjectDetail() {
           </Section>
           <Section title="Procurement Packages">
             <ProcurementPackagesTab projectId={project.id} />
+          </Section>
+          <Section title="Package Pricing">
+            <PackagePricingTab projectId={project.id} />
           </Section>
           <Section title="Merchant Intelligence">
             <MerchantIntelligenceTab projectId={project.id} />
