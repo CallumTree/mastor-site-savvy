@@ -558,9 +558,96 @@ async function learnFromParse(parsed: Record<string, any[]>, ctx: LearnCtx) {
     }
   }
 
+  // Persist Work Packages and their links
+  await persistWorkPackages(parsed, ctx, { taskByName, matByName, claimByName, activityByName });
+
   // Detect duplicate-name suggestions (simple alias heuristic) for materials
   await detectMergeSuggestions(user_id, "material", "materials_library", "material_name");
   await detectMergeSuggestions(user_id, "task", "tasks_library", "task_name");
+}
+
+async function persistWorkPackages(
+  parsed: Record<string, any[]>,
+  ctx: LearnCtx,
+  caches: {
+    taskByName: Record<string, string>;
+    matByName: Record<string, string>;
+    claimByName: Record<string, string>;
+    activityByName: Record<string, string>;
+  }
+) {
+  const packages = (parsed.work_packages ?? []).filter((p) => String(p?.package_name ?? "").trim());
+  if (packages.length === 0) return;
+
+  // Pull existing for this project so we upsert by package_name
+  const { data: existing } = await (supabase as any)
+    .from("work_packages")
+    .select("id, package_name")
+    .eq("project_id", ctx.project_id);
+  const byName: Record<string, string> = {};
+  for (const r of (existing ?? []) as any[]) byName[String(r.package_name).toLowerCase().trim()] = r.id;
+
+  for (const pkg of packages) {
+    const name = String(pkg.package_name).trim().slice(0, 255);
+    const key = name.toLowerCase();
+    const conf = CONF_SCORE[pkg.confidence ?? "medium"] ?? 0.5;
+    let wpId = byName[key];
+
+    if (!wpId) {
+      const { data: created, error } = await (supabase as any)
+        .from("work_packages")
+        .insert({
+          project_id: ctx.project_id,
+          package_name: name,
+          trade: pkg.trade ? String(pkg.trade).slice(0, 64) : null,
+          description: pkg.description ? String(pkg.description).slice(0, 2000) : null,
+          confidence_score: conf,
+          status: "Identified",
+          source_documents: [{ document_id: ctx.document_id, document_name: ctx.document_name }],
+        })
+        .select("id")
+        .maybeSingle();
+      if (error) {
+        console.warn("work_package insert failed", name, error.message);
+        continue;
+      }
+      wpId = created?.id;
+      if (wpId) byName[key] = wpId;
+    } else {
+      // Merge source documents and bump confidence
+      const { data: cur } = await (supabase as any)
+        .from("work_packages")
+        .select("source_documents, confidence_score, trade, description")
+        .eq("id", wpId)
+        .maybeSingle();
+      const sources = Array.isArray(cur?.source_documents) ? cur.source_documents : [];
+      const hasDoc = sources.some((s: any) => s?.document_id === ctx.document_id);
+      const update: any = {};
+      if (!hasDoc) update.source_documents = [...sources, { document_id: ctx.document_id, document_name: ctx.document_name }];
+      if (conf > Number(cur?.confidence_score ?? 0)) update.confidence_score = conf;
+      if (pkg.trade && !cur?.trade) update.trade = String(pkg.trade).slice(0, 64);
+      if (pkg.description && !cur?.description) update.description = String(pkg.description).slice(0, 2000);
+      if (Object.keys(update).length) await (supabase as any).from("work_packages").update(update).eq("id", wpId);
+    }
+    if (!wpId) continue;
+
+    const linkPairs: Array<[string, string, Record<string, string>, string]> = [
+      ["work_package_tasks", "task_id", caches.taskByName, "related_tasks"],
+      ["work_package_materials", "material_id", caches.matByName, "related_materials"],
+      ["work_package_activities", "activity_id", caches.activityByName, "related_labour_activities"],
+      ["work_package_claimables", "claimable_id", caches.claimByName, "related_claimable_elements"],
+    ];
+    for (const [table, col, cache, field] of linkPairs) {
+      const names: string[] = (pkg as any)[field] ?? [];
+      for (const n of names) {
+        const id = cache[String(n ?? "").trim().toLowerCase()];
+        if (!id) continue;
+        await (supabase as any)
+          .from(table)
+          .upsert({ work_package_id: wpId, [col]: id }, { onConflict: `work_package_id,${col}` });
+      }
+    }
+  }
 }
 
 
