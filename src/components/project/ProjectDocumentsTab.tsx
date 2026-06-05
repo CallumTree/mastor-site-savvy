@@ -570,6 +570,8 @@ async function upsertLibrary(opts: {
   items: Array<{
     name: string;
     description?: string | null;
+    trade?: string | null;
+    procurement_package?: string | null;
     unit_type?: string | null;
     quantity?: number | null;
     source_reference?: string | null;
@@ -608,17 +610,24 @@ async function upsertLibrary(opts: {
       if (conf > Number(existing.confidence_score)) update.confidence_score = conf;
       if (it.unit_type && !existing.unit_type) update.unit_type = it.unit_type;
       if (it.description && !existing.description) update.description = it.description;
+      if (it.trade && !existing.trade) update.trade = it.trade;
+      if (table === "tasks_library" && it.procurement_package && !existing.procurement_package) {
+        update.procurement_package = it.procurement_package;
+      }
       await (supabase as any).from(table).update(update).eq("id", existing.id);
       if (cache) cache[norm] = existing.id;
     } else {
+      const cols = await getColumnsCheat(table);
       const insert: any = {
         user_id,
         [nameCol]: name,
         confidence_score: conf,
         sources: [source],
       };
-      if ("description" in (await getColumnsCheat(table))) insert.description = it.description ?? null;
+      if ("description" in cols) insert.description = it.description ?? null;
+      if (it.trade) insert.trade = it.trade;
       if (table === "materials_library") insert.unit_type = it.unit_type ?? null;
+      if (table === "tasks_library" && it.procurement_package) insert.procurement_package = it.procurement_package;
       const { data: created, error } = await (supabase as any).from(table).insert(insert).select("id").maybeSingle();
       if (error) {
         console.warn("learn insert failed", table, name, error.message);
@@ -628,6 +637,7 @@ async function upsertLibrary(opts: {
     }
   }
 }
+
 
 // Tiny helper to know which tables accept description (avoids a per-row SELECT)
 async function getColumnsCheat(table: string): Promise<Record<string, true>> {
