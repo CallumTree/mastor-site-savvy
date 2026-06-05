@@ -173,7 +173,11 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         if (insErr) throw insErr;
       }
       await (supabase as any).from("project_documents").update({ parsed_at: new Date().toISOString() }).eq("id", doc.id);
-      toast.success(`Parsed: ${rows.length} item${rows.length === 1 ? "" : "s"}`);
+
+      // Feed Construction Knowledge Engine
+      await learnFromParse(parsed, { project_id: projectId, document_id: doc.id, document_name: doc.file_name });
+
+      toast.success(`Parsed: ${rows.length} item${rows.length === 1 ? "" : "s"} · Knowledge updated`);
       setFilterDocId(doc.id);
       load();
     } catch (e: any) {
