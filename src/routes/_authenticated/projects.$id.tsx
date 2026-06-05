@@ -157,6 +157,9 @@ function ProjectDetail() {
           <Section title="Procurement Register">
             <ProcurementRegisterTab projectId={project.id} />
           </Section>
+          <Section title="Material Intelligence">
+            <MaterialIntelligenceTab projectId={project.id} />
+          </Section>
           <Section title="Procurement Packages">
             <ProcurementPackagesTab projectId={project.id} />
           </Section>
