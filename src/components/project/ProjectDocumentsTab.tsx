@@ -184,6 +184,13 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         document_name: doc.file_name,
       });
 
+      // Persist Material Requirements (estimated quantities per work package)
+      const reqAdded = await persistMaterialRequirements(parsed, {
+        project_id: projectId,
+        document_id: doc.id,
+        document_name: doc.file_name,
+      });
+
       toast.success(
         `Parsed: ${rows.length} item${rows.length === 1 ? "" : "s"} · Knowledge updated${
           procAdded ? ` · ${procAdded} procurement suggestion${procAdded === 1 ? "" : "s"}` : ""
