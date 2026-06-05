@@ -139,6 +139,9 @@ function ProjectDetail() {
 
         <TabsContent value="scope" className="mt-4 space-y-8">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Understand the Job</p>
+          <Section title="Work Packages">
+            <WorkPackagesTab projectId={project.id} />
+          </Section>
           <ScopeTab projectId={project.id} />
           <Section title="Project Documents">
             <ProjectDocumentsTab projectId={project.id} />
