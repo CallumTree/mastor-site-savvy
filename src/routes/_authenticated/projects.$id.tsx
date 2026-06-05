@@ -6,13 +6,13 @@ import { ChevronLeft, MapPin, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { ScopeTab } from "@/components/project/ScopeTab";
 import { ValuationsTab } from "@/components/project/ValuationsTab";
-import { ProcurementTab } from "@/components/project/ProcurementTab";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
 import { ClaimOpportunitiesTab } from "@/components/project/ClaimOpportunitiesTab";
 import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 import { ConstructionIntelligenceTab } from "@/components/project/ConstructionIntelligenceTab";
+import { ProcurementRegisterTab } from "@/components/project/ProcurementRegisterTab";
 
 type Project = {
   id: string;
