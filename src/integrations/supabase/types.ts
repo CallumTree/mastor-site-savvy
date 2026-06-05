@@ -474,6 +474,114 @@ export type Database = {
           },
         ]
       }
+      procurement_package_items: {
+        Row: {
+          created_at: string
+          id: string
+          material_name: string
+          package_id: string
+          procurement_item_id: string | null
+          project_id: string
+          quantity: number | null
+          source_document: string | null
+          source_scope_reference: string | null
+          source_task: string | null
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          material_name: string
+          package_id: string
+          procurement_item_id?: string | null
+          project_id: string
+          quantity?: number | null
+          source_document?: string | null
+          source_scope_reference?: string | null
+          source_task?: string | null
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          material_name?: string
+          package_id?: string
+          procurement_item_id?: string | null
+          project_id?: string
+          quantity?: number | null
+          source_document?: string | null
+          source_scope_reference?: string | null
+          source_task?: string | null
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_package_items_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_package_items_procurement_item_id_fkey"
+            columns: ["procurement_item_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_register"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_package_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      procurement_packages: {
+        Row: {
+          confidence_score: number
+          created_at: string
+          description: string | null
+          id: string
+          package_name: string
+          project_id: string
+          status: string
+          trade: string | null
+          updated_at: string
+        }
+        Insert: {
+          confidence_score?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          package_name: string
+          project_id: string
+          status?: string
+          trade?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confidence_score?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          package_name?: string
+          project_id?: string
+          status?: string
+          trade?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_packages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       procurement_register: {
         Row: {
           confidence_score: number
