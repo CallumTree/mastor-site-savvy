@@ -13,6 +13,7 @@ import { ClaimOpportunitiesTab } from "@/components/project/ClaimOpportunitiesTa
 import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 import { ConstructionIntelligenceTab } from "@/components/project/ConstructionIntelligenceTab";
 import { ProcurementRegisterTab } from "@/components/project/ProcurementRegisterTab";
+import { MerchantIntelligenceTab } from "@/components/project/MerchantIntelligenceTab";
 
 type Project = {
   id: string;
@@ -151,6 +152,9 @@ function ProjectDetail() {
         <TabsContent value="commercial" className="mt-4 space-y-8">
           <Section title="Procurement Register">
             <ProcurementRegisterTab projectId={project.id} />
+          </Section>
+          <Section title="Merchant Intelligence">
+            <MerchantIntelligenceTab projectId={project.id} />
           </Section>
           <Section title="Claim Opportunities">
             <ClaimOpportunitiesTab projectId={project.id} />

@@ -240,6 +240,45 @@ export type Database = {
           },
         ]
       }
+      material_prices: {
+        Row: {
+          confidence: string
+          created_at: string
+          id: string
+          last_checked: string
+          material_key: string
+          material_name: string
+          price: number
+          source_type: string
+          supplier_name: string
+          unit: string | null
+        }
+        Insert: {
+          confidence?: string
+          created_at?: string
+          id?: string
+          last_checked?: string
+          material_key: string
+          material_name: string
+          price: number
+          source_type?: string
+          supplier_name: string
+          unit?: string | null
+        }
+        Update: {
+          confidence?: string
+          created_at?: string
+          id?: string
+          last_checked?: string
+          material_key?: string
+          material_name?: string
+          price?: number
+          source_type?: string
+          supplier_name?: string
+          unit?: string | null
+        }
+        Relationships: []
+      }
       materials_library: {
         Row: {
           aliases: string[]
