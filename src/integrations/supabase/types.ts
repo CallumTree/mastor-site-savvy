@@ -918,6 +918,48 @@ export type Database = {
           },
         ]
       }
+      task_claimable_mappings: {
+        Row: {
+          claimable_id: string
+          confidence_score: number
+          created_at: string
+          id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          claimable_id: string
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          claimable_id?: string
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_claimable_mappings_claimable_id_fkey"
+            columns: ["claimable_id"]
+            isOneToOne: false
+            referencedRelation: "claimable_elements_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_claimable_mappings_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks_library"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_material_mappings: {
         Row: {
           confidence_score: number
@@ -968,6 +1010,7 @@ export type Database = {
           description: string | null
           id: string
           name_normalized: string | null
+          procurement_package: string | null
           sources: Json
           task_name: string
           trade: string | null
@@ -981,6 +1024,7 @@ export type Database = {
           description?: string | null
           id?: string
           name_normalized?: string | null
+          procurement_package?: string | null
           sources?: Json
           task_name: string
           trade?: string | null
@@ -994,6 +1038,7 @@ export type Database = {
           description?: string | null
           id?: string
           name_normalized?: string | null
+          procurement_package?: string | null
           sources?: Json
           task_name?: string
           trade?: string | null
