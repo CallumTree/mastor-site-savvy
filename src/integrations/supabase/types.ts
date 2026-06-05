@@ -402,6 +402,68 @@ export type Database = {
           },
         ]
       }
+      procurement_register: {
+        Row: {
+          confidence_score: number
+          created_at: string
+          id: string
+          material_name: string
+          notes: string | null
+          project_id: string
+          quantity: number | null
+          source_document: string | null
+          source_document_id: string | null
+          source_scope_element_id: string | null
+          source_scope_reference: string | null
+          status: string
+          trade: string | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          material_name: string
+          notes?: string | null
+          project_id: string
+          quantity?: number | null
+          source_document?: string | null
+          source_document_id?: string | null
+          source_scope_element_id?: string | null
+          source_scope_reference?: string | null
+          status?: string
+          trade?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          material_name?: string
+          notes?: string | null
+          project_id?: string
+          quantity?: number | null
+          source_document?: string | null
+          source_document_id?: string | null
+          source_scope_element_id?: string | null
+          source_scope_reference?: string | null
+          status?: string
+          trade?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_register_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       progress_logs: {
         Row: {
           created_at: string
