@@ -14,6 +14,7 @@ import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 import { ConstructionIntelligenceTab } from "@/components/project/ConstructionIntelligenceTab";
 import { ProcurementRegisterTab } from "@/components/project/ProcurementRegisterTab";
 import { MerchantIntelligenceTab } from "@/components/project/MerchantIntelligenceTab";
+import { TradeSqueezeTab } from "@/components/project/TradeSqueezeTab";
 
 type Project = {
   id: string;
@@ -155,6 +156,9 @@ function ProjectDetail() {
           </Section>
           <Section title="Merchant Intelligence">
             <MerchantIntelligenceTab projectId={project.id} />
+          </Section>
+          <Section title="TradeSqueeze">
+            <TradeSqueezeTab projectId={project.id} />
           </Section>
           <Section title="Claim Opportunities">
             <ClaimOpportunitiesTab projectId={project.id} />

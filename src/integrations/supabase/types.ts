@@ -324,6 +324,39 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_quotes: {
+        Row: {
+          created_at: string
+          id: string
+          merchant_name: string
+          notes: string | null
+          project_id: string
+          quote_value: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          merchant_name: string
+          notes?: string | null
+          project_id: string
+          quote_value?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          merchant_name?: string
+          notes?: string | null
+          project_id?: string
+          quote_value?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       potential_claims: {
         Row: {
           approved_at: string | null
@@ -805,6 +838,45 @@ export type Database = {
           sources?: Json
           task_name?: string
           trade?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trade_accounts: {
+        Row: {
+          account_reference: string | null
+          branch_name: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          merchant_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_reference?: string | null
+          branch_name?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          merchant_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_reference?: string | null
+          branch_name?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          merchant_name?: string
           updated_at?: string
           user_id?: string
         }
