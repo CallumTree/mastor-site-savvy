@@ -388,6 +388,68 @@ const CONF_SCORE: Record<string, number> = { high: 0.9, medium: 0.6, low: 0.3 };
 
 type LearnCtx = { project_id: string; document_id: string; document_name: string };
 
+async function generateProcurementSuggestions(parsed: Record<string, any[]>, ctx: LearnCtx): Promise<number> {
+  const materials = (parsed.materials ?? []).filter((m) => String(m?.title ?? "").trim());
+  if (materials.length === 0) return 0;
+
+  // Pull existing suggestions for this document to avoid duplicates on re-parse
+  const { data: existing } = await (supabase as any)
+    .from("procurement_register")
+    .select("id, material_name, source_scope_reference")
+    .eq("project_id", ctx.project_id)
+    .eq("source_document", ctx.document_name);
+  const seen = new Set(
+    ((existing ?? []) as any[]).map(
+      (r) => `${String(r.material_name).toLowerCase()}|${String(r.source_scope_reference ?? "").toLowerCase()}`
+    )
+  );
+
+  const rows: any[] = [];
+  for (const m of materials) {
+    const name = String(m.title).trim().slice(0, 255);
+    const ref = String(m.source_reference ?? "").trim().slice(0, 200);
+    const key = `${name.toLowerCase()}|${ref.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rows.push({
+      project_id: ctx.project_id,
+      material_name: name,
+      quantity: typeof m.quantity === "number" && m.quantity > 0 ? m.quantity : null,
+      unit: m.unit ? String(m.unit).slice(0, 32) : null,
+      trade: m.trade ? String(m.trade).slice(0, 64) : inferTradeFromMaterial(name),
+      source_document: ctx.document_name,
+      source_scope_reference: ref || null,
+      source_document_id: ctx.document_id,
+      confidence_score: CONF_SCORE[m.confidence ?? "medium"] ?? 0.5,
+      status: "Suggested",
+    });
+  }
+
+  if (rows.length === 0) return 0;
+  const { error } = await (supabase as any).from("procurement_register").insert(rows);
+  if (error) {
+    console.warn("procurement insert failed", error.message);
+    return 0;
+  }
+  return rows.length;
+}
+
+function inferTradeFromMaterial(name: string): string | null {
+  const n = name.toLowerCase();
+  if (/plasterboard|skim|plaster|board|tape|joint compound/.test(n)) return "Plastering";
+  if (/timber|stud|cls|joist|batten|ply|osb|mdf|skirting|architrave|kitchen|door/.test(n)) return "Joinery";
+  if (/tile|grout|adhesive|bath|shower|basin|wc|toilet/.test(n)) return "Bathrooms";
+  if (/paint|primer|undercoat|emulsion|filler|sandpaper/.test(n)) return "Painting";
+  if (/cable|socket|switch|consumer unit|conduit|lighting|spotlight/.test(n)) return "Electrical";
+  if (/pipe|copper|fitting|valve|boiler|radiator|cylinder|waste|soil/.test(n)) return "Plumbing";
+  if (/concrete|cement|sand|aggregate|rebar|membrane|dpc|dpm|hardcore/.test(n)) return "Groundworks";
+  if (/slate|tile felt|ridge|underlay|lead flashing|guttering|fascia|soffit/.test(n)) return "Roofing";
+  if (/insulation|rockwool|celotex|kingspan|pir/.test(n)) return "Insulation";
+  return null;
+}
+
+
+
 async function learnFromParse(parsed: Record<string, any[]>, ctx: LearnCtx) {
   const { data: userRes } = await supabase.auth.getUser();
   const user_id = userRes.user?.id;
