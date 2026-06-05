@@ -136,6 +136,9 @@ function ProjectDetail() {
           <Section title="Project Documents">
             <ProjectDocumentsTab projectId={project.id} />
           </Section>
+          <Section title="Construction Intelligence">
+            <ConstructionIntelligenceTab />
+          </Section>
         </TabsContent>
 
         <TabsContent value="sitewalks" className="mt-4 space-y-8">
