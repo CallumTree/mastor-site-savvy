@@ -12,6 +12,7 @@ import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
 import { ClaimOpportunitiesTab } from "@/components/project/ClaimOpportunitiesTab";
 import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
+import { ConstructionIntelligenceTab } from "@/components/project/ConstructionIntelligenceTab";
 
 type Project = {
   id: string;
