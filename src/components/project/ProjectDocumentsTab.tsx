@@ -457,6 +457,8 @@ async function learnFromParse(parsed: Record<string, any[]>, ctx: LearnCtx) {
 
   const taskByName: Record<string, string> = {};
   const matByName: Record<string, string> = {};
+  const claimByName: Record<string, string> = {};
+  const activityByName: Record<string, string> = {};
 
   await upsertLibrary({
     table: "tasks_library",
@@ -464,6 +466,8 @@ async function learnFromParse(parsed: Record<string, any[]>, ctx: LearnCtx) {
     items: (parsed.tasks ?? []).map((t) => ({
       name: t.title,
       description: t.description,
+      trade: t.trade,
+      procurement_package: t.procurement_package,
       source_reference: t.source_reference,
       confidence: t.confidence,
     })),
@@ -478,6 +482,7 @@ async function learnFromParse(parsed: Record<string, any[]>, ctx: LearnCtx) {
     items: (parsed.materials ?? []).map((m) => ({
       name: m.title,
       description: m.description,
+      trade: m.trade,
       unit_type: m.unit,
       quantity: m.quantity,
       source_reference: m.source_reference,
@@ -494,11 +499,13 @@ async function learnFromParse(parsed: Record<string, any[]>, ctx: LearnCtx) {
     items: (parsed.claimable_elements ?? []).map((c) => ({
       name: c.title,
       description: c.description,
+      trade: c.trade,
       source_reference: c.source_reference,
       confidence: c.confidence,
     })),
     user_id,
     ctx,
+    cache: claimByName,
   });
 
   await upsertLibrary({
@@ -507,17 +514,55 @@ async function learnFromParse(parsed: Record<string, any[]>, ctx: LearnCtx) {
     items: (parsed.labour_activities ?? []).map((a) => ({
       name: a.title,
       description: a.description,
+      trade: a.trade,
       source_reference: a.source_reference,
       confidence: a.confidence,
     })),
     user_id,
     ctx,
+    cache: activityByName,
   });
+
+  // Build the knowledge graph: task <-> materials / claimable / labour activities
+  for (const t of parsed.tasks ?? []) {
+    const taskName = String(t?.title ?? "").trim().toLowerCase();
+    const taskId = taskByName[taskName];
+    if (!taskId) continue;
+
+    for (const mn of (t.related_materials ?? []) as string[]) {
+      const id = matByName[String(mn ?? "").trim().toLowerCase()];
+      if (!id) continue;
+      await (supabase as any)
+        .from("task_material_mappings")
+        .upsert(
+          { user_id, task_id: taskId, material_id: id, confidence_score: CONF_SCORE[t.confidence ?? "medium"] ?? 0.5 },
+          { onConflict: "user_id,task_id,material_id" }
+        );
+    }
+
+    for (const cn of (t.related_claimable_elements ?? []) as string[]) {
+      const id = claimByName[String(cn ?? "").trim().toLowerCase()];
+      if (!id) continue;
+      await (supabase as any)
+        .from("task_claimable_mappings")
+        .upsert(
+          { user_id, task_id: taskId, claimable_id: id, confidence_score: CONF_SCORE[t.confidence ?? "medium"] ?? 0.5 },
+          { onConflict: "user_id,task_id,claimable_id" }
+        );
+    }
+
+    for (const an of (t.related_labour_activities ?? []) as string[]) {
+      const id = activityByName[String(an ?? "").trim().toLowerCase()];
+      if (!id) continue;
+      await (supabase as any).from("labour_activities_library").update({ task_id: taskId }).eq("id", id);
+    }
+  }
 
   // Detect duplicate-name suggestions (simple alias heuristic) for materials
   await detectMergeSuggestions(user_id, "material", "materials_library", "material_name");
   await detectMergeSuggestions(user_id, "task", "tasks_library", "task_name");
 }
+
 
 async function upsertLibrary(opts: {
   table: string;
