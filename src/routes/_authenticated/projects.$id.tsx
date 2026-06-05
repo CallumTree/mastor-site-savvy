@@ -13,6 +13,7 @@ import { ClaimOpportunitiesTab } from "@/components/project/ClaimOpportunitiesTa
 import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 import { ConstructionIntelligenceTab } from "@/components/project/ConstructionIntelligenceTab";
 import { ProcurementRegisterTab } from "@/components/project/ProcurementRegisterTab";
+import { MerchantIntelligenceTab } from "@/components/project/MerchantIntelligenceTab";
 
 type Project = {
   id: string;
