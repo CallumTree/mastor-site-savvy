@@ -141,20 +141,6 @@ const PARSE_TOOL = {
             additionalProperties: false,
           },
         },
-        procurement_items: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              title: { type: "string" },
-              description: { type: "string" },
-              source_reference: { type: "string" },
-              confidence: { type: "string", enum: ["high", "medium", "low"] },
-            },
-            required: ["title", "description", "source_reference", "confidence"],
-            additionalProperties: false,
-          },
-        },
         work_packages: {
           type: "array",
           items: {
