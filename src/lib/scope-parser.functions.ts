@@ -34,6 +34,22 @@ For each top-level scope item in the document, identify:
 
 Every task identified above should belong to exactly one work_package. Group thoughtfully — builders think in packages (Drylining, Roofing, Kitchen, Bathroom, Groundworks, Decoration, Electrical, Plumbing, Insulation, etc.), not isolated tasks.
 
+7. material_requirements — ESTIMATED materials and quantities required to deliver the scope. Use UK construction estimating norms. For each requirement include:
+   - material_name (e.g. "Plasterboard 12.5mm", "Multifinish", "CLS Timber 100x50", "Drywall Screws", "Rockwool RWA45")
+   - estimated_quantity (number, e.g. 14)
+   - unit (e.g. "sheets", "bags", "lengths", "rolls", "boxes", "m", "m²")
+   - work_package (must EXACTLY match one of the package_name values above)
+   - source_task (must EXACTLY match one of the task titles above when known, else "")
+   - source_reference (BoQ/section reference, else "")
+   - confidence: high | medium | low
+
+Estimation rules of thumb (apply when relevant):
+- Skim finish: 1 bag of Multifinish ≈ 8 m². So 15 m² ≈ 2 bags.
+- Plasterboard 1200x2400 sheet covers 2.88 m². Add ~10% waste. Drywall screws ≈ 25 per sheet.
+- Stud wall (per m²): CLS timber ~1 length per m² (3.6m lengths), 1 sheet plasterboard each side per 2.88 m², Rockwool RWA45 ~1 m² per m² of wall, screws ~50 per m², joint tape ~2 m per m², joint compound ~0.5 kg per m².
+- Ceiling boarding: same as plasterboard plus ~12 screws per m². 40 m² ≈ 14 sheets + ~500 screws.
+Only output requirements you can justify from the scope. Prefer fewer high-confidence estimates over many speculative ones.
+
 Rules:
 - Use British English construction terminology.
 - Never invent items not implied by the document.
