@@ -129,13 +129,15 @@ function ProjectDetail() {
       </header>
 
       <Tabs defaultValue="scope">
-        <TabsList className="w-full grid grid-cols-3 bg-secondary p-1 h-auto">
+        <TabsList className="w-full grid grid-cols-4 bg-secondary p-1 h-auto">
           <TabsTrigger value="scope" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Scope</TabsTrigger>
-          <TabsTrigger value="sitewalks" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Site Walks</TabsTrigger>
-          <TabsTrigger value="commercial" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Commercial</TabsTrigger>
+          <TabsTrigger value="procurement" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Procurement</TabsTrigger>
+          <TabsTrigger value="site" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Site</TabsTrigger>
+          <TabsTrigger value="valuations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Valuations</TabsTrigger>
         </TabsList>
 
         <TabsContent value="scope" className="mt-4 space-y-8">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Understand the Job</p>
           <ScopeTab projectId={project.id} />
           <Section title="Project Documents">
             <ProjectDocumentsTab projectId={project.id} />
@@ -145,17 +147,8 @@ function ProjectDetail() {
           </Section>
         </TabsContent>
 
-        <TabsContent value="sitewalks" className="mt-4 space-y-8">
-          <SiteWalksTab projectId={project.id} />
-          <Section title="Review Queue">
-            <ReviewQueueTab projectId={project.id} />
-          </Section>
-        </TabsContent>
-
-        <TabsContent value="commercial" className="mt-4 space-y-8">
-          <Section title="TradeSqueeze">
-            <TradeSqueezeTab projectId={project.id} />
-          </Section>
+        <TabsContent value="procurement" className="mt-4 space-y-8">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Buy Better</p>
           <Section title="Procurement Register">
             <ProcurementRegisterTab projectId={project.id} />
           </Section>
@@ -168,6 +161,21 @@ function ProjectDetail() {
           <Section title="Merchant Intelligence">
             <MerchantIntelligenceTab projectId={project.id} />
           </Section>
+          <Section title="TradeSqueeze">
+            <TradeSqueezeTab projectId={project.id} />
+          </Section>
+        </TabsContent>
+
+        <TabsContent value="site" className="mt-4 space-y-8">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Understand Progress</p>
+          <SiteWalksTab projectId={project.id} />
+          <Section title="Review Queue">
+            <ReviewQueueTab projectId={project.id} />
+          </Section>
+        </TabsContent>
+
+        <TabsContent value="valuations" className="mt-4 space-y-8">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Recover Revenue & Get Paid Faster</p>
           <Section title="Claim Opportunities">
             <ClaimOpportunitiesTab projectId={project.id} />
           </Section>
@@ -177,7 +185,7 @@ function ProjectDetail() {
           <Section title="Valuations">
             <ValuationsTab projectId={project.id} />
           </Section>
-          <Section title="Commercial Dashboard">
+          <Section title="Valuations Dashboard">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <Metric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} />
               <Metric label="Potential Claims" value={GBP.format(stats.potentialClaim)} />
