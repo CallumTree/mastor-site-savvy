@@ -8,30 +8,35 @@ const inputSchema = z.object({
 
 const SYSTEM_PROMPT = `You are a senior UK Construction Manager, Quantity Surveyor, Estimator, Buyer and Contracts Manager.
 
-You are reading a project scope document such as a Bill of Quantities, Schedule of Works, Specification, Tender or Scope Document. Your job is to break it down into a structured project understanding.
+You are reading a project scope document such as a Bill of Quantities, Schedule of Works, Specification, Tender or Scope Document. Your job is to break it down into a structured project understanding AND link the parts together.
 
 For each top-level scope item in the document, identify:
 
-1. tasks — discrete construction tasks (e.g. "Construct Stud Wall")
-2. labour_activities — the sequenced labour operations to deliver each task (e.g. "Set Out Wall", "Install CLS Frame")
-3. materials — physical materials with quantity and unit where stated (e.g. "100 x 50 CLS Timber")
-4. claimable_elements — items that can be claimed in a valuation (e.g. "Stud Wall Construction")
-5. procurement_items — material families that need to be procured/ordered (e.g. "CLS Timber", "Plasterboard")
+1. tasks — discrete construction tasks (e.g. "Construct Stud Wall"). For each task ALSO identify:
+   - trade — the trade responsible (e.g. "Drylining", "Joinery", "Plastering", "Electrical", "Plumbing", "Roofing", "Painting", "Groundworks", "Bathrooms", "Insulation")
+   - procurement_package — the logical buying package the task belongs to (e.g. "Drylining Package", "Kitchen Package", "Roofing Package")
+   - related_materials — array of material titles required to deliver this task (use the SAME titles as in the materials array)
+   - related_labour_activities — array of labour activity titles needed to deliver this task (use the SAME titles as in the labour_activities array)
+   - related_claimable_elements — array of claimable element titles delivered by this task (use the SAME titles as in the claimable_elements array)
+2. labour_activities — the sequenced labour operations to deliver each task (e.g. "Set Out Wall", "Install CLS Frame"). Include the trade where obvious.
+3. materials — physical materials with quantity and unit where stated (e.g. "100 x 50 CLS Timber"). Include trade where obvious.
+4. claimable_elements — items that can be claimed in a valuation (e.g. "Stud Wall Construction"). Include trade where obvious.
+5. procurement_items — material families that need to be procured/ordered (e.g. "CLS Timber", "Plasterboard").
 
 Rules:
 - Use British English construction terminology.
 - Never invent items not implied by the document.
 - Each item must include a "confidence": high, medium, or low.
-- Each item must include a "source_reference" — quote the item number, section or BoQ reference from the document (e.g. "Item 1.3", "Section 2.4", "BoQ Ref B/12"). If none is present, use "".
-- Each item must include a short "title" and an optional one-line "description".
-- For materials, include "quantity" (number) and "unit" (e.g. "m", "m2", "no") when stated; otherwise quantity = 0 and unit = "".
+- Each item must include a "source_reference" — quote the item number, section or BoQ reference (e.g. "Item 1.3"). If none is present, use "".
+- For materials, include "quantity" (number) and "unit" when stated; otherwise quantity = 0 and unit = "".
+- Reuse identical titles across arrays so relationships can be resolved.
 - Return STRICT JSON via the provided tool. No prose.`;
 
 const PARSE_TOOL = {
   type: "function",
   function: {
     name: "return_parsed_scope",
-    description: "Return structured scope breakdown of the document",
+    description: "Return structured scope breakdown with relationships",
     parameters: {
       type: "object",
       properties: {
@@ -42,10 +47,25 @@ const PARSE_TOOL = {
             properties: {
               title: { type: "string" },
               description: { type: "string" },
+              trade: { type: "string" },
+              procurement_package: { type: "string" },
+              related_materials: { type: "array", items: { type: "string" } },
+              related_labour_activities: { type: "array", items: { type: "string" } },
+              related_claimable_elements: { type: "array", items: { type: "string" } },
               source_reference: { type: "string" },
               confidence: { type: "string", enum: ["high", "medium", "low"] },
             },
-            required: ["title", "description", "source_reference", "confidence"],
+            required: [
+              "title",
+              "description",
+              "trade",
+              "procurement_package",
+              "related_materials",
+              "related_labour_activities",
+              "related_claimable_elements",
+              "source_reference",
+              "confidence",
+            ],
             additionalProperties: false,
           },
         },
@@ -56,10 +76,11 @@ const PARSE_TOOL = {
             properties: {
               title: { type: "string" },
               description: { type: "string" },
+              trade: { type: "string" },
               source_reference: { type: "string" },
               confidence: { type: "string", enum: ["high", "medium", "low"] },
             },
-            required: ["title", "description", "source_reference", "confidence"],
+            required: ["title", "description", "trade", "source_reference", "confidence"],
             additionalProperties: false,
           },
         },
@@ -70,12 +91,13 @@ const PARSE_TOOL = {
             properties: {
               title: { type: "string" },
               description: { type: "string" },
+              trade: { type: "string" },
               quantity: { type: "number" },
               unit: { type: "string" },
               source_reference: { type: "string" },
               confidence: { type: "string", enum: ["high", "medium", "low"] },
             },
-            required: ["title", "description", "quantity", "unit", "source_reference", "confidence"],
+            required: ["title", "description", "trade", "quantity", "unit", "source_reference", "confidence"],
             additionalProperties: false,
           },
         },
@@ -86,10 +108,11 @@ const PARSE_TOOL = {
             properties: {
               title: { type: "string" },
               description: { type: "string" },
+              trade: { type: "string" },
               source_reference: { type: "string" },
               confidence: { type: "string", enum: ["high", "medium", "low"] },
             },
-            required: ["title", "description", "source_reference", "confidence"],
+            required: ["title", "description", "trade", "source_reference", "confidence"],
             additionalProperties: false,
           },
         },
@@ -113,6 +136,7 @@ const PARSE_TOOL = {
     },
   },
 } as const;
+
 
 export const parseScopeDocument = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => inputSchema.parse(input))

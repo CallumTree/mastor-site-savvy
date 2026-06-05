@@ -13,9 +13,11 @@ type Row = {
   description?: string | null;
   unit_type?: string | null;
   aliases?: string[] | null;
+  procurement_package?: string | null;
   confidence_score: number;
   sources: any[] | null;
 };
+
 
 type MergeSuggestion = {
   id: string;
@@ -82,12 +84,14 @@ export function ConstructionIntelligenceTab() {
         description: r.description ?? null,
         unit_type: r.unit_type ?? null,
         aliases: r.aliases ?? [],
+        procurement_package: r.procurement_package ?? null,
         confidence_score: Number(r.confidence_score ?? 0),
         sources: r.sources ?? [],
       }))
     );
     setLoading(false);
   };
+
 
   const loadMerges = async () => {
     const { data } = await (supabase as any)
@@ -256,6 +260,43 @@ function MergeRow({
 }
 
 function DetailDrawer({ row, type, onClose }: { row: Row; type: LibType; onClose: () => void }) {
+  const [related, setRelated] = useState<{
+    materials: { id: string; name: string }[];
+    claimable: { id: string; name: string }[];
+    activities: { id: string; name: string }[];
+  }>({ materials: [], claimable: [], activities: [] });
+
+  useEffect(() => {
+    if (type !== "task") return;
+    (async () => {
+      const [{ data: mm }, { data: cm }, { data: la }] = await Promise.all([
+        (supabase as any)
+          .from("task_material_mappings")
+          .select("material_id, materials_library:material_id(id, material_name)")
+          .eq("task_id", row.id),
+        (supabase as any)
+          .from("task_claimable_mappings")
+          .select("claimable_id, claimable_elements_library:claimable_id(id, element_name)")
+          .eq("task_id", row.id),
+        (supabase as any)
+          .from("labour_activities_library")
+          .select("id, activity_name")
+          .eq("task_id", row.id),
+      ]);
+      setRelated({
+        materials: ((mm ?? []) as any[])
+          .map((r) => r.materials_library)
+          .filter(Boolean)
+          .map((m: any) => ({ id: m.id, name: m.material_name })),
+        claimable: ((cm ?? []) as any[])
+          .map((r) => r.claimable_elements_library)
+          .filter(Boolean)
+          .map((c: any) => ({ id: c.id, name: c.element_name })),
+        activities: ((la ?? []) as any[]).map((a) => ({ id: a.id, name: a.activity_name })),
+      });
+    })();
+  }, [row.id, type]);
+
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex justify-end" onClick={onClose}>
       <div
@@ -282,6 +323,56 @@ function DetailDrawer({ row, type, onClose }: { row: Row; type: LibType; onClose
             <div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Description</div>
               <div className="text-sm text-foreground">{row.description}</div>
+            </div>
+          )}
+
+          {type === "task" && (
+            <div className="space-y-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+              <div className="text-[10px] uppercase tracking-wider text-primary font-semibold">Knowledge Graph</div>
+
+              <RelField label="Related Trade">
+                {row.trade ? <Chip>{row.trade}</Chip> : <Muted>Not yet identified</Muted>}
+              </RelField>
+
+              <RelField label="Procurement Package">
+                {row.procurement_package ? <Chip>{row.procurement_package}</Chip> : <Muted>Not yet identified</Muted>}
+              </RelField>
+
+              <RelField label={`Related Materials (${related.materials.length})`}>
+                {related.materials.length === 0 ? (
+                  <Muted>No materials linked yet</Muted>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {related.materials.map((m) => (
+                      <Chip key={m.id}>{m.name}</Chip>
+                    ))}
+                  </div>
+                )}
+              </RelField>
+
+              <RelField label={`Related Claimable Elements (${related.claimable.length})`}>
+                {related.claimable.length === 0 ? (
+                  <Muted>None linked yet</Muted>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {related.claimable.map((c) => (
+                      <Chip key={c.id}>{c.name}</Chip>
+                    ))}
+                  </div>
+                )}
+              </RelField>
+
+              <RelField label={`Related Labour Activities (${related.activities.length})`}>
+                {related.activities.length === 0 ? (
+                  <Muted>None linked yet</Muted>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {related.activities.map((a) => (
+                      <Chip key={a.id}>{a.name}</Chip>
+                    ))}
+                  </div>
+                )}
+              </RelField>
             </div>
           )}
 
@@ -323,3 +414,25 @@ function DetailDrawer({ row, type, onClose }: { row: Row; type: LibType; onClose
     </div>
   );
 }
+
+function RelField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-block text-[11px] px-2 py-0.5 rounded-full border border-primary/30 bg-background text-foreground mr-1 mb-1">
+      {children}
+    </span>
+  );
+}
+
+function Muted({ children }: { children: React.ReactNode }) {
+  return <span className="text-[11px] text-muted-foreground italic">{children}</span>;
+}
+
