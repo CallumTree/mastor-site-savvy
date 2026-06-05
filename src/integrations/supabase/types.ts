@@ -80,6 +80,45 @@ export type Database = {
         }
         Relationships: []
       }
+      claimable_elements_library: {
+        Row: {
+          confidence_score: number
+          created_at: string
+          description: string | null
+          element_name: string
+          id: string
+          name_normalized: string | null
+          sources: Json
+          trade: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          confidence_score?: number
+          created_at?: string
+          description?: string | null
+          element_name: string
+          id?: string
+          name_normalized?: string | null
+          sources?: Json
+          trade?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          confidence_score?: number
+          created_at?: string
+          description?: string | null
+          element_name?: string
+          id?: string
+          name_normalized?: string | null
+          sources?: Json
+          trade?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       contract_items: {
         Row: {
           code: string | null
@@ -120,6 +159,131 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      knowledge_merge_suggestions: {
+        Row: {
+          created_at: string
+          duplicate_id: string
+          id: string
+          library_type: string
+          primary_id: string
+          reason: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duplicate_id: string
+          id?: string
+          library_type: string
+          primary_id: string
+          reason?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duplicate_id?: string
+          id?: string
+          library_type?: string
+          primary_id?: string
+          reason?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      labour_activities_library: {
+        Row: {
+          activity_name: string
+          confidence_score: number
+          created_at: string
+          id: string
+          name_normalized: string | null
+          sources: Json
+          task_id: string | null
+          trade: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_name: string
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          name_normalized?: string | null
+          sources?: Json
+          task_id?: string | null
+          trade?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_name?: string
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          name_normalized?: string | null
+          sources?: Json
+          task_id?: string | null
+          trade?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "labour_activities_library_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks_library"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      materials_library: {
+        Row: {
+          aliases: string[]
+          category: string | null
+          confidence_score: number
+          created_at: string
+          id: string
+          material_name: string
+          name_normalized: string | null
+          sources: Json
+          trade: string | null
+          unit_type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aliases?: string[]
+          category?: string | null
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          material_name: string
+          name_normalized?: string | null
+          sources?: Json
+          trade?: string | null
+          unit_type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aliases?: string[]
+          category?: string | null
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          material_name?: string
+          name_normalized?: string | null
+          sources?: Json
+          trade?: string | null
+          unit_type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       potential_claims: {
         Row: {
@@ -460,6 +624,90 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      task_material_mappings: {
+        Row: {
+          confidence_score: number
+          created_at: string
+          id: string
+          material_id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          material_id: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          material_id?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_material_mappings_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_material_mappings_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks_library"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks_library: {
+        Row: {
+          aliases: string[]
+          confidence_score: number
+          created_at: string
+          description: string | null
+          id: string
+          name_normalized: string | null
+          sources: Json
+          task_name: string
+          trade: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aliases?: string[]
+          confidence_score?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          name_normalized?: string | null
+          sources?: Json
+          task_name: string
+          trade?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aliases?: string[]
+          confidence_score?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          name_normalized?: string | null
+          sources?: Json
+          task_name?: string
+          trade?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       valuation_basket_items: {
         Row: {

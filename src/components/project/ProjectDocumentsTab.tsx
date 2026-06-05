@@ -173,7 +173,11 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         if (insErr) throw insErr;
       }
       await (supabase as any).from("project_documents").update({ parsed_at: new Date().toISOString() }).eq("id", doc.id);
-      toast.success(`Parsed: ${rows.length} item${rows.length === 1 ? "" : "s"}`);
+
+      // Feed Construction Knowledge Engine
+      await learnFromParse(parsed, { project_id: projectId, document_id: doc.id, document_name: doc.file_name });
+
+      toast.success(`Parsed: ${rows.length} item${rows.length === 1 ? "" : "s"} · Knowledge updated`);
       setFilterDocId(doc.id);
       load();
     } catch (e: any) {
@@ -365,6 +369,198 @@ function ConfidenceBadge({ value }: { value: "high" | "medium" | "low" }) {
       {value}
     </span>
   );
+}
+
+const CONF_SCORE: Record<string, number> = { high: 0.9, medium: 0.6, low: 0.3 };
+
+type LearnCtx = { project_id: string; document_id: string; document_name: string };
+
+async function learnFromParse(parsed: Record<string, any[]>, ctx: LearnCtx) {
+  const { data: userRes } = await supabase.auth.getUser();
+  const user_id = userRes.user?.id;
+  if (!user_id) return;
+
+  const taskByName: Record<string, string> = {};
+  const matByName: Record<string, string> = {};
+
+  await upsertLibrary({
+    table: "tasks_library",
+    nameCol: "task_name",
+    items: (parsed.tasks ?? []).map((t) => ({
+      name: t.title,
+      description: t.description,
+      source_reference: t.source_reference,
+      confidence: t.confidence,
+    })),
+    user_id,
+    ctx,
+    cache: taskByName,
+  });
+
+  await upsertLibrary({
+    table: "materials_library",
+    nameCol: "material_name",
+    items: (parsed.materials ?? []).map((m) => ({
+      name: m.title,
+      description: m.description,
+      unit_type: m.unit,
+      quantity: m.quantity,
+      source_reference: m.source_reference,
+      confidence: m.confidence,
+    })),
+    user_id,
+    ctx,
+    cache: matByName,
+  });
+
+  await upsertLibrary({
+    table: "claimable_elements_library",
+    nameCol: "element_name",
+    items: (parsed.claimable_elements ?? []).map((c) => ({
+      name: c.title,
+      description: c.description,
+      source_reference: c.source_reference,
+      confidence: c.confidence,
+    })),
+    user_id,
+    ctx,
+  });
+
+  await upsertLibrary({
+    table: "labour_activities_library",
+    nameCol: "activity_name",
+    items: (parsed.labour_activities ?? []).map((a) => ({
+      name: a.title,
+      description: a.description,
+      source_reference: a.source_reference,
+      confidence: a.confidence,
+    })),
+    user_id,
+    ctx,
+  });
+
+  // Detect duplicate-name suggestions (simple alias heuristic) for materials
+  await detectMergeSuggestions(user_id, "material", "materials_library", "material_name");
+  await detectMergeSuggestions(user_id, "task", "tasks_library", "task_name");
+}
+
+async function upsertLibrary(opts: {
+  table: string;
+  nameCol: string;
+  items: Array<{
+    name: string;
+    description?: string | null;
+    unit_type?: string | null;
+    quantity?: number | null;
+    source_reference?: string | null;
+    confidence?: "high" | "medium" | "low";
+  }>;
+  user_id: string;
+  ctx: LearnCtx;
+  cache?: Record<string, string>;
+}) {
+  const { table, nameCol, items, user_id, ctx, cache } = opts;
+  for (const it of items) {
+    const name = String(it.name || "").trim();
+    if (!name) continue;
+    const norm = name.toLowerCase();
+    const conf = CONF_SCORE[it.confidence ?? "medium"] ?? 0.5;
+    const source = {
+      project_id: ctx.project_id,
+      document_id: ctx.document_id,
+      document_name: ctx.document_name,
+      source_reference: it.source_reference || null,
+      quantity: it.quantity ?? null,
+      unit: it.unit_type ?? null,
+    };
+
+    // Look up existing by normalized name
+    const { data: existing } = await (supabase as any)
+      .from(table)
+      .select("*")
+      .eq("user_id", user_id)
+      .eq("name_normalized", norm)
+      .maybeSingle();
+
+    if (existing) {
+      const newSources = [...(existing.sources ?? []), source];
+      const update: any = { sources: newSources };
+      if (conf > Number(existing.confidence_score)) update.confidence_score = conf;
+      if (it.unit_type && !existing.unit_type) update.unit_type = it.unit_type;
+      if (it.description && !existing.description) update.description = it.description;
+      await (supabase as any).from(table).update(update).eq("id", existing.id);
+      if (cache) cache[norm] = existing.id;
+    } else {
+      const insert: any = {
+        user_id,
+        [nameCol]: name,
+        confidence_score: conf,
+        sources: [source],
+      };
+      if ("description" in (await getColumnsCheat(table))) insert.description = it.description ?? null;
+      if (table === "materials_library") insert.unit_type = it.unit_type ?? null;
+      const { data: created, error } = await (supabase as any).from(table).insert(insert).select("id").maybeSingle();
+      if (error) {
+        console.warn("learn insert failed", table, name, error.message);
+        continue;
+      }
+      if (created && cache) cache[norm] = created.id;
+    }
+  }
+}
+
+// Tiny helper to know which tables accept description (avoids a per-row SELECT)
+async function getColumnsCheat(table: string): Promise<Record<string, true>> {
+  const map: Record<string, Record<string, true>> = {
+    materials_library: { description: true },
+    tasks_library: { description: true },
+    labour_activities_library: {},
+    claimable_elements_library: { description: true },
+  };
+  return map[table] ?? {};
+}
+
+async function detectMergeSuggestions(user_id: string, library_type: string, table: string, nameCol: string) {
+  const { data } = await (supabase as any).from(table).select(`id, ${nameCol}, name_normalized, aliases`).eq("user_id", user_id);
+  const rows = (data ?? []) as any[];
+  if (rows.length < 2) return;
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = i + 1; j < rows.length; j++) {
+      const a = rows[i];
+      const b = rows[j];
+      if (!isLikelyDuplicate(a[nameCol], b[nameCol], a.aliases ?? [], b.aliases ?? [])) continue;
+      const [primary, duplicate] = a[nameCol].length >= b[nameCol].length ? [a, b] : [b, a];
+      // Insert suggestion if none pending/merged/rejected already exists for this pair
+      const { data: existing } = await (supabase as any)
+        .from("knowledge_merge_suggestions")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("library_type", library_type)
+        .or(`and(primary_id.eq.${primary.id},duplicate_id.eq.${duplicate.id}),and(primary_id.eq.${duplicate.id},duplicate_id.eq.${primary.id})`)
+        .maybeSingle();
+      if (existing) continue;
+      await (supabase as any).from("knowledge_merge_suggestions").insert({
+        user_id,
+        library_type,
+        primary_id: primary.id,
+        duplicate_id: duplicate.id,
+        reason: `Names look similar: "${primary[nameCol]}" / "${duplicate[nameCol]}"`,
+      });
+    }
+  }
+}
+
+function isLikelyDuplicate(a: string, b: string, aAliases: string[], bAliases: string[]): boolean {
+  const na = a.toLowerCase().trim();
+  const nb = b.toLowerCase().trim();
+  if (na === nb) return false;
+  const aTerms = [na, ...aAliases.map((x) => x.toLowerCase())];
+  const bTerms = [nb, ...bAliases.map((x) => x.toLowerCase())];
+  for (const x of aTerms) for (const y of bTerms) {
+    if (x === y) return true;
+    if (x.length > 3 && y.length > 3 && (x.includes(y) || y.includes(x))) return true;
+  }
+  return false;
 }
 
 async function extractText(buf: ArrayBuffer, ext: string): Promise<string> {
