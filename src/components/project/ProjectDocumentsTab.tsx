@@ -177,7 +177,20 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
       // Feed Construction Knowledge Engine
       await learnFromParse(parsed, { project_id: projectId, document_id: doc.id, document_name: doc.file_name });
 
-      toast.success(`Parsed: ${rows.length} item${rows.length === 1 ? "" : "s"} · Knowledge updated`);
+      // Generate Procurement Register suggestions from parsed materials
+      const procAdded = await generateProcurementSuggestions(parsed, {
+        project_id: projectId,
+        document_id: doc.id,
+        document_name: doc.file_name,
+      });
+
+      toast.success(
+        `Parsed: ${rows.length} item${rows.length === 1 ? "" : "s"} · Knowledge updated${
+          procAdded ? ` · ${procAdded} procurement suggestion${procAdded === 1 ? "" : "s"}` : ""
+        }`
+      );
+      setFilterDocId(doc.id);
+      load();
       setFilterDocId(doc.id);
       load();
     } catch (e: any) {
