@@ -84,12 +84,14 @@ export function ConstructionIntelligenceTab() {
         description: r.description ?? null,
         unit_type: r.unit_type ?? null,
         aliases: r.aliases ?? [],
+        procurement_package: r.procurement_package ?? null,
         confidence_score: Number(r.confidence_score ?? 0),
         sources: r.sources ?? [],
       }))
     );
     setLoading(false);
   };
+
 
   const loadMerges = async () => {
     const { data } = await (supabase as any)
