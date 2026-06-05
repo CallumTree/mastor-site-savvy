@@ -193,8 +193,8 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
 
       toast.success(
         `Parsed: ${rows.length} item${rows.length === 1 ? "" : "s"} · Knowledge updated${
-          procAdded ? ` · ${procAdded} procurement suggestion${procAdded === 1 ? "" : "s"}` : ""
-        }`
+          procAdded ? ` · ${procAdded} procurement` : ""
+        }${reqAdded ? ` · ${reqAdded} material req${reqAdded === 1 ? "" : "s"}` : ""}`
       );
       setFilterDocId(doc.id);
       load();
