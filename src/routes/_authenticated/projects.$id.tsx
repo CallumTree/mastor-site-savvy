@@ -13,6 +13,7 @@ import { ClaimOpportunitiesTab } from "@/components/project/ClaimOpportunitiesTa
 import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 import { ConstructionIntelligenceTab } from "@/components/project/ConstructionIntelligenceTab";
 import { ProcurementRegisterTab } from "@/components/project/ProcurementRegisterTab";
+import { ProcurementPackagesTab } from "@/components/project/ProcurementPackagesTab";
 import { MerchantIntelligenceTab } from "@/components/project/MerchantIntelligenceTab";
 import { TradeSqueezeTab } from "@/components/project/TradeSqueezeTab";
 
