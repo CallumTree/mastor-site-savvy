@@ -149,6 +149,9 @@ function ProjectDetail() {
         </TabsContent>
 
         <TabsContent value="commercial" className="mt-4 space-y-8">
+          <Section title="Procurement Register">
+            <ProcurementRegisterTab projectId={project.id} />
+          </Section>
           <Section title="Claim Opportunities">
             <ClaimOpportunitiesTab projectId={project.id} />
           </Section>
@@ -157,9 +160,6 @@ function ProjectDetail() {
           </Section>
           <Section title="Valuations">
             <ValuationsTab projectId={project.id} />
-          </Section>
-          <Section title="Procurement">
-            <ProcurementTab projectId={project.id} />
           </Section>
           <Section title="Commercial Dashboard">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
