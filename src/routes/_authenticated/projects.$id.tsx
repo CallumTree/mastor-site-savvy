@@ -153,6 +153,9 @@ function ProjectDetail() {
         </TabsContent>
 
         <TabsContent value="commercial" className="mt-4 space-y-8">
+          <Section title="TradeSqueeze">
+            <TradeSqueezeTab projectId={project.id} />
+          </Section>
           <Section title="Procurement Register">
             <ProcurementRegisterTab projectId={project.id} />
           </Section>
@@ -164,9 +167,6 @@ function ProjectDetail() {
           </Section>
           <Section title="Merchant Intelligence">
             <MerchantIntelligenceTab projectId={project.id} />
-          </Section>
-          <Section title="TradeSqueeze">
-            <TradeSqueezeTab projectId={project.id} />
           </Section>
           <Section title="Claim Opportunities">
             <ClaimOpportunitiesTab projectId={project.id} />
