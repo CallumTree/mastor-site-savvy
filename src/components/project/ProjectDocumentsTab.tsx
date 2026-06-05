@@ -184,10 +184,17 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         document_name: doc.file_name,
       });
 
+      // Persist Material Requirements (estimated quantities per work package)
+      const reqAdded = await persistMaterialRequirements(parsed, {
+        project_id: projectId,
+        document_id: doc.id,
+        document_name: doc.file_name,
+      });
+
       toast.success(
         `Parsed: ${rows.length} item${rows.length === 1 ? "" : "s"} · Knowledge updated${
-          procAdded ? ` · ${procAdded} procurement suggestion${procAdded === 1 ? "" : "s"}` : ""
-        }`
+          procAdded ? ` · ${procAdded} procurement` : ""
+        }${reqAdded ? ` · ${reqAdded} material req${reqAdded === 1 ? "" : "s"}` : ""}`
       );
       setFilterDocId(doc.id);
       load();
@@ -817,4 +824,43 @@ async function extractText(buf: ArrayBuffer, ext: string): Promise<string> {
     return out.join("\n\n");
   }
   return "";
+}
+
+async function persistMaterialRequirements(
+  parsed: Record<string, any[]>,
+  ctx: { project_id: string; document_id: string; document_name: string }
+): Promise<number> {
+  const reqs = (parsed.material_requirements ?? []).filter(
+    (r) => String(r?.material_name ?? "").trim() && Number(r?.estimated_quantity) > 0
+  );
+  if (!reqs.length) return 0;
+
+  // Map work_package name -> id for this project
+  const { data: wps } = await (supabase as any)
+    .from("work_packages")
+    .select("id, package_name")
+    .eq("project_id", ctx.project_id);
+  const wpByName: Record<string, string> = {};
+  for (const w of (wps ?? []) as any[]) wpByName[String(w.package_name).toLowerCase().trim()] = w.id;
+
+  const rows = reqs.map((r) => ({
+    project_id: ctx.project_id,
+    work_package_id: wpByName[String(r.work_package ?? "").toLowerCase().trim()] ?? null,
+    material_name: String(r.material_name).slice(0, 255),
+    estimated_quantity: Number(r.estimated_quantity) || 0,
+    original_quantity: Number(r.estimated_quantity) || 0,
+    unit: String(r.unit ?? "").slice(0, 32),
+    confidence_score: ["high", "medium", "low"].includes(r.confidence) ? r.confidence : "medium",
+    source_reference: String(r.source_reference ?? "").slice(0, 200),
+    source_task: String(r.source_task ?? "").slice(0, 255),
+    source_document: ctx.document_name.slice(0, 255),
+    status: "Suggested",
+  }));
+
+  const { error } = await (supabase as any).from("material_requirements").insert(rows);
+  if (error) {
+    console.warn("material_requirements insert failed", error.message);
+    return 0;
+  }
+  return rows.length;
 }

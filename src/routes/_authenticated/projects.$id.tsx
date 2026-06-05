@@ -18,6 +18,7 @@ import { PackagePricingTab } from "@/components/project/PackagePricingTab";
 import { MerchantIntelligenceTab } from "@/components/project/MerchantIntelligenceTab";
 import { TradeSqueezeTab } from "@/components/project/TradeSqueezeTab";
 import { WorkPackagesTab } from "@/components/project/WorkPackagesTab";
+import { MaterialIntelligenceTab } from "@/components/project/MaterialIntelligenceTab";
 
 type Project = {
   id: string;
@@ -155,6 +156,9 @@ function ProjectDetail() {
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Buy Better</p>
           <Section title="Procurement Register">
             <ProcurementRegisterTab projectId={project.id} />
+          </Section>
+          <Section title="Material Intelligence">
+            <MaterialIntelligenceTab projectId={project.id} />
           </Section>
           <Section title="Procurement Packages">
             <ProcurementPackagesTab projectId={project.id} />

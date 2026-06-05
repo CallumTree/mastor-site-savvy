@@ -279,6 +279,72 @@ export type Database = {
         }
         Relationships: []
       }
+      material_requirements: {
+        Row: {
+          confidence_score: string
+          created_at: string
+          estimated_quantity: number
+          id: string
+          material_name: string
+          original_quantity: number | null
+          project_id: string
+          source_document: string
+          source_reference: string
+          source_task: string
+          status: string
+          unit: string
+          updated_at: string
+          work_package_id: string | null
+        }
+        Insert: {
+          confidence_score?: string
+          created_at?: string
+          estimated_quantity?: number
+          id?: string
+          material_name: string
+          original_quantity?: number | null
+          project_id: string
+          source_document?: string
+          source_reference?: string
+          source_task?: string
+          status?: string
+          unit?: string
+          updated_at?: string
+          work_package_id?: string | null
+        }
+        Update: {
+          confidence_score?: string
+          created_at?: string
+          estimated_quantity?: number
+          id?: string
+          material_name?: string
+          original_quantity?: number | null
+          project_id?: string
+          source_document?: string
+          source_reference?: string
+          source_task?: string
+          status?: string
+          unit?: string
+          updated_at?: string
+          work_package_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_requirements_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_requirements_work_package_id_fkey"
+            columns: ["work_package_id"]
+            isOneToOne: false
+            referencedRelation: "work_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       materials_library: {
         Row: {
           aliases: string[]
