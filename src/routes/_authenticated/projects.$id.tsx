@@ -14,6 +14,7 @@ import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 import { ConstructionIntelligenceTab } from "@/components/project/ConstructionIntelligenceTab";
 import { ProcurementRegisterTab } from "@/components/project/ProcurementRegisterTab";
 import { MerchantIntelligenceTab } from "@/components/project/MerchantIntelligenceTab";
+import { TradeSqueezeTab } from "@/components/project/TradeSqueezeTab";
 
 type Project = {
   id: string;
