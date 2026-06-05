@@ -157,6 +157,9 @@ function ProjectDetail() {
           <Section title="Merchant Intelligence">
             <MerchantIntelligenceTab projectId={project.id} />
           </Section>
+          <Section title="TradeSqueeze">
+            <TradeSqueezeTab projectId={project.id} />
+          </Section>
           <Section title="Claim Opportunities">
             <ClaimOpportunitiesTab projectId={project.id} />
           </Section>
