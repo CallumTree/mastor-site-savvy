@@ -1252,12 +1252,240 @@ export type Database = {
           },
         ]
       }
+      work_package_activities: {
+        Row: {
+          activity_id: string
+          created_at: string
+          id: string
+          work_package_id: string
+        }
+        Insert: {
+          activity_id: string
+          created_at?: string
+          id?: string
+          work_package_id: string
+        }
+        Update: {
+          activity_id?: string
+          created_at?: string
+          id?: string
+          work_package_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_package_activities_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "labour_activities_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_package_activities_work_package_id_fkey"
+            columns: ["work_package_id"]
+            isOneToOne: false
+            referencedRelation: "work_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_package_claimables: {
+        Row: {
+          claimable_id: string
+          created_at: string
+          id: string
+          work_package_id: string
+        }
+        Insert: {
+          claimable_id: string
+          created_at?: string
+          id?: string
+          work_package_id: string
+        }
+        Update: {
+          claimable_id?: string
+          created_at?: string
+          id?: string
+          work_package_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_package_claimables_claimable_id_fkey"
+            columns: ["claimable_id"]
+            isOneToOne: false
+            referencedRelation: "claimable_elements_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_package_claimables_work_package_id_fkey"
+            columns: ["work_package_id"]
+            isOneToOne: false
+            referencedRelation: "work_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_package_materials: {
+        Row: {
+          created_at: string
+          id: string
+          material_id: string
+          work_package_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          material_id: string
+          work_package_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          material_id?: string
+          work_package_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_package_materials_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_package_materials_work_package_id_fkey"
+            columns: ["work_package_id"]
+            isOneToOne: false
+            referencedRelation: "work_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_package_procurement: {
+        Row: {
+          created_at: string
+          id: string
+          procurement_package_id: string
+          work_package_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          procurement_package_id: string
+          work_package_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          procurement_package_id?: string
+          work_package_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_package_procurement_procurement_package_id_fkey"
+            columns: ["procurement_package_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_package_procurement_work_package_id_fkey"
+            columns: ["work_package_id"]
+            isOneToOne: false
+            referencedRelation: "work_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_package_tasks: {
+        Row: {
+          created_at: string
+          id: string
+          task_id: string
+          work_package_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          task_id: string
+          work_package_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          task_id?: string
+          work_package_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_package_tasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_package_tasks_work_package_id_fkey"
+            columns: ["work_package_id"]
+            isOneToOne: false
+            referencedRelation: "work_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_packages: {
+        Row: {
+          confidence_score: number
+          created_at: string
+          description: string | null
+          id: string
+          package_name: string
+          project_id: string
+          source_documents: Json
+          status: string
+          trade: string | null
+          updated_at: string
+        }
+        Insert: {
+          confidence_score?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          package_name: string
+          project_id: string
+          source_documents?: Json
+          status?: string
+          trade?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confidence_score?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          package_name?: string
+          project_id?: string
+          source_documents?: Json
+          status?: string
+          trade?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_packages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       user_owns_project: { Args: { _project_id: string }; Returns: boolean }
+      user_owns_work_package: { Args: { _wp_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

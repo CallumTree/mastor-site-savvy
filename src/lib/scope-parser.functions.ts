@@ -22,6 +22,17 @@ For each top-level scope item in the document, identify:
 3. materials — physical materials with quantity and unit where stated (e.g. "100 x 50 CLS Timber"). Include trade where obvious.
 4. claimable_elements — items that can be claimed in a valuation (e.g. "Stud Wall Construction"). Include trade where obvious.
 5. procurement_items — material families that need to be procured/ordered (e.g. "CLS Timber", "Plasterboard").
+6. work_packages — high-level commercial construction packages that group related tasks (e.g. "Drylining Package", "Roofing Package", "Kitchen Package", "Bathroom Package", "Groundworks Package", "Decoration Package", "Electrical Package", "Plumbing Package"). For each work package include:
+   - package_name (e.g. "Drylining Package")
+   - trade
+   - description
+   - related_tasks — array of task titles in this package (reuse the EXACT titles from the tasks array)
+   - related_materials — array of material titles in this package (reuse the EXACT titles from the materials array)
+   - related_labour_activities — array of activity titles (reuse exact titles)
+   - related_claimable_elements — array of claimable element titles (reuse exact titles)
+   - confidence: high | medium | low
+
+Every task identified above should belong to exactly one work_package. Group thoughtfully — builders think in packages (Drylining, Roofing, Kitchen, Bathroom, Groundworks, Decoration, Electrical, Plumbing, Insulation, etc.), not isolated tasks.
 
 Rules:
 - Use British English construction terminology.
@@ -130,8 +141,35 @@ const PARSE_TOOL = {
             additionalProperties: false,
           },
         },
+        work_packages: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              package_name: { type: "string" },
+              trade: { type: "string" },
+              description: { type: "string" },
+              related_tasks: { type: "array", items: { type: "string" } },
+              related_materials: { type: "array", items: { type: "string" } },
+              related_labour_activities: { type: "array", items: { type: "string" } },
+              related_claimable_elements: { type: "array", items: { type: "string" } },
+              confidence: { type: "string", enum: ["high", "medium", "low"] },
+            },
+            required: [
+              "package_name",
+              "trade",
+              "description",
+              "related_tasks",
+              "related_materials",
+              "related_labour_activities",
+              "related_claimable_elements",
+              "confidence",
+            ],
+            additionalProperties: false,
+          },
+        },
       },
-      required: ["tasks", "labour_activities", "materials", "claimable_elements", "procurement_items"],
+      required: ["tasks", "labour_activities", "materials", "claimable_elements", "procurement_items", "work_packages"],
       additionalProperties: false,
     },
   },
