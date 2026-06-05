@@ -13,9 +13,11 @@ type Row = {
   description?: string | null;
   unit_type?: string | null;
   aliases?: string[] | null;
+  procurement_package?: string | null;
   confidence_score: number;
   sources: any[] | null;
 };
+
 
 type MergeSuggestion = {
   id: string;
