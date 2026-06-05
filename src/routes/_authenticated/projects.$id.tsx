@@ -18,6 +18,7 @@ import { PackagePricingTab } from "@/components/project/PackagePricingTab";
 import { MerchantIntelligenceTab } from "@/components/project/MerchantIntelligenceTab";
 import { TradeSqueezeTab } from "@/components/project/TradeSqueezeTab";
 import { WorkPackagesTab } from "@/components/project/WorkPackagesTab";
+import { MaterialIntelligenceTab } from "@/components/project/MaterialIntelligenceTab";
 
 type Project = {
   id: string;
