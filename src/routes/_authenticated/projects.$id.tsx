@@ -9,16 +9,9 @@ import { ValuationsTab } from "@/components/project/ValuationsTab";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
-import { ClaimOpportunitiesTab } from "@/components/project/ClaimOpportunitiesTab";
 import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
-import { ConstructionIntelligenceTab } from "@/components/project/ConstructionIntelligenceTab";
-import { ProcurementRegisterTab } from "@/components/project/ProcurementRegisterTab";
-import { ProcurementPackagesTab } from "@/components/project/ProcurementPackagesTab";
-import { PackagePricingTab } from "@/components/project/PackagePricingTab";
-import { MerchantIntelligenceTab } from "@/components/project/MerchantIntelligenceTab";
-import { TradeSqueezeTab } from "@/components/project/TradeSqueezeTab";
 import { WorkPackagesTab } from "@/components/project/WorkPackagesTab";
-import { MaterialIntelligenceTab } from "@/components/project/MaterialIntelligenceTab";
+import { InvoicesTab } from "@/components/project/InvoicesTab";
 
 type Project = {
   id: string;
@@ -130,15 +123,16 @@ function ProjectDetail() {
         </div>
       </header>
 
-      <Tabs defaultValue="scope">
-        <TabsList className="w-full grid grid-cols-4 bg-secondary p-1 h-auto">
-          <TabsTrigger value="scope" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Scope</TabsTrigger>
-          <TabsTrigger value="procurement" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Procurement</TabsTrigger>
-          <TabsTrigger value="site" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Site</TabsTrigger>
+      <Tabs defaultValue="scope-documents">
+        <TabsList className="w-full grid grid-cols-5 bg-secondary p-1 h-auto">
+          <TabsTrigger value="scope-documents" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Scope & Documents</TabsTrigger>
+          <TabsTrigger value="site-walks" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Site Walks</TabsTrigger>
+          <TabsTrigger value="ready-to-claim" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Ready To Claim</TabsTrigger>
           <TabsTrigger value="valuations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Valuations</TabsTrigger>
+          <TabsTrigger value="invoices" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Invoices</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="scope" className="mt-4 space-y-8">
+        <TabsContent value="scope-documents" className="mt-4 space-y-8">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Understand the Job</p>
           <Section title="Work Packages">
             <WorkPackagesTab projectId={project.id} />
@@ -147,34 +141,9 @@ function ProjectDetail() {
           <Section title="Project Documents">
             <ProjectDocumentsTab projectId={project.id} />
           </Section>
-          <Section title="Construction Intelligence">
-            <ConstructionIntelligenceTab />
-          </Section>
         </TabsContent>
 
-        <TabsContent value="procurement" className="mt-4 space-y-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Buy Better</p>
-          <Section title="Procurement Register">
-            <ProcurementRegisterTab projectId={project.id} />
-          </Section>
-          <Section title="Material Intelligence">
-            <MaterialIntelligenceTab projectId={project.id} />
-          </Section>
-          <Section title="Procurement Packages">
-            <ProcurementPackagesTab projectId={project.id} />
-          </Section>
-          <Section title="Package Pricing">
-            <PackagePricingTab projectId={project.id} />
-          </Section>
-          <Section title="Merchant Intelligence">
-            <MerchantIntelligenceTab projectId={project.id} />
-          </Section>
-          <Section title="TradeSqueeze">
-            <TradeSqueezeTab projectId={project.id} />
-          </Section>
-        </TabsContent>
-
-        <TabsContent value="site" className="mt-4 space-y-8">
+        <TabsContent value="site-walks" className="mt-4 space-y-8">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Understand Progress</p>
           <SiteWalksTab projectId={project.id} />
           <Section title="Review Queue">
@@ -182,27 +151,19 @@ function ProjectDetail() {
           </Section>
         </TabsContent>
 
+        <TabsContent value="ready-to-claim" className="mt-4 space-y-8">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Recover Revenue</p>
+          <ReadyToClaimTab projectId={project.id} />
+        </TabsContent>
+
         <TabsContent value="valuations" className="mt-4 space-y-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Recover Revenue & Get Paid Faster</p>
-          <Section title="Claim Opportunities">
-            <ClaimOpportunitiesTab projectId={project.id} />
-          </Section>
-          <Section title="Ready To Claim">
-            <ReadyToClaimTab projectId={project.id} />
-          </Section>
-          <Section title="Valuations">
-            <ValuationsTab projectId={project.id} />
-          </Section>
-          <Section title="Valuations Dashboard">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <Metric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} />
-              <Metric label="Potential Claims" value={GBP.format(stats.potentialClaim)} />
-              <Metric label="Approved Claims" value={GBP.format(stats.approvedClaim)} />
-              <Metric label="Ready To Claim" value={GBP.format(stats.readyToClaim)} />
-              <Metric label="Included In Valuation" value={GBP.format(stats.includedInValuation)} />
-              <Metric label="Paid" value={GBP.format(stats.paid)} />
-            </div>
-          </Section>
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Get Paid Faster</p>
+          <ValuationsTab projectId={project.id} />
+        </TabsContent>
+
+        <TabsContent value="invoices" className="mt-4 space-y-8">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Invoicing</p>
+          <InvoicesTab projectId={project.id} />
         </TabsContent>
       </Tabs>
     </main>
