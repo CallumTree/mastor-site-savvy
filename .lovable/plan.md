@@ -1,57 +1,103 @@
-# Post-Analysis Review Screen
-
 ## Goal
-After a site walk is analysed, present a focused review flow with three sections (Progress, Procurement, Variations). Each finding is a card with **Approve** and **Dismiss**. Once every finding is reviewed, show a summary and a **Done** button.
 
-The existing `AnalysisViewer` in `SiteWalksTab.tsx` is a denser admin view with edit + Approve/Reject + Risks + downstream record creation. We will leave it in place and add a new lightweight `AnalysisReview` component for the post-analysis flow described here.
+Close the £0 invoice gap by pricing every claim opportunity from contract items at creation time, carrying those numbers through to valuations and invoices, and letting the user override on the Valuation screen.
 
-## UX Flow
-1. User finishes recording → site walk analysed → `analysis_results` row created (already happens today).
-2. App opens `AnalysisReview` for that `analysis_id` (in the same dialog currently used to view analyses, plus auto-open right after a fresh analysis finishes).
-3. Three section headers in order: **Progress**, **Procurement**, **Variations**, each showing a count "reviewed / total".
-4. Each finding is a card showing the finding text + confidence pill + two buttons: **Approve** and **Dismiss**.
-5. Tapping a button immediately writes one row to `approved_findings`:
-   - `project_id`, `site_walk_id`, `analysis_id`
-   - `finding_type` = `"progress" | "procurement" | "variation"`
-   - `finding_text` = the displayed text
-   - `original_text` = same as finding_text (column is NOT NULL)
-   - `status` = `"approved"` or `"dismissed"`
-   - `approved_at` set when approved
-   The card visibly switches to a reviewed state (Approved / Dismissed badge, buttons disabled). Re-tapping the other button updates the existing row.
-6. When every finding across all three sections has a status, the review screen swaps to a **Summary** view: totals approved / dismissed per section + a **Done** button that closes the dialog.
-7. If there are zero findings in all three sections, show the summary immediately.
+---
 
-This flow intentionally:
-- excludes Risks (per spec — only the three sections),
-- has no edit step (Approve/Dismiss only),
-- does NOT create downstream `procurement_items` / `variations` records (that is the existing AnalysisViewer's job; this is the lightweight review the user described).
+## 1. Database changes
 
-## Technical Plan
+**Migration on `claim_opportunities`** — add three nullable numeric columns:
+- `unit_rate` numeric
+- `quantity` numeric
+- `claimed_value` numeric
 
-### New component
-`src/components/project/AnalysisReview.tsx`
-- Props: `{ analysisId, projectId, siteWalkId, analysisJson, walkTitle, onDone }`
-- Loads existing `approved_findings` rows where `analysis_id = analysisId` to resume in-progress reviews.
-- Builds a stable key per finding using `finding_type + original_text` (matches existing AnalysisViewer convention so the two views stay consistent).
-- `approve(finding)` and `dismiss(finding)` upsert into `approved_findings` with `status` `"approved"` or `"dismissed"`.
-- Tracks `reviewedCount` vs `totalCount`; when equal, renders the Summary.
-- Summary shows per-section approved/dismissed counts and a **Done** button calling `onDone`.
+**Migration on `valuation_items`** — add one column (the rest already exist):
+- `unit_rate` numeric
+  *(table already has `claimed_qty` and `claimed_value`; we'll reuse `claimed_qty` as the editable quantity field.)*
 
-### Wiring in `SiteWalksTab.tsx`
-- After a successful analysis (in the existing `analyseWalk` handler), set a state flag to open the review dialog with the new component for that analysis.
-- Add a "Review" action on each saved analysis row that opens the same `AnalysisReview` (separate from the existing detailed "View" which keeps using `AnalysisViewer`).
-- No changes to the existing AnalysisViewer.
+No new tables, no RLS changes.
 
-### Data
-- No schema migration. `approved_findings` already has all required columns.
-- Status values used by this screen: `"approved"`, `"dismissed"`. Existing AnalysisViewer uses `"Approved"`/`"Rejected"`; we keep those untouched. The new screen filters/writes its own lowercase values so the two flows do not collide visually. (We'll only consider a finding "reviewed" in the new screen if status is exactly `approved` or `dismissed`.)
+---
 
-### Out of scope
-- No edits to finding text.
-- No downstream record creation on approve.
-- No changes to Risks handling.
-- No changes to the analysis pipeline itself.
+## 2. Pricing logic at finding-approval time
 
-## Files
-- **New**: `src/components/project/AnalysisReview.tsx`
-- **Edit**: `src/components/project/SiteWalksTab.tsx` (open the new review after analysis + add a Review entry point on saved analyses)
+In `src/components/project/AnalysisReview.tsx`, extend `linkProgressFindingToWorkPackage`:
+
+After resolving the matching work package, run a second match against `contract_items` for the same project:
+
+```text
+score = (description token overlap × 2) + (trade/code token overlap × 1)
+```
+
+- Tokenise the finding text + work package name vs. each contract item's `description` (and `code`)
+- Pick the highest-scoring row above a minimum threshold
+- Pull `unit_rate` and `total_qty` (use as `quantity`)
+- Compute `claimed_value = unit_rate × quantity`
+- If no match found → leave the three fields null (UI will show "—" and editing on the Valuation screen will fill them in)
+
+Write those three fields into the `claim_opportunities` insert.
+
+---
+
+## 3. Carry pricing through to valuation_items
+
+In `src/components/project/ReadyToClaimTab.tsx` → `generateValuation()`:
+
+When mapping approved claim opportunities into `valuation_items` rows, include:
+- `unit_rate` → from claim opportunity
+- `claimed_qty` → from claim opportunity `quantity`
+- `claimed_value` → from claim opportunity
+
+---
+
+## 4. Valuation screen — editable line items
+
+In `src/routes/_authenticated/valuations.$id.tsx`:
+
+**New columns in the line items table:**
+
+| Work Package | Description | Unit Rate | Quantity | Value |
+|---|---|---|---|---|
+
+- **Unit Rate** and **Quantity** become inline `<Input type="number">` fields when the valuation status is `Draft`.
+- On every change, locally recompute `claimed_value = unit_rate × quantity` and update the row.
+- Auto-save (debounced ~400ms) writes `unit_rate`, `claimed_qty`, `claimed_value` back to the `valuation_items` row. No save button.
+- When status is `Approved`, render as plain text (read-only).
+
+**Summary recalculation:**
+
+Replace the current count-based "This Claim" with the real £ figure:
+
+- **Previously Claimed** — sum of `claimed_value` across all prior Approved valuations for this project *(unchanged logic)*
+- **This Claim** — `Σ claimed_value` of this valuation's line items *(was: count)*
+- **Total Claimed** — `Previously Claimed + This Claim`
+- **Remaining Value** — `project.gross_value (or contract_value) − Total Claimed`
+
+All four figures display as £.
+
+**Footer row** on the table shows the live £ total of the current line items, matching "This Claim".
+
+---
+
+## 5. Downstream effects on Invoice screen
+
+`src/routes/_authenticated/valuations.$id.invoice.tsx` already sums `claimed_value` into `invoice.total_amount` at creation. Once steps 1–4 are in, invoice totals will be correct automatically — **no changes needed there**, but I'll re-verify after the build.
+
+---
+
+## Files touched
+
+- New migration (2 ALTER TABLEs)
+- `src/components/project/AnalysisReview.tsx` — pricing match logic
+- `src/components/project/ReadyToClaimTab.tsx` — carry fields into valuation_items insert
+- `src/routes/_authenticated/valuations.$id.tsx` — editable columns, autosave, £ summary
+
+---
+
+## Out of scope (flagging for later)
+
+- Locking down editable quantity to ≤ remaining contract qty
+- Showing which contract item a claim was matched to (for transparency / unmatch button)
+- Bulk re-pricing of existing claim opportunities created before this change *(they'll still be £0 unless re-approved or manually edited on the Valuation screen)*
+
+Tell me to proceed and I'll switch to build.

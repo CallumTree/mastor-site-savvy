@@ -132,6 +132,43 @@ async function linkProgressFindingToWorkPackage(
     if (upErr) toast.error(`Update work package: ${upErr.message}`);
   }
 
+  // Find best-matching contract item to price this claim opportunity.
+  let unitRate: number | null = null;
+  let quantity: number | null = null;
+  let claimedValue: number | null = null;
+
+  const { data: contractItems } = await (supabase as any)
+    .from("contract_items")
+    .select("id, code, description, unit_rate, total_qty")
+    .eq("project_id", projectId);
+
+  const cItems = (contractItems ?? []) as Array<{
+    id: string;
+    code: string | null;
+    description: string | null;
+    unit_rate: number | null;
+    total_qty: number | null;
+  }>;
+
+  if (cItems.length > 0) {
+    const haystack = `${f.text} ${best.row.package_name}`;
+    const ft = new Set(tokens(haystack));
+    let bestCI: { row: (typeof cItems)[number]; score: number } | null = null;
+    for (const ci of cItems) {
+      let score = 0;
+      for (const w of tokens(ci.description ?? "")) if (ft.has(w)) score += 2;
+      for (const w of tokens(ci.code ?? "")) if (ft.has(w)) score += 1;
+      if (score > 0 && (!bestCI || score > bestCI.score)) bestCI = { row: ci, score };
+    }
+    if (bestCI) {
+      unitRate = bestCI.row.unit_rate != null ? Number(bestCI.row.unit_rate) : null;
+      quantity = bestCI.row.total_qty != null ? Number(bestCI.row.total_qty) : null;
+      if (unitRate != null && quantity != null) {
+        claimedValue = unitRate * quantity;
+      }
+    }
+  }
+
   const { error: claimErr } = await (supabase as any)
     .from("claim_opportunities")
     .insert({
@@ -140,6 +177,9 @@ async function linkProgressFindingToWorkPackage(
       work_package_name: best.row.package_name,
       finding_text: f.text,
       status: "Pending Review",
+      unit_rate: unitRate,
+      quantity,
+      claimed_value: claimedValue,
     });
   if (claimErr) {
     toast.error(`Claim opportunity: ${claimErr.message}`);
@@ -147,6 +187,7 @@ async function linkProgressFindingToWorkPackage(
     toast.success(`Claim opportunity created for ${best.row.package_name}`);
   }
 }
+
 
 export function AnalysisReview({
   analysisId,
