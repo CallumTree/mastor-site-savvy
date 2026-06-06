@@ -1256,17 +1256,6 @@ function RoomCard({ room }: { room: RoomAnalysis }) {
 }
 
 
-function SummaryCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-md border border-border bg-background p-3 text-center">
-      <div className="text-2xl font-semibold text-primary tabular-nums">{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
-        {label}
-      </div>
-    </div>
-  );
-}
-
 function Section({
   title,
   badge,
@@ -1297,74 +1286,4 @@ function Section({
   );
 }
 
-function ReviewRow({
-  text,
-  confidence,
-  state,
-  editing,
-  busy,
-  onEdit,
-  onChange,
-  onApprove,
-  onReject,
-}: {
-  text: string;
-  confidence: Confidence;
-  state: ItemState;
-  editing: boolean;
-  busy?: boolean;
-  onEdit: () => void;
-  onChange: (v: string) => void;
-  onApprove: () => void;
-  onReject: () => void;
-}) {
-  const stateRing =
-    state === "approved"
-      ? "border-emerald-500/50 bg-emerald-500/5"
-      : state === "rejected"
-      ? "border-rose-500/40 bg-rose-500/5 opacity-70"
-      : "border-border bg-background";
-  return (
-    <div className={`flex flex-wrap items-start gap-2 p-3 rounded-md border ${stateRing}`}>
-      <div className="flex-1 min-w-0">
-        {editing ? (
-          <Input value={text} onChange={(e) => onChange(e.target.value)} className="text-sm" />
-        ) : (
-          <div className="text-sm break-words">{text}</div>
-        )}
-      </div>
-      <span
-        className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${confidenceClass(
-          confidence,
-        )}`}
-      >
-        {confidence}
-      </span>
-      <div className="flex gap-1 shrink-0">
-        <Button
-          size="sm"
-          variant={state === "approved" ? "default" : "outline"}
-          className="gap-1 h-8"
-          disabled={busy}
-          onClick={onApprove}
-        >
-          {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-          Approve
-        </Button>
-        <Button size="sm" variant="ghost" className="gap-1 h-8" onClick={onEdit} disabled={busy}>
-          <Pencil className="w-3 h-3" /> {editing ? "Save" : "Edit"}
-        </Button>
-        <Button
-          size="sm"
-          variant={state === "rejected" ? "destructive" : "ghost"}
-          className="gap-1 h-8"
-          disabled={busy}
-          onClick={onReject}
-        >
-          <X className="w-3 h-3" /> Reject
-        </Button>
-      </div>
-    </div>
-  );
-}
 
