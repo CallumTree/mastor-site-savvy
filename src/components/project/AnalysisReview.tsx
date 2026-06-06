@@ -143,6 +143,13 @@ export function AnalysisReview({
       setRowIds((p) => ({ ...p, [f.key]: (data as { id: string }).id }));
     }
     setStatuses((p) => ({ ...p, [f.key]: status }));
+
+    // When a progress finding is approved, try to match it to a work package
+    // and create a claim opportunity for the next-phase review.
+    if (status === "approved" && f.type === "progress") {
+      await linkProgressFindingToWorkPackage(f, projectId);
+    }
+
     setBusyKey(null);
   };
 
