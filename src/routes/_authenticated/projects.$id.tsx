@@ -9,16 +9,9 @@ import { ValuationsTab } from "@/components/project/ValuationsTab";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
-import { ClaimOpportunitiesTab } from "@/components/project/ClaimOpportunitiesTab";
 import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
-import { ConstructionIntelligenceTab } from "@/components/project/ConstructionIntelligenceTab";
-import { ProcurementRegisterTab } from "@/components/project/ProcurementRegisterTab";
-import { ProcurementPackagesTab } from "@/components/project/ProcurementPackagesTab";
-import { PackagePricingTab } from "@/components/project/PackagePricingTab";
-import { MerchantIntelligenceTab } from "@/components/project/MerchantIntelligenceTab";
-import { TradeSqueezeTab } from "@/components/project/TradeSqueezeTab";
 import { WorkPackagesTab } from "@/components/project/WorkPackagesTab";
-import { MaterialIntelligenceTab } from "@/components/project/MaterialIntelligenceTab";
+import { InvoicesTab } from "@/components/project/InvoicesTab";
 
 type Project = {
   id: string;
