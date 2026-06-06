@@ -890,14 +890,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                       size="sm"
                       variant="outline"
                       className="gap-1 border-primary/30 text-primary hover:bg-primary/5"
-                      onClick={() => setReviewingAnalysis(a)}
-                    >
-                      <ClipboardCheck className="w-4 h-4" /> Review
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="gap-1"
                       onClick={() => setViewingAnalysis(a)}
                     >
                       <Eye className="w-4 h-4" /> View Analysis
