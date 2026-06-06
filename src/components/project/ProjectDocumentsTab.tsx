@@ -58,7 +58,7 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
   const [parsingId, setParsingId] = useState<string | null>(null);
   const [filterDocId, setFilterDocId] = useState<string | "all">("all");
   const fileRef = useRef<HTMLInputElement>(null);
-  const parseFn = useServerFn(parseScopeDocument);
+  const parseFn = useServerFn(parseBoQ);
 
   const load = async () => {
     setLoading(true);
