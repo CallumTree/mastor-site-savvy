@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Upload, FileText, Trash2, Sparkles, Eye, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { parseScopeDocument } from "@/lib/scope-parser.functions";
+import { parseBoQ } from "@/lib/parseDocument.functions";
 
 type Doc = {
   id: string;
