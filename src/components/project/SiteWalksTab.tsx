@@ -534,14 +534,18 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           transcript: walk.transcript,
           projectId,
           siteWalkId: walk.id,
-          userId: DEV_USER.id,
         },
       });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
-      toast.success("Analysis complete");
+      const ai = result.autoInserts;
+      toast.success(
+        ai
+          ? `Analysis complete · ${ai.variationsAdded} variation(s), ${ai.procurementAdded} procurement item(s) added`
+          : "Analysis complete"
+      );
       const row = result.row as unknown as AnalysisRow;
       setAnalyses((prev) => [row, ...prev]);
       setViewingAnalysis(row);
