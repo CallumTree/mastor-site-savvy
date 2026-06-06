@@ -1,37 +1,57 @@
-## Problem
+# Post-Analysis Review Screen
 
-On Android Chrome, the Web Speech API emits final results that **grow cumulatively** — each new final result repeats and extends the previous one ("so" → "so in" → "so in the" → "so in the kitchen" → "so in the kitchen suite is ready"). The current code dedupes by `resultIndex` and appends each new final as if it were a new phrase, so a single spoken sentence ("the kitchen is ready to be ordered") gets appended dozens of times in growing fragments.
+## Goal
+After a site walk is analysed, present a focused review flow with three sections (Progress, Procurement, Variations). Each finding is a card with **Approve** and **Dismiss**. Once every finding is reviewed, show a summary and a **Done** button.
 
-The current `committed: Set<number>` strategy is the wrong model for Android — the engine reuses/grows indices instead of producing one immutable final per index.
+The existing `AnalysisViewer` in `SiteWalksTab.tsx` is a denser admin view with edit + Approve/Reject + Risks + downstream record creation. We will leave it in place and add a new lightweight `AnalysisReview` component for the post-analysis flow described here.
 
-## Fix (single file: `src/components/project/SiteWalksTab.tsx`)
+## UX Flow
+1. User finishes recording → site walk analysed → `analysis_results` row created (already happens today).
+2. App opens `AnalysisReview` for that `analysis_id` (in the same dialog currently used to view analyses, plus auto-open right after a fresh analysis finishes).
+3. Three section headers in order: **Progress**, **Procurement**, **Variations**, each showing a count "reviewed / total".
+4. Each finding is a card showing the finding text + confidence pill + two buttons: **Approve** and **Dismiss**.
+5. Tapping a button immediately writes one row to `approved_findings`:
+   - `project_id`, `site_walk_id`, `analysis_id`
+   - `finding_type` = `"progress" | "procurement" | "variation"`
+   - `finding_text` = the displayed text
+   - `original_text` = same as finding_text (column is NOT NULL)
+   - `status` = `"approved"` or `"dismissed"`
+   - `approved_at` set when approved
+   The card visibly switches to a reviewed state (Approved / Dismissed badge, buttons disabled). Re-tapping the other button updates the existing row.
+6. When every finding across all three sections has a status, the review screen swaps to a **Summary** view: totals approved / dismissed per section + a **Done** button that closes the dialog.
+7. If there are zero findings in all three sections, show the summary immediately.
 
-Rewrite the recognition result handling in `createRecognition` and the session lifecycle:
+This flow intentionally:
+- excludes Risks (per spec — only the three sections),
+- has no edit step (Approve/Dismiss only),
+- does NOT create downstream `procurement_items` / `variations` records (that is the existing AnalysisViewer's job; this is the lightweight review the user described).
 
-1. **Snapshot a session base.** When a recognition session starts (and on every auto-restart inside `onend`), capture `sessionBaseRef = transcriptRef.current` — the committed transcript from all *previous* sessions.
+## Technical Plan
 
-2. **Rebuild, don't append.** In `onresult`, iterate the full `event.results` from index 0 (not from `event.resultIndex`):
-   - Concatenate all `isFinal` transcripts into `sessionFinal`.
-   - Concatenate all non-final transcripts into `sessionInterim`.
-   - Set `transcript = sessionBase + (sep) + sessionFinal` (always overwrite, never append).
-   - Set `interim = sessionInterim` (preview only).
+### New component
+`src/components/project/AnalysisReview.tsx`
+- Props: `{ analysisId, projectId, siteWalkId, analysisJson, walkTitle, onDone }`
+- Loads existing `approved_findings` rows where `analysis_id = analysisId` to resume in-progress reviews.
+- Builds a stable key per finding using `finding_type + original_text` (matches existing AnalysisViewer convention so the two views stay consistent).
+- `approve(finding)` and `dismiss(finding)` upsert into `approved_findings` with `status` `"approved"` or `"dismissed"`.
+- Tracks `reviewedCount` vs `totalCount`; when equal, renders the Summary.
+- Summary shows per-section approved/dismissed counts and a **Done** button calling `onDone`.
 
-   This makes the latest cumulative final result authoritative — duplicates collapse naturally because we replace instead of append.
+### Wiring in `SiteWalksTab.tsx`
+- After a successful analysis (in the existing `analyseWalk` handler), set a state flag to open the review dialog with the new component for that analysis.
+- Add a "Review" action on each saved analysis row that opens the same `AnalysisReview` (separate from the existing detailed "View" which keeps using `AnalysisViewer`).
+- No changes to the existing AnalysisViewer.
 
-3. **Auto-restart handling.** In `onend`, before restarting, fold the just-completed session's final text into `transcriptRef` (it already is, via step 2) and reset `sessionBaseRef` to the new `transcriptRef.current` so the next session starts from a clean base. Clear interim.
+### Data
+- No schema migration. `approved_findings` already has all required columns.
+- Status values used by this screen: `"approved"`, `"dismissed"`. Existing AnalysisViewer uses `"Approved"`/`"Rejected"`; we keep those untouched. The new screen filters/writes its own lowercase values so the two flows do not collide visually. (We'll only consider a finding "reviewed" in the new screen if status is exactly `approved` or `dismissed`.)
 
-4. **Pause/Resume.** `handlePause` already calls `stopRecognition` and `handleResume` calls `startRecognition` — both will get a fresh session base via step 1, so resumed speech appends cleanly after the paused transcript.
+### Out of scope
+- No edits to finding text.
+- No downstream record creation on approve.
+- No changes to Risks handling.
+- No changes to the analysis pipeline itself.
 
-5. **Manual area markers** (e.g. "[Kitchen]") inserted while recording also become part of the new `sessionBaseRef` automatically on the next restart; to be safe, refresh `sessionBaseRef = transcriptRef.current` whenever an area marker is inserted mid-recording.
-
-6. Remove the now-unused `committed: Set<number>`.
-
-## Out of scope
-
-- No change to the analysis engine, approval workflow, DB schema, or UI layout.
-- No switch to ElevenLabs realtime (can be a follow-up if Web Speech remains unreliable on other devices).
-- Save flow already uses `transcript.trim()` (final-only state), so saved data is correct once the live state is correct.
-
-## Expected result
-
-Saying "the kitchen is ready to be ordered" once produces exactly that text in the transcript, regardless of how many cumulative interim/final updates Android Chrome emits.
+## Files
+- **New**: `src/components/project/AnalysisReview.tsx`
+- **Edit**: `src/components/project/SiteWalksTab.tsx` (open the new review after analysis + add a Review entry point on saved analyses)
