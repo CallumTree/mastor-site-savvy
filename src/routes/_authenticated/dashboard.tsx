@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, HardHat, ClipboardCheck, AlertTriangle, MapPin, Sparkles, Inbox, CheckCircle2, FileEdit, Package, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
-import { DEV_USER } from "@/lib/dev-user";
+
 
 type Project = {
   id: string;
@@ -187,8 +187,14 @@ function NewProjectDialog({ onCreated }: { onCreated: () => void }) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    const { data: userRes, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !userRes.user) {
+      setBusy(false);
+      toast.error("You must be signed in to create a project.");
+      return;
+    }
     const { error } = await supabase.from("projects").insert({
-      user_id: DEV_USER.id,
+      user_id: userRes.user.id,
       name,
       client: client || null,
       location: location || null,

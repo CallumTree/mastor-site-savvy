@@ -12,6 +12,8 @@ import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
 import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 import { WorkPackagesTab } from "@/components/project/WorkPackagesTab";
 import { InvoicesTab } from "@/components/project/InvoicesTab";
+import { VariationsTab } from "@/components/project/VariationsTab";
+import { ProcurementTab } from "@/components/project/ProcurementTab";
 
 type Project = {
   id: string;
@@ -131,6 +133,12 @@ function ProjectDetail() {
           <TabsTrigger value="site-walks" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
             Site Walks
           </TabsTrigger>
+          <TabsTrigger value="variations" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+            Variations
+          </TabsTrigger>
+          <TabsTrigger value="procurement" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+            Procurement
+          </TabsTrigger>
           <TabsTrigger value="ready-to-claim" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
             Ready To Claim
           </TabsTrigger>
@@ -159,6 +167,16 @@ function ProjectDetail() {
           <Section title="Review Queue">
             <ReviewQueueTab projectId={project.id} />
           </Section>
+        </TabsContent>
+
+        <TabsContent value="variations" className="mt-4 space-y-8">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Variations</p>
+          <VariationsTab projectId={project.id} />
+        </TabsContent>
+
+        <TabsContent value="procurement" className="mt-4 space-y-8">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Procurement</p>
+          <ProcurementTab projectId={project.id} />
         </TabsContent>
 
         <TabsContent value="ready-to-claim" className="mt-4 space-y-8">

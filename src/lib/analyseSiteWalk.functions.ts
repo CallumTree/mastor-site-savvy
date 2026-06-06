@@ -1,11 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const inputSchema = z.object({
   transcript: z.string().min(1).max(50_000),
   projectId: z.string().uuid(),
   siteWalkId: z.string().uuid(),
-  userId: z.string().uuid(),
 });
 
 const SYSTEM_PROMPT = `You are an AI assistant for a UK construction site manager.
@@ -72,16 +72,27 @@ function currentMonth(): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+function normaliseText(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function isSimilar(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
 export const analyseSiteWalk = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return { ok: false as const, error: "ANTHROPIC_API_KEY is not configured." };
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const plan = getUserPlan(data.userId);
+    const userId = context.userId;
+    const plan = getUserPlan(userId);
     const limit = PLAN_LIMITS[plan];
     const month = currentMonth();
 
@@ -89,7 +100,7 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
     const { data: usageRow, error: usageErr } = await supabaseAdmin
       .from("usage_tracking")
       .select("id, analysis_count")
-      .eq("user_id", data.userId)
+      .eq("user_id", userId)
       .eq("month", month)
       .maybeSingle();
 
@@ -171,6 +182,70 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
       return { ok: false as const, error: `Failed to save analysis: ${insertErr.message}` };
     }
 
+    // Auto-insert procurement items (dedup against active rows)
+    const procurement: string[] = Array.isArray(analysis.all_procurement)
+      ? analysis.all_procurement.filter((s: any) => typeof s === "string" && s.trim())
+      : [];
+    let procurementAdded = 0;
+    let procurementSkipped = 0;
+    if (procurement.length) {
+      const { data: existingProc } = await supabaseAdmin
+        .from("procurement_items")
+        .select("description, status")
+        .eq("project_id", data.projectId)
+        .in("status", ["Required", "Quoted", "Ordered"]);
+      const existingNorm = (existingProc ?? []).map((r: any) => normaliseText(String(r.description ?? "")));
+      const toInsert: Array<{ project_id: string; description: string; status: string }> = [];
+      const seenThisRun: string[] = [];
+      for (const raw of procurement) {
+        const desc = raw.trim();
+        const n = normaliseText(desc);
+        if (existingNorm.some((e) => isSimilar(e, n)) || seenThisRun.some((e) => isSimilar(e, n))) {
+          procurementSkipped++;
+          continue;
+        }
+        seenThisRun.push(n);
+        toInsert.push({ project_id: data.projectId, description: desc, status: "Required" });
+      }
+      if (toInsert.length) {
+        const { error: pErr } = await supabaseAdmin.from("procurement_items").insert(toInsert);
+        if (pErr) console.error("[analyseSiteWalk] procurement insert failed", pErr);
+        else procurementAdded = toInsert.length;
+      }
+    }
+
+    // Auto-insert variations (dedup against open variations for this project)
+    const variations: string[] = Array.isArray(analysis.all_variations)
+      ? analysis.all_variations.filter((s: any) => typeof s === "string" && s.trim())
+      : [];
+    let variationsAdded = 0;
+    let variationsSkipped = 0;
+    if (variations.length) {
+      const { data: existingVars } = await supabaseAdmin
+        .from("variations")
+        .select("description, status")
+        .eq("project_id", data.projectId)
+        .in("status", ["Draft", "Pending", "Approved"]);
+      const existingNorm = (existingVars ?? []).map((r: any) => normaliseText(String(r.description ?? "")));
+      const toInsert: Array<{ project_id: string; description: string; status: string }> = [];
+      const seenThisRun: string[] = [];
+      for (const raw of variations) {
+        const desc = raw.trim();
+        const n = normaliseText(desc);
+        if (existingNorm.some((e) => isSimilar(e, n)) || seenThisRun.some((e) => isSimilar(e, n))) {
+          variationsSkipped++;
+          continue;
+        }
+        seenThisRun.push(n);
+        toInsert.push({ project_id: data.projectId, description: desc, status: "Draft" });
+      }
+      if (toInsert.length) {
+        const { error: vErr } = await supabaseAdmin.from("variations").insert(toInsert);
+        if (vErr) console.error("[analyseSiteWalk] variations insert failed", vErr);
+        else variationsAdded = toInsert.length;
+      }
+    }
+
     // Mark site walk as analysed
     const { error: updateErr } = await supabaseAdmin
       .from("site_walks")
@@ -189,7 +264,7 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
     } else {
       await supabaseAdmin
         .from("usage_tracking")
-        .insert({ user_id: data.userId, month, analysis_count: 1 });
+        .insert({ user_id: userId, month, analysis_count: 1 });
     }
 
     return {
@@ -197,5 +272,11 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
       analysis,
       row: inserted,
       usage: { plan, used: currentCount + 1, limit },
+      autoInserts: {
+        procurementAdded,
+        procurementSkipped,
+        variationsAdded,
+        variationsSkipped,
+      },
     };
   });
