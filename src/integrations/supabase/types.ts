@@ -1070,24 +1070,30 @@ export type Database = {
           duration_seconds: number
           id: string
           project_id: string
+          recording_type: string
           title: string | null
           transcript: string | null
+          video_path: string | null
         }
         Insert: {
           created_at?: string
           duration_seconds?: number
           id?: string
           project_id: string
+          recording_type?: string
           title?: string | null
           transcript?: string | null
+          video_path?: string | null
         }
         Update: {
           created_at?: string
           duration_seconds?: number
           id?: string
           project_id?: string
+          recording_type?: string
           title?: string | null
           transcript?: string | null
+          video_path?: string | null
         }
         Relationships: [
           {
