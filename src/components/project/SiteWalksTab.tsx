@@ -1085,6 +1085,25 @@ function AnalysisViewer({
 
   const addProcurement = async (text: string) => {
     setBusyKey(`p:${text}`);
+    // Dedupe: skip if a similar active item already exists for this project.
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const target = norm(text);
+    const { data: existing } = await (supabase as any)
+      .from("procurement_items")
+      .select("description, status")
+      .eq("project_id", projectId)
+      .in("status", ["Required", "Quoted", "Ordered"]);
+    const dup = (existing ?? []).some((r: any) => {
+      const e = norm(String(r.description ?? ""));
+      if (!e || !target) return false;
+      return e === target || e.includes(target) || target.includes(e);
+    });
+    if (dup) {
+      setBusyKey(null);
+      setAddedProcurement((s) => new Set(s).add(text));
+      toast.info("Already in procurement list — skipped");
+      return;
+    }
     const { error } = await supabase.from("procurement_items").insert({
       project_id: projectId,
       description: text,
