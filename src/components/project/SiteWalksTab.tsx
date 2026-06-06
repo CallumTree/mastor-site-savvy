@@ -25,14 +25,11 @@ import {
   Plus,
   Sparkles,
   Check,
-  X,
-  Pencil,
   Loader2,
-  ClipboardCheck,
   Video,
   FileVideo,
 } from "lucide-react";
-import { AnalysisReview } from "./AnalysisReview";
+
 
 type RecordingMode = "audio" | "video";
 
