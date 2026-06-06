@@ -467,18 +467,25 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       title: t,
       transcript: transcript.trim(),
       duration_seconds: seconds,
-    });
+      recording_type: mode,
+      video_path: mode === "video" ? videoSessionPathRef.current || null : null,
+    } as any);
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("Site walk saved");
+    toast.success(mode === "video" ? "Site diary saved" : "Site walk saved");
     setSaveOpen(false);
+    setVideoConfirmOpen(false);
     setStatus("idle");
+    setMode("audio");
     setTranscript("");
     transcriptRef.current = "";
     setInterim("");
     setSeconds(0);
     setTitle("");
     setMicDenied(false);
+    videoSessionPathRef.current = "";
+    videoChunkIndexRef.current = 0;
+    setChunksUploaded(0);
     loadAll();
   };
 
@@ -486,6 +493,36 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     setSaveOpen(false);
     setStatus("paused");
   };
+
+  const handleDiscardVideo = async () => {
+    // Best-effort cleanup of uploaded chunks
+    const prefix = videoSessionPathRef.current;
+    if (prefix) {
+      try {
+        const { data: files } = await supabase.storage
+          .from("site-walk-videos")
+          .list(prefix);
+        if (files && files.length) {
+          await supabase.storage
+            .from("site-walk-videos")
+            .remove(files.map((f) => `${prefix}/${f.name}`));
+        }
+      } catch (e) {
+        console.warn("Failed to clean up video chunks", e);
+      }
+    }
+    setVideoConfirmOpen(false);
+    setStatus("idle");
+    setMode("audio");
+    setTranscript("");
+    transcriptRef.current = "";
+    setSeconds(0);
+    setTitle("");
+    videoSessionPathRef.current = "";
+    videoChunkIndexRef.current = 0;
+    setChunksUploaded(0);
+  };
+
 
   const deleteWalk = async (id: string) => {
     if (!confirm("Are you sure you want to delete this Site Walk?")) return;
