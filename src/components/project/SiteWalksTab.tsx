@@ -106,6 +106,7 @@ function confidenceClass(c: Confidence) {
 
 export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [status, setStatus] = useState<Status>("idle");
+  const [mode, setMode] = useState<RecordingMode>("audio");
   const [transcript, setTranscript] = useState("");
   const [interim, setInterim] = useState("");
   const [seconds, setSeconds] = useState(0);
@@ -119,6 +120,11 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [saveOpen, setSaveOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Video-only state
+  const [videoConfirmOpen, setVideoConfirmOpen] = useState(false);
+  const [chunksUploaded, setChunksUploaded] = useState(0);
+  const [chunksUploading, setChunksUploading] = useState(0);
 
   const [viewing, setViewing] = useState<SiteWalk | null>(null);
 
@@ -134,8 +140,17 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const transcriptRef = useRef("");
   const sessionBaseRef = useRef("");
 
+  // Video recording refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+  const videoSessionPathRef = useRef<string>("");
+  const videoChunkIndexRef = useRef(0);
+  const videoMimeRef = useRef<string>("video/webm");
+
   const analyseFn = useServerFn(analyseSiteWalk);
   const speechSupported = !!getSpeechRecognition();
+
 
   useEffect(() => {
     transcriptRef.current = transcript;
