@@ -30,7 +30,9 @@ type ScopeElement = {
   confidence: "high" | "medium" | "low";
 };
 
-const ACCEPT = ".pdf,.docx,.xlsx,.xls,.csv,.txt";
+const ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt";
+const SUPPORTED_EXTS = ["pdf", "doc", "docx", "xls", "xlsx", "csv", "txt"] as const;
+const ACCEPTED_LABEL = "PDF, Word (.doc, .docx), Excel (.xls, .xlsx), CSV, or TXT";
 
 const TYPE_LABEL: Record<ScopeElement["element_type"], string> = {
   task: "Tasks",
