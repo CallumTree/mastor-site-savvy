@@ -1071,6 +1071,7 @@ export type Database = {
           id: string
           project_id: string
           recording_type: string
+          status: string
           title: string | null
           transcript: string | null
           video_path: string | null
@@ -1081,6 +1082,7 @@ export type Database = {
           id?: string
           project_id: string
           recording_type?: string
+          status?: string
           title?: string | null
           transcript?: string | null
           video_path?: string | null
@@ -1091,6 +1093,7 @@ export type Database = {
           id?: string
           project_id?: string
           recording_type?: string
+          status?: string
           title?: string | null
           transcript?: string | null
           video_path?: string | null
@@ -1268,6 +1271,33 @@ export type Database = {
           created_at?: string
           id?: string
           merchant_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      usage_tracking: {
+        Row: {
+          analysis_count: number
+          created_at: string
+          id: string
+          month: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_count?: number
+          created_at?: string
+          id?: string
+          month: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_count?: number
+          created_at?: string
+          id?: string
+          month?: string
           updated_at?: string
           user_id?: string
         }

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
-import { analyseSiteWalk } from "@/lib/analysis.functions";
+import { analyseSiteWalk } from "@/lib/analyseSiteWalk.functions";
+import { DEV_USER } from "@/lib/dev-user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,14 +25,11 @@ import {
   Plus,
   Sparkles,
   Check,
-  X,
-  Pencil,
   Loader2,
-  ClipboardCheck,
   Video,
   FileVideo,
 } from "lucide-react";
-import { AnalysisReview } from "./AnalysisReview";
+
 
 type RecordingMode = "audio" | "video";
 
@@ -46,25 +44,23 @@ type SiteWalk = {
 };
 
 
-type Confidence = "high" | "medium" | "low";
 
-type ProgressItem = { description: string; location: string; confidence: Confidence };
-type ProcurementItem = {
-  description: string;
-  quantity: number;
-  unit: string;
-  location: string;
-  confidence: Confidence;
+
+type RoomAnalysis = {
+  room: string;
+  progress: string[];
+  next_tasks: string[];
+  materials_needed: string[];
+  health_and_safety: string[];
+  valuation_notes: string[];
 };
-type VariationItem = { description: string; location: string; confidence: Confidence };
-type RiskItem = { description: string; location: string; confidence: Confidence };
 
 type Analysis = {
-  progress_items: ProgressItem[];
-  procurement_items: ProcurementItem[];
-  variation_items: VariationItem[];
-  risk_items: RiskItem[];
-  site_diary_summary: string;
+  summary: string;
+  rooms: RoomAnalysis[];
+  all_procurement: string[];
+  all_variations: string[];
+  all_health_and_safety: string[];
 };
 
 type AnalysisRow = {
@@ -76,7 +72,7 @@ type AnalysisRow = {
 };
 
 type Status = "idle" | "recording" | "paused" | "finished";
-type ItemState = "suggested" | "approved" | "rejected";
+
 
 const QUICK_AREAS = ["Bedroom", "Bathroom", "Kitchen", "External"];
 
@@ -97,11 +93,6 @@ function formatMinutes(secs: number) {
   if (secs < 60) return `${secs}s`;
   const m = Math.round(secs / 60);
   return `${m} min${m === 1 ? "" : "s"}`;
-}
-function confidenceClass(c: Confidence) {
-  if (c === "high") return "border-emerald-500/40 text-emerald-700 bg-emerald-500/10";
-  if (c === "medium") return "border-amber-500/40 text-amber-700 bg-amber-500/10";
-  return "border-rose-500/40 text-rose-700 bg-rose-500/10";
 }
 
 export function SiteWalksTab({ projectId }: { projectId: string }) {
@@ -131,7 +122,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
   const [analysingId, setAnalysingId] = useState<string | null>(null);
   const [viewingAnalysis, setViewingAnalysis] = useState<AnalysisRow | null>(null);
-  const [reviewingAnalysis, setReviewingAnalysis] = useState<AnalysisRow | null>(null);
+  
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -539,28 +530,22 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     }
     setAnalysingId(walk.id);
     try {
-      const result = await analyseFn({ data: { transcript: walk.transcript } });
+      const result = await analyseFn({
+        data: {
+          transcript: walk.transcript,
+          projectId,
+          siteWalkId: walk.id,
+          userId: DEV_USER.id,
+        },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
-      const { data, error } = await supabase
-        .from("analysis_results")
-        .insert({
-          project_id: projectId,
-          site_walk_id: walk.id,
-          analysis_json: result.analysis as any,
-        })
-        .select("*")
-        .single();
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
       toast.success("Analysis complete");
-      const row = data as unknown as AnalysisRow;
+      const row = result.row as unknown as AnalysisRow;
       setAnalyses((prev) => [row, ...prev]);
-      setReviewingAnalysis(row);
+      setViewingAnalysis(row);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message ?? "Analysis failed");
@@ -887,9 +872,9 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                         month: "long",
                         year: "numeric",
                       })}{" "}
-                      · Progress {aj.progress_items?.length ?? 0} · Procurement{" "}
-                      {aj.procurement_items?.length ?? 0} · Variations{" "}
-                      {aj.variation_items?.length ?? 0} · Risks {aj.risk_items?.length ?? 0}
+                      · Rooms {aj.rooms?.length ?? 0} · Procurement{" "}
+                      {aj.all_procurement?.length ?? 0} · Variations{" "}
+                      {aj.all_variations?.length ?? 0} · H&amp;S {aj.all_health_and_safety?.length ?? 0}
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
@@ -897,14 +882,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                       size="sm"
                       variant="outline"
                       className="gap-1 border-primary/30 text-primary hover:bg-primary/5"
-                      onClick={() => setReviewingAnalysis(a)}
-                    >
-                      <ClipboardCheck className="w-4 h-4" /> Review
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="gap-1"
                       onClick={() => setViewingAnalysis(a)}
                     >
                       <Eye className="w-4 h-4" /> View Analysis
@@ -1073,43 +1050,11 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* Post-analysis review */}
-      <Dialog
-        open={!!reviewingAnalysis}
-        onOpenChange={(o) => !o && setReviewingAnalysis(null)}
-      >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardCheck className="w-4 h-4 text-primary" /> Review Findings
-            </DialogTitle>
-          </DialogHeader>
-          {reviewingAnalysis && (
-            <AnalysisReview
-              analysisId={reviewingAnalysis.id}
-              projectId={projectId}
-              siteWalkId={reviewingAnalysis.site_walk_id}
-              analysisJson={reviewingAnalysis.analysis_json}
-              walkTitle={walkById.get(reviewingAnalysis.site_walk_id)?.title ?? "Site walk"}
-              onDone={() => setReviewingAnalysis(null)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
 
 /* -------------------------- Analysis Viewer -------------------------- */
-
-type FindingType = "progress" | "procurement" | "variation" | "risk";
-type FindingRow = {
-  id: string;
-  finding_type: FindingType;
-  original_text: string;
-  finding_text: string;
-  status: string;
-};
 
 function AnalysisViewer({
   row,
@@ -1120,158 +1065,41 @@ function AnalysisViewer({
   projectId: string;
   walkTitle: string;
 }) {
-  const a = row.analysis_json;
-  const [findings, setFindings] = useState<Record<string, FindingRow>>({});
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const a = row.analysis_json ?? ({} as Analysis);
+  const [addedVariations, setAddedVariations] = useState<Set<string>>(new Set());
+  const [addedProcurement, setAddedProcurement] = useState<Set<string>>(new Set());
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
-  const keyOf = (type: FindingType, original: string) => `${type}|${original}`;
-
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await (supabase as any)
-        .from("approved_findings")
-        .select("*")
-        .eq("analysis_id", row.id);
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      const map: Record<string, FindingRow> = {};
-      for (const f of (data ?? []) as FindingRow[]) {
-        map[keyOf(f.finding_type, f.original_text)] = f;
-      }
-      setFindings(map);
-    })();
-  }, [row.id]);
-
-  const upsertFinding = async (
-    type: FindingType,
-    originalText: string,
-    findingText: string,
-    confidence: string,
-    status: "Approved" | "Rejected" | "Awaiting Review",
-  ) => {
-    const key = keyOf(type, originalText);
-    setBusyKey(key);
-    const existing = findings[key];
-    const payload: any = {
+  const addVariation = async (text: string) => {
+    setBusyKey(`v:${text}`);
+    const { error } = await supabase.from("variations").insert({
       project_id: projectId,
-      analysis_id: row.id,
-      site_walk_id: row.site_walk_id,
-      finding_type: type,
-      original_text: originalText,
-      finding_text: findingText,
-      confidence,
-      status,
-      approved_at: status === "Approved" ? new Date().toISOString() : null,
-    };
-    let saved: FindingRow | null = null;
-    if (existing) {
-      const { data, error } = await (supabase as any)
-        .from("approved_findings")
-        .update(payload)
-        .eq("id", existing.id)
-        .select("*")
-        .single();
-      if (error) {
-        toast.error(error.message);
-        setBusyKey(null);
-        return;
-      }
-      saved = data as FindingRow;
-    } else {
-      const { data, error } = await (supabase as any)
-        .from("approved_findings")
-        .insert(payload)
-        .select("*")
-        .single();
-      if (error) {
-        toast.error(error.message);
-        setBusyKey(null);
-        return;
-      }
-      saved = data as FindingRow;
-    }
-    setFindings((p) => ({ ...p, [key]: saved! }));
-
-    // Downstream records on approval
-    if (status === "Approved") {
-      if (type === "procurement") {
-        const { error } = await (supabase as any).from("procurement_items").insert({
-          project_id: projectId,
-          description: findingText,
-          status: "Required",
-        });
-        if (error) toast.error(`Procurement: ${error.message}`);
-        else toast.success("Approved — Procurement item created");
-      } else if (type === "variation") {
-        const { error } = await (supabase as any).from("variations").insert({
-          project_id: projectId,
-          description: findingText,
-          status: "Draft",
-        });
-        if (error) toast.error(`Variation: ${error.message}`);
-        else toast.success("Approved — Variation created");
-      } else {
-        toast.success("Finding approved");
-      }
-    } else if (status === "Rejected") {
-      toast.success("Finding rejected");
-    }
+      description: text,
+      status: "Draft",
+    });
     setBusyKey(null);
+    if (error) return toast.error(error.message);
+    setAddedVariations((s) => new Set(s).add(text));
+    toast.success("Variation created");
   };
 
-  const renderRow = (
-    type: FindingType,
-    originalText: string,
-    confidence: Confidence,
-  ) => {
-    const key = keyOf(type, originalText);
-    const existing = findings[key];
-    const currentText = drafts[key] ?? existing?.finding_text ?? originalText;
-    const state: ItemState =
-      existing?.status === "Approved"
-        ? "approved"
-        : existing?.status === "Rejected"
-        ? "rejected"
-        : "suggested";
-    const editing = editingKey === key;
-    return (
-      <ReviewRow
-        key={key}
-        text={currentText}
-        confidence={confidence}
-        state={state}
-        editing={editing}
-        busy={busyKey === key}
-        onEdit={() => {
-          if (editing) {
-            // Save edit if approved already, persist new text
-            if (existing && existing.status === "Approved") {
-              upsertFinding(type, originalText, currentText, confidence, "Approved");
-            } else if (existing) {
-              upsertFinding(type, originalText, currentText, confidence, existing.status as any);
-            }
-          } else {
-            setDrafts((d) => ({ ...d, [key]: currentText }));
-          }
-          setEditingKey(editing ? null : key);
-        }}
-        onChange={(v) => setDrafts((d) => ({ ...d, [key]: v }))}
-        onApprove={() => upsertFinding(type, originalText, currentText, confidence, "Approved")}
-        onReject={() => upsertFinding(type, originalText, currentText, confidence, "Rejected")}
-      />
-    );
+  const addProcurement = async (text: string) => {
+    setBusyKey(`p:${text}`);
+    const { error } = await supabase.from("procurement_items").insert({
+      project_id: projectId,
+      description: text,
+      status: "Required",
+    });
+    setBusyKey(null);
+    if (error) return toast.error(error.message);
+    setAddedProcurement((s) => new Set(s).add(text));
+    toast.success("Procurement item added");
   };
 
-  const counts = {
-    progress: a.progress_items?.length ?? 0,
-    procurement: a.procurement_items?.length ?? 0,
-    variation: a.variation_items?.length ?? 0,
-    risk: a.risk_items?.length ?? 0,
-  };
+  const rooms = a.rooms ?? [];
+  const procurement = a.all_procurement ?? [];
+  const variations = a.all_variations ?? [];
+  const hs = a.all_health_and_safety ?? [];
 
   return (
     <div className="space-y-5 overflow-y-auto pr-1">
@@ -1284,68 +1112,141 @@ function AnalysisViewer({
         })}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <SummaryCard label="Progress" value={counts.progress} />
-        <SummaryCard label="Procurement" value={counts.procurement} />
-        <SummaryCard label="Variations" value={counts.variation} />
-        <SummaryCard label="Risks" value={counts.risk} />
-      </div>
-
-      {a.site_diary_summary && (
-        <Section title="Site Diary Summary">
+      {a.summary && (
+        <Section title="Site Summary">
           <div className="rounded-md border border-border bg-background p-3 text-sm leading-relaxed">
-            {a.site_diary_summary}
+            {a.summary}
           </div>
         </Section>
       )}
 
-      <Section title="Progress Identified" empty={counts.progress === 0}>
-        {a.progress_items?.map((p) => {
-          const original = `${p.description}${p.location ? ` — ${p.location}` : ""}`;
-          return renderRow("progress", original, p.confidence);
-        })}
+      <Section title="Rooms & Areas" empty={rooms.length === 0}>
+        <div className="space-y-3">
+          {rooms.map((r, i) => (
+            <RoomCard key={`${r.room}-${i}`} room={r} />
+          ))}
+        </div>
       </Section>
 
-      <Section title="Procurement Requirements" empty={counts.procurement === 0}>
-        {a.procurement_items?.map((p) => {
-          const original = `${p.quantity ? `${p.quantity} ` : ""}${p.unit ? `${p.unit} ` : ""}${p.description}${
-            p.location ? ` — ${p.location}` : ""
-          }`.trim();
-          return renderRow("procurement", original, p.confidence);
-        })}
+      <Section title="Procurement" empty={procurement.length === 0}>
+        <ul className="space-y-1.5">
+          {procurement.map((item, i) => {
+            const added = addedProcurement.has(item);
+            const busy = busyKey === `p:${item}`;
+            return (
+              <li
+                key={`proc-${i}`}
+                className="flex items-start justify-between gap-2 rounded-md border border-border bg-background p-2.5 text-sm"
+              >
+                <span className="flex-1">{item}</span>
+                <Button
+                  size="sm"
+                  variant={added ? "secondary" : "outline"}
+                  className="gap-1 h-7 text-xs"
+                  disabled={added || busy}
+                  onClick={() => addProcurement(item)}
+                >
+                  {busy ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : added ? (
+                    <Check className="w-3 h-3" />
+                  ) : (
+                    <Plus className="w-3 h-3" />
+                  )}
+                  {added ? "Added" : "Add to Procurement"}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
       </Section>
 
-      <Section title="Potential Variations" empty={counts.variation === 0}>
-        {a.variation_items?.map((p) => {
-          const original = `${p.description}${p.location ? ` — ${p.location}` : ""}`;
-          return renderRow("variation", original, p.confidence);
-        })}
+      <Section title="Potential Variations" empty={variations.length === 0}>
+        <ul className="space-y-1.5">
+          {variations.map((item, i) => {
+            const added = addedVariations.has(item);
+            const busy = busyKey === `v:${item}`;
+            return (
+              <li
+                key={`var-${i}`}
+                className="flex items-start justify-between gap-2 rounded-md border border-border bg-background p-2.5 text-sm"
+              >
+                <span className="flex-1">{item}</span>
+                <Button
+                  size="sm"
+                  variant={added ? "secondary" : "outline"}
+                  className="gap-1 h-7 text-xs"
+                  disabled={added || busy}
+                  onClick={() => addVariation(item)}
+                >
+                  {busy ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : added ? (
+                    <Check className="w-3 h-3" />
+                  ) : (
+                    <Plus className="w-3 h-3" />
+                  )}
+                  {added ? "Added" : "Add as Variation"}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
       </Section>
 
-      <Section title="Risks & Delays" empty={counts.risk === 0}>
-        {a.risk_items?.map((p) => {
-          const original = `${p.description}${p.location ? ` — ${p.location}` : ""}`;
-          return renderRow("risk", original, p.confidence);
-        })}
+      <Section title="Health & Safety" empty={hs.length === 0}>
+        <ul className="space-y-1.5">
+          {hs.map((item, i) => (
+            <li
+              key={`hs-${i}`}
+              className="rounded-md border border-rose-500/30 bg-rose-500/5 p-2.5 text-sm text-rose-900 dark:text-rose-200"
+            >
+              {item}
+            </li>
+          ))}
+        </ul>
       </Section>
-
-      <p className="text-[11px] text-muted-foreground text-center pt-2">
-        Approving a procurement or variation finding creates a real record. Progress &amp; risk approvals are stored for audit only.
-      </p>
     </div>
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: number }) {
+function RoomCard({ room }: { room: RoomAnalysis }) {
+  const sections: Array<{ label: string; items: string[]; tone?: string }> = [
+    { label: "Progress", items: room.progress ?? [] },
+    { label: "Next Tasks", items: room.next_tasks ?? [] },
+    { label: "Materials Needed", items: room.materials_needed ?? [] },
+    {
+      label: "Health & Safety",
+      items: room.health_and_safety ?? [],
+      tone: "text-rose-700 dark:text-rose-300",
+    },
+    { label: "Valuation Notes", items: room.valuation_notes ?? [] },
+  ];
   return (
-    <div className="rounded-md border border-border bg-background p-3 text-center">
-      <div className="text-2xl font-semibold text-primary tabular-nums">{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
-        {label}
+    <div className="rounded-md border border-border bg-background p-3 space-y-2">
+      <div className="font-semibold text-sm">{room.room}</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {sections.map((s) => (
+          <div key={s.label}>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+              {s.label}
+            </div>
+            {s.items.length === 0 ? (
+              <div className="text-xs text-muted-foreground italic">—</div>
+            ) : (
+              <ul className={`text-xs space-y-0.5 list-disc list-inside ${s.tone ?? ""}`}>
+                {s.items.map((it, i) => (
+                  <li key={i}>{it}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
+
 
 function Section({
   title,
@@ -1377,74 +1278,4 @@ function Section({
   );
 }
 
-function ReviewRow({
-  text,
-  confidence,
-  state,
-  editing,
-  busy,
-  onEdit,
-  onChange,
-  onApprove,
-  onReject,
-}: {
-  text: string;
-  confidence: Confidence;
-  state: ItemState;
-  editing: boolean;
-  busy?: boolean;
-  onEdit: () => void;
-  onChange: (v: string) => void;
-  onApprove: () => void;
-  onReject: () => void;
-}) {
-  const stateRing =
-    state === "approved"
-      ? "border-emerald-500/50 bg-emerald-500/5"
-      : state === "rejected"
-      ? "border-rose-500/40 bg-rose-500/5 opacity-70"
-      : "border-border bg-background";
-  return (
-    <div className={`flex flex-wrap items-start gap-2 p-3 rounded-md border ${stateRing}`}>
-      <div className="flex-1 min-w-0">
-        {editing ? (
-          <Input value={text} onChange={(e) => onChange(e.target.value)} className="text-sm" />
-        ) : (
-          <div className="text-sm break-words">{text}</div>
-        )}
-      </div>
-      <span
-        className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${confidenceClass(
-          confidence,
-        )}`}
-      >
-        {confidence}
-      </span>
-      <div className="flex gap-1 shrink-0">
-        <Button
-          size="sm"
-          variant={state === "approved" ? "default" : "outline"}
-          className="gap-1 h-8"
-          disabled={busy}
-          onClick={onApprove}
-        >
-          {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-          Approve
-        </Button>
-        <Button size="sm" variant="ghost" className="gap-1 h-8" onClick={onEdit} disabled={busy}>
-          <Pencil className="w-3 h-3" /> {editing ? "Save" : "Edit"}
-        </Button>
-        <Button
-          size="sm"
-          variant={state === "rejected" ? "destructive" : "ghost"}
-          className="gap-1 h-8"
-          disabled={busy}
-          onClick={onReject}
-        >
-          <X className="w-3 h-3" /> Reject
-        </Button>
-      </div>
-    </div>
-  );
-}
 
