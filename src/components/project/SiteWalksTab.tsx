@@ -277,13 +277,111 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     setInterim("");
   };
 
-  const handleStart = () => {
+  const pickVideoMime = () => {
+    const candidates = [
+      "video/webm;codecs=vp9,opus",
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+      "video/mp4",
+    ];
+    for (const m of candidates) {
+      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return "video/webm";
+  };
+
+  const startVideoRecorder = async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      toast.error("Camera not supported in this browser.");
+      return false;
+    }
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: true,
+      });
+    } catch (e: any) {
+      setMicDenied(true);
+      toast.error("Camera/microphone access required for video diary.");
+      return false;
+    }
+    mediaStreamRef.current = stream;
+    if (videoPreviewRef.current) {
+      videoPreviewRef.current.srcObject = stream;
+      videoPreviewRef.current.muted = true;
+      videoPreviewRef.current.play().catch(() => {});
+    }
+
+    const mime = pickVideoMime();
+    videoMimeRef.current = mime;
+    const ext = mime.includes("mp4") ? "mp4" : "webm";
+    const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    videoSessionPathRef.current = `${projectId}/${sessionId}`;
+    videoChunkIndexRef.current = 0;
+    setChunksUploaded(0);
+    setChunksUploading(0);
+
+    const recorder = new MediaRecorder(stream, { mimeType: mime });
+    mediaRecorderRef.current = recorder;
+    recorder.ondataavailable = async (e: BlobEvent) => {
+      if (!e.data || e.data.size === 0) return;
+      const idx = videoChunkIndexRef.current++;
+      const path = `${videoSessionPathRef.current}/part-${String(idx).padStart(4, "0")}.${ext}`;
+      setChunksUploading((n) => n + 1);
+      const { error } = await supabase.storage
+        .from("site-walk-videos")
+        .upload(path, e.data, { contentType: mime, upsert: true });
+      setChunksUploading((n) => Math.max(0, n - 1));
+      if (error) {
+        console.error("Video chunk upload failed", error);
+        toast.error(`Chunk upload failed: ${error.message}`);
+      } else {
+        setChunksUploaded((n) => n + 1);
+      }
+    };
+    recorder.onerror = (ev: any) => {
+      console.error("MediaRecorder error", ev);
+      toast.error("Video recorder error");
+    };
+    // Emit a chunk every 30 seconds
+    recorder.start(30000);
+    return true;
+  };
+
+  const stopVideoRecorder = async () => {
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state !== "inactive") {
+      await new Promise<void>((resolve) => {
+        rec.onstop = () => resolve();
+        try { rec.stop(); } catch { resolve(); }
+      });
+    }
+    mediaRecorderRef.current = null;
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaStreamRef.current = null;
+    if (videoPreviewRef.current) {
+      videoPreviewRef.current.srcObject = null;
+    }
+    // Wait briefly for outstanding chunk uploads to settle
+    const deadline = Date.now() + 15000;
+    while (chunksUploading > 0 && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  };
+
+  const handleStart = async (selectedMode: RecordingMode) => {
+    setMode(selectedMode);
     setTranscript("");
     transcriptRef.current = "";
     sessionBaseRef.current = "";
     setInterim("");
     setSeconds(0);
     setMicDenied(false);
+    if (selectedMode === "video") {
+      const ok = await startVideoRecorder();
+      if (!ok) return;
+    }
     startTimer();
     setStatus("recording");
     startRecognition();
@@ -291,20 +389,34 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const handlePause = () => {
     stopTimer();
     stopRecognition();
+    if (mode === "video" && mediaRecorderRef.current?.state === "recording") {
+      try { mediaRecorderRef.current.pause(); } catch {}
+    }
     setStatus("paused");
   };
   const handleResume = () => {
     startTimer();
     setStatus("recording");
     startRecognition();
+    if (mode === "video" && mediaRecorderRef.current?.state === "paused") {
+      try { mediaRecorderRef.current.resume(); } catch {}
+    }
   };
-  const handleFinish = () => {
+  const handleFinish = async () => {
     stopTimer();
     stopRecognition();
+    if (mode === "video") {
+      await stopVideoRecorder();
+      setStatus("finished");
+      setTitle(`Site diary – ${new Date().toLocaleDateString("en-GB")}`);
+      setVideoConfirmOpen(true);
+      return;
+    }
     setStatus("finished");
     setTitle(`Site walk – ${new Date().toLocaleDateString("en-GB")}`);
     setSaveOpen(true);
   };
+
 
   const insertMarker = (name: string) => {
     const marker = `[${name}]\n`;
