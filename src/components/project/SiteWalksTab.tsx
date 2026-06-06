@@ -28,8 +28,12 @@ import {
   Pencil,
   Loader2,
   ClipboardCheck,
+  Video,
+  FileVideo,
 } from "lucide-react";
 import { AnalysisReview } from "./AnalysisReview";
+
+type RecordingMode = "audio" | "video";
 
 type SiteWalk = {
   id: string;
@@ -37,7 +41,10 @@ type SiteWalk = {
   transcript: string | null;
   duration_seconds: number;
   created_at: string;
+  recording_type?: string | null;
+  video_path?: string | null;
 };
+
 
 type Confidence = "high" | "medium" | "low";
 
