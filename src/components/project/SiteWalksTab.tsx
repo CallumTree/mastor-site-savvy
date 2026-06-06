@@ -603,10 +603,25 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
         <div className="flex flex-wrap gap-2 justify-center">
           {status === "idle" && (
-            <Button onClick={handleStart} size="lg" className="gap-2 h-14 px-8 text-base">
-              <Mic className="w-5 h-5" /> Start Recording
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto justify-center">
+              <Button
+                onClick={() => handleStart("audio")}
+                size="lg"
+                className="gap-2 h-14 px-6 text-base"
+              >
+                <Mic className="w-5 h-5" /> Audio Site Walk
+              </Button>
+              <Button
+                onClick={() => handleStart("video")}
+                size="lg"
+                variant="secondary"
+                className="gap-2 h-14 px-6 text-base"
+              >
+                <Video className="w-5 h-5" /> Video Site Diary
+              </Button>
+            </div>
           )}
+
           {status === "recording" && (
             <>
               <Button onClick={handlePause} size="lg" variant="secondary" className="gap-2 h-14 px-6 text-base">
