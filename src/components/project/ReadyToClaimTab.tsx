@@ -21,6 +21,8 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
   const [pending, setPending] = useState<ClaimOpportunity[]>([]);
   const [approved, setApproved] = useState<ClaimOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     setLoading(true);
