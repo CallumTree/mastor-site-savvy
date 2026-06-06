@@ -12,6 +12,8 @@ import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
 import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 import { WorkPackagesTab } from "@/components/project/WorkPackagesTab";
 import { InvoicesTab } from "@/components/project/InvoicesTab";
+import { VariationsTab } from "@/components/project/VariationsTab";
+import { ProcurementTab } from "@/components/project/ProcurementTab";
 
 type Project = {
   id: string;
