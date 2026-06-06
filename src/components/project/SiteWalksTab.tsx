@@ -1069,53 +1069,42 @@ function AnalysisViewer({
   walkTitle: string;
 }) {
   const a = row.analysis_json ?? ({} as Analysis);
-  const [addedVariations, setAddedVariations] = useState<Set<string>>(new Set());
-  const [addedProcurement, setAddedProcurement] = useState<Set<string>>(new Set());
+  const [approvedKeys, setApprovedKeys] = useState<Set<string>>(new Set());
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
-  const addVariation = async (text: string) => {
-    setBusyKey(`v:${text}`);
-    const { error } = await supabase.from("variations").insert({
-      project_id: projectId,
-      description: text,
-      status: "Draft",
-    });
-    setBusyKey(null);
-    if (error) return toast.error(error.message);
-    setAddedVariations((s) => new Set(s).add(text));
-    toast.success("Variation created");
-  };
-
-  const addProcurement = async (text: string) => {
-    setBusyKey(`p:${text}`);
-    // Dedupe: skip if a similar active item already exists for this project.
-    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-    const target = norm(text);
-    const { data: existing } = await (supabase as any)
-      .from("procurement_items")
-      .select("description, status")
-      .eq("project_id", projectId)
-      .in("status", ["Required", "Quoted", "Ordered"]);
-    const dup = (existing ?? []).some((r: any) => {
-      const e = norm(String(r.description ?? ""));
-      if (!e || !target) return false;
-      return e === target || e.includes(target) || target.includes(e);
-    });
-    if (dup) {
+  const approveProgress = async (roomName: string, text: string) => {
+    const key = `${roomName}::${text}`;
+    setBusyKey(key);
+    // Create approved_finding and a linked claim_opportunity (Ready To Claim)
+    const { data: finding, error: fErr } = await supabase
+      .from("approved_findings")
+      .insert({
+        project_id: projectId,
+        site_walk_id: row.site_walk_id,
+        analysis_id: row.id,
+        finding_type: "progress",
+        original_text: text,
+        finding_text: text,
+        status: "Approved",
+        approved_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    if (fErr || !finding) {
       setBusyKey(null);
-      setAddedProcurement((s) => new Set(s).add(text));
-      toast.info("Already in procurement list — skipped");
-      return;
+      return toast.error(fErr?.message ?? "Failed to save finding");
     }
-    const { error } = await supabase.from("procurement_items").insert({
+    const { error: cErr } = await supabase.from("claim_opportunities").insert({
       project_id: projectId,
-      description: text,
-      status: "Required",
+      work_package_name: roomName || "Site Walk Progress",
+      finding_text: text,
+      approved_finding_id: finding.id,
+      status: "Pending Review",
     });
     setBusyKey(null);
-    if (error) return toast.error(error.message);
-    setAddedProcurement((s) => new Set(s).add(text));
-    toast.success("Procurement item added");
+    if (cErr) return toast.error(cErr.message);
+    setApprovedKeys((s) => new Set(s).add(key));
+    toast.success("Sent to Ready To Claim");
   };
 
   const rooms = a.rooms ?? [];
@@ -1142,77 +1131,51 @@ function AnalysisViewer({
         </Section>
       )}
 
-      <Section title="Rooms & Areas" empty={rooms.length === 0}>
+      <Section title="Rooms & Areas — Approve Progress to Claim" empty={rooms.length === 0}>
         <div className="space-y-3">
           {rooms.map((r, i) => (
-            <RoomCard key={`${r.room}-${i}`} room={r} />
+            <RoomCard
+              key={`${r.room}-${i}`}
+              room={r}
+              approvedKeys={approvedKeys}
+              busyKey={busyKey}
+              onApprove={approveProgress}
+            />
           ))}
         </div>
       </Section>
 
-      <Section title="Procurement" empty={procurement.length === 0}>
+      <Section title="Procurement — Auto-added" empty={procurement.length === 0}>
+        <p className="text-[11px] text-muted-foreground -mt-1">
+          Added to the project Procurement list (duplicates skipped).
+        </p>
         <ul className="space-y-1.5">
-          {procurement.map((item, i) => {
-            const added = addedProcurement.has(item);
-            const busy = busyKey === `p:${item}`;
-            return (
-              <li
-                key={`proc-${i}`}
-                className="flex items-start justify-between gap-2 rounded-md border border-border bg-background p-2.5 text-sm"
-              >
-                <span className="flex-1">{item}</span>
-                <Button
-                  size="sm"
-                  variant={added ? "secondary" : "outline"}
-                  className="gap-1 h-7 text-xs"
-                  disabled={added || busy}
-                  onClick={() => addProcurement(item)}
-                >
-                  {busy ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : added ? (
-                    <Check className="w-3 h-3" />
-                  ) : (
-                    <Plus className="w-3 h-3" />
-                  )}
-                  {added ? "Added" : "Add to Procurement"}
-                </Button>
-              </li>
-            );
-          })}
+          {procurement.map((item, i) => (
+            <li
+              key={`proc-${i}`}
+              className="flex items-start gap-2 rounded-md border border-border bg-background p-2.5 text-sm"
+            >
+              <Check className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+              <span className="flex-1">{item}</span>
+            </li>
+          ))}
         </ul>
       </Section>
 
-      <Section title="Potential Variations" empty={variations.length === 0}>
+      <Section title="Potential Variations — Auto-added" empty={variations.length === 0}>
+        <p className="text-[11px] text-muted-foreground -mt-1">
+          Added to the Variations tab as Draft (duplicates skipped). Approve there to send to Ready To Claim.
+        </p>
         <ul className="space-y-1.5">
-          {variations.map((item, i) => {
-            const added = addedVariations.has(item);
-            const busy = busyKey === `v:${item}`;
-            return (
-              <li
-                key={`var-${i}`}
-                className="flex items-start justify-between gap-2 rounded-md border border-border bg-background p-2.5 text-sm"
-              >
-                <span className="flex-1">{item}</span>
-                <Button
-                  size="sm"
-                  variant={added ? "secondary" : "outline"}
-                  className="gap-1 h-7 text-xs"
-                  disabled={added || busy}
-                  onClick={() => addVariation(item)}
-                >
-                  {busy ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : added ? (
-                    <Check className="w-3 h-3" />
-                  ) : (
-                    <Plus className="w-3 h-3" />
-                  )}
-                  {added ? "Added" : "Add as Variation"}
-                </Button>
-              </li>
-            );
-          })}
+          {variations.map((item, i) => (
+            <li
+              key={`var-${i}`}
+              className="flex items-start gap-2 rounded-md border border-border bg-background p-2.5 text-sm"
+            >
+              <Check className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+              <span className="flex-1">{item}</span>
+            </li>
+          ))}
         </ul>
       </Section>
 
@@ -1232,9 +1195,19 @@ function AnalysisViewer({
   );
 }
 
-function RoomCard({ room }: { room: RoomAnalysis }) {
+function RoomCard({
+  room,
+  approvedKeys,
+  busyKey,
+  onApprove,
+}: {
+  room: RoomAnalysis;
+  approvedKeys: Set<string>;
+  busyKey: string | null;
+  onApprove: (roomName: string, text: string) => void;
+}) {
+  const progressItems = room.progress ?? [];
   const sections: Array<{ label: string; items: string[]; tone?: string }> = [
-    { label: "Progress", items: room.progress ?? [] },
     { label: "Next Tasks", items: room.next_tasks ?? [] },
     { label: "Materials Needed", items: room.materials_needed ?? [] },
     {
@@ -1245,8 +1218,48 @@ function RoomCard({ room }: { room: RoomAnalysis }) {
     { label: "Valuation Notes", items: room.valuation_notes ?? [] },
   ];
   return (
-    <div className="rounded-md border border-border bg-background p-3 space-y-2">
+    <div className="rounded-md border border-border bg-background p-3 space-y-3">
       <div className="font-semibold text-sm">{room.room}</div>
+
+      {progressItems.length > 0 && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+            Progress · approve to send to Ready To Claim
+          </div>
+          <ul className="space-y-1.5">
+            {progressItems.map((item, i) => {
+              const key = `${room.room}::${item}`;
+              const approved = approvedKeys.has(key);
+              const busy = busyKey === key;
+              return (
+                <li
+                  key={`prog-${i}`}
+                  className="flex items-start justify-between gap-2 rounded-md border border-border bg-card p-2 text-xs"
+                >
+                  <span className="flex-1 text-foreground">{item}</span>
+                  <Button
+                    size="sm"
+                    variant={approved ? "secondary" : "outline"}
+                    className="gap-1 h-6 text-[10px] shrink-0"
+                    disabled={approved || busy}
+                    onClick={() => onApprove(room.room, item)}
+                  >
+                    {busy ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : approved ? (
+                      <Check className="w-3 h-3" />
+                    ) : (
+                      <Plus className="w-3 h-3" />
+                    )}
+                    {approved ? "In Ready To Claim" : "Approve"}
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {sections.map((s) => (
           <div key={s.label}>
