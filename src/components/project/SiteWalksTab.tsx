@@ -1064,15 +1064,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
 /* -------------------------- Analysis Viewer -------------------------- */
 
-type FindingType = "progress" | "procurement" | "variation" | "risk";
-type FindingRow = {
-  id: string;
-  finding_type: FindingType;
-  original_text: string;
-  finding_text: string;
-  status: string;
-};
-
 function AnalysisViewer({
   row,
   projectId,
@@ -1082,158 +1073,41 @@ function AnalysisViewer({
   projectId: string;
   walkTitle: string;
 }) {
-  const a = row.analysis_json;
-  const [findings, setFindings] = useState<Record<string, FindingRow>>({});
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const a = row.analysis_json ?? ({} as Analysis);
+  const [addedVariations, setAddedVariations] = useState<Set<string>>(new Set());
+  const [addedProcurement, setAddedProcurement] = useState<Set<string>>(new Set());
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
-  const keyOf = (type: FindingType, original: string) => `${type}|${original}`;
-
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await (supabase as any)
-        .from("approved_findings")
-        .select("*")
-        .eq("analysis_id", row.id);
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      const map: Record<string, FindingRow> = {};
-      for (const f of (data ?? []) as FindingRow[]) {
-        map[keyOf(f.finding_type, f.original_text)] = f;
-      }
-      setFindings(map);
-    })();
-  }, [row.id]);
-
-  const upsertFinding = async (
-    type: FindingType,
-    originalText: string,
-    findingText: string,
-    confidence: string,
-    status: "Approved" | "Rejected" | "Awaiting Review",
-  ) => {
-    const key = keyOf(type, originalText);
-    setBusyKey(key);
-    const existing = findings[key];
-    const payload: any = {
+  const addVariation = async (text: string) => {
+    setBusyKey(`v:${text}`);
+    const { error } = await supabase.from("variations").insert({
       project_id: projectId,
-      analysis_id: row.id,
-      site_walk_id: row.site_walk_id,
-      finding_type: type,
-      original_text: originalText,
-      finding_text: findingText,
-      confidence,
-      status,
-      approved_at: status === "Approved" ? new Date().toISOString() : null,
-    };
-    let saved: FindingRow | null = null;
-    if (existing) {
-      const { data, error } = await (supabase as any)
-        .from("approved_findings")
-        .update(payload)
-        .eq("id", existing.id)
-        .select("*")
-        .single();
-      if (error) {
-        toast.error(error.message);
-        setBusyKey(null);
-        return;
-      }
-      saved = data as FindingRow;
-    } else {
-      const { data, error } = await (supabase as any)
-        .from("approved_findings")
-        .insert(payload)
-        .select("*")
-        .single();
-      if (error) {
-        toast.error(error.message);
-        setBusyKey(null);
-        return;
-      }
-      saved = data as FindingRow;
-    }
-    setFindings((p) => ({ ...p, [key]: saved! }));
-
-    // Downstream records on approval
-    if (status === "Approved") {
-      if (type === "procurement") {
-        const { error } = await (supabase as any).from("procurement_items").insert({
-          project_id: projectId,
-          description: findingText,
-          status: "Required",
-        });
-        if (error) toast.error(`Procurement: ${error.message}`);
-        else toast.success("Approved — Procurement item created");
-      } else if (type === "variation") {
-        const { error } = await (supabase as any).from("variations").insert({
-          project_id: projectId,
-          description: findingText,
-          status: "Draft",
-        });
-        if (error) toast.error(`Variation: ${error.message}`);
-        else toast.success("Approved — Variation created");
-      } else {
-        toast.success("Finding approved");
-      }
-    } else if (status === "Rejected") {
-      toast.success("Finding rejected");
-    }
+      description: text,
+      status: "Draft",
+    });
     setBusyKey(null);
+    if (error) return toast.error(error.message);
+    setAddedVariations((s) => new Set(s).add(text));
+    toast.success("Variation created");
   };
 
-  const renderRow = (
-    type: FindingType,
-    originalText: string,
-    confidence: Confidence,
-  ) => {
-    const key = keyOf(type, originalText);
-    const existing = findings[key];
-    const currentText = drafts[key] ?? existing?.finding_text ?? originalText;
-    const state: ItemState =
-      existing?.status === "Approved"
-        ? "approved"
-        : existing?.status === "Rejected"
-        ? "rejected"
-        : "suggested";
-    const editing = editingKey === key;
-    return (
-      <ReviewRow
-        key={key}
-        text={currentText}
-        confidence={confidence}
-        state={state}
-        editing={editing}
-        busy={busyKey === key}
-        onEdit={() => {
-          if (editing) {
-            // Save edit if approved already, persist new text
-            if (existing && existing.status === "Approved") {
-              upsertFinding(type, originalText, currentText, confidence, "Approved");
-            } else if (existing) {
-              upsertFinding(type, originalText, currentText, confidence, existing.status as any);
-            }
-          } else {
-            setDrafts((d) => ({ ...d, [key]: currentText }));
-          }
-          setEditingKey(editing ? null : key);
-        }}
-        onChange={(v) => setDrafts((d) => ({ ...d, [key]: v }))}
-        onApprove={() => upsertFinding(type, originalText, currentText, confidence, "Approved")}
-        onReject={() => upsertFinding(type, originalText, currentText, confidence, "Rejected")}
-      />
-    );
+  const addProcurement = async (text: string) => {
+    setBusyKey(`p:${text}`);
+    const { error } = await supabase.from("procurement_items").insert({
+      project_id: projectId,
+      description: text,
+      status: "Required",
+    });
+    setBusyKey(null);
+    if (error) return toast.error(error.message);
+    setAddedProcurement((s) => new Set(s).add(text));
+    toast.success("Procurement item added");
   };
 
-  const counts = {
-    progress: a.progress_items?.length ?? 0,
-    procurement: a.procurement_items?.length ?? 0,
-    variation: a.variation_items?.length ?? 0,
-    risk: a.risk_items?.length ?? 0,
-  };
+  const rooms = a.rooms ?? [];
+  const procurement = a.all_procurement ?? [];
+  const variations = a.all_variations ?? [];
+  const hs = a.all_health_and_safety ?? [];
 
   return (
     <div className="space-y-5 overflow-y-auto pr-1">
@@ -1246,57 +1120,141 @@ function AnalysisViewer({
         })}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <SummaryCard label="Progress" value={counts.progress} />
-        <SummaryCard label="Procurement" value={counts.procurement} />
-        <SummaryCard label="Variations" value={counts.variation} />
-        <SummaryCard label="Risks" value={counts.risk} />
-      </div>
-
-      {a.site_diary_summary && (
-        <Section title="Site Diary Summary">
+      {a.summary && (
+        <Section title="Site Summary">
           <div className="rounded-md border border-border bg-background p-3 text-sm leading-relaxed">
-            {a.site_diary_summary}
+            {a.summary}
           </div>
         </Section>
       )}
 
-      <Section title="Progress Identified" empty={counts.progress === 0}>
-        {a.progress_items?.map((p) => {
-          const original = `${p.description}${p.location ? ` — ${p.location}` : ""}`;
-          return renderRow("progress", original, p.confidence);
-        })}
+      <Section title="Rooms & Areas" empty={rooms.length === 0}>
+        <div className="space-y-3">
+          {rooms.map((r, i) => (
+            <RoomCard key={`${r.room}-${i}`} room={r} />
+          ))}
+        </div>
       </Section>
 
-      <Section title="Procurement Requirements" empty={counts.procurement === 0}>
-        {a.procurement_items?.map((p) => {
-          const original = `${p.quantity ? `${p.quantity} ` : ""}${p.unit ? `${p.unit} ` : ""}${p.description}${
-            p.location ? ` — ${p.location}` : ""
-          }`.trim();
-          return renderRow("procurement", original, p.confidence);
-        })}
+      <Section title="Procurement" empty={procurement.length === 0}>
+        <ul className="space-y-1.5">
+          {procurement.map((item, i) => {
+            const added = addedProcurement.has(item);
+            const busy = busyKey === `p:${item}`;
+            return (
+              <li
+                key={`proc-${i}`}
+                className="flex items-start justify-between gap-2 rounded-md border border-border bg-background p-2.5 text-sm"
+              >
+                <span className="flex-1">{item}</span>
+                <Button
+                  size="sm"
+                  variant={added ? "secondary" : "outline"}
+                  className="gap-1 h-7 text-xs"
+                  disabled={added || busy}
+                  onClick={() => addProcurement(item)}
+                >
+                  {busy ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : added ? (
+                    <Check className="w-3 h-3" />
+                  ) : (
+                    <Plus className="w-3 h-3" />
+                  )}
+                  {added ? "Added" : "Add to Procurement"}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
       </Section>
 
-      <Section title="Potential Variations" empty={counts.variation === 0}>
-        {a.variation_items?.map((p) => {
-          const original = `${p.description}${p.location ? ` — ${p.location}` : ""}`;
-          return renderRow("variation", original, p.confidence);
-        })}
+      <Section title="Potential Variations" empty={variations.length === 0}>
+        <ul className="space-y-1.5">
+          {variations.map((item, i) => {
+            const added = addedVariations.has(item);
+            const busy = busyKey === `v:${item}`;
+            return (
+              <li
+                key={`var-${i}`}
+                className="flex items-start justify-between gap-2 rounded-md border border-border bg-background p-2.5 text-sm"
+              >
+                <span className="flex-1">{item}</span>
+                <Button
+                  size="sm"
+                  variant={added ? "secondary" : "outline"}
+                  className="gap-1 h-7 text-xs"
+                  disabled={added || busy}
+                  onClick={() => addVariation(item)}
+                >
+                  {busy ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : added ? (
+                    <Check className="w-3 h-3" />
+                  ) : (
+                    <Plus className="w-3 h-3" />
+                  )}
+                  {added ? "Added" : "Add as Variation"}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
       </Section>
 
-      <Section title="Risks & Delays" empty={counts.risk === 0}>
-        {a.risk_items?.map((p) => {
-          const original = `${p.description}${p.location ? ` — ${p.location}` : ""}`;
-          return renderRow("risk", original, p.confidence);
-        })}
+      <Section title="Health & Safety" empty={hs.length === 0}>
+        <ul className="space-y-1.5">
+          {hs.map((item, i) => (
+            <li
+              key={`hs-${i}`}
+              className="rounded-md border border-rose-500/30 bg-rose-500/5 p-2.5 text-sm text-rose-900 dark:text-rose-200"
+            >
+              {item}
+            </li>
+          ))}
+        </ul>
       </Section>
-
-      <p className="text-[11px] text-muted-foreground text-center pt-2">
-        Approving a procurement or variation finding creates a real record. Progress &amp; risk approvals are stored for audit only.
-      </p>
     </div>
   );
 }
+
+function RoomCard({ room }: { room: RoomAnalysis }) {
+  const sections: Array<{ label: string; items: string[]; tone?: string }> = [
+    { label: "Progress", items: room.progress ?? [] },
+    { label: "Next Tasks", items: room.next_tasks ?? [] },
+    { label: "Materials Needed", items: room.materials_needed ?? [] },
+    {
+      label: "Health & Safety",
+      items: room.health_and_safety ?? [],
+      tone: "text-rose-700 dark:text-rose-300",
+    },
+    { label: "Valuation Notes", items: room.valuation_notes ?? [] },
+  ];
+  return (
+    <div className="rounded-md border border-border bg-background p-3 space-y-2">
+      <div className="font-semibold text-sm">{room.room}</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {sections.map((s) => (
+          <div key={s.label}>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+              {s.label}
+            </div>
+            {s.items.length === 0 ? (
+              <div className="text-xs text-muted-foreground italic">—</div>
+            ) : (
+              <ul className={`text-xs space-y-0.5 list-disc list-inside ${s.tone ?? ""}`}>
+                {s.items.map((it, i) => (
+                  <li key={i}>{it}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 
 function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
