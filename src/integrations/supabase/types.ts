@@ -83,33 +83,42 @@ export type Database = {
       claim_opportunities: {
         Row: {
           approved_finding_id: string | null
+          claimed_value: number | null
           created_at: string
           finding_text: string
           id: string
           project_id: string
+          quantity: number | null
           status: string
+          unit_rate: number | null
           updated_at: string
           work_package_id: string | null
           work_package_name: string
         }
         Insert: {
           approved_finding_id?: string | null
+          claimed_value?: number | null
           created_at?: string
           finding_text: string
           id?: string
           project_id: string
+          quantity?: number | null
           status?: string
+          unit_rate?: number | null
           updated_at?: string
           work_package_id?: string | null
           work_package_name: string
         }
         Update: {
           approved_finding_id?: string | null
+          claimed_value?: number | null
           created_at?: string
           finding_text?: string
           id?: string
           project_id?: string
+          quantity?: number | null
           status?: string
+          unit_rate?: number | null
           updated_at?: string
           work_package_id?: string | null
           work_package_name?: string
@@ -1319,6 +1328,7 @@ export type Database = {
           description: string | null
           id: string
           status: string
+          unit_rate: number | null
           valuation_id: string
           work_package_id: string | null
           work_package_name: string | null
@@ -1332,6 +1342,7 @@ export type Database = {
           description?: string | null
           id?: string
           status?: string
+          unit_rate?: number | null
           valuation_id: string
           work_package_id?: string | null
           work_package_name?: string | null
@@ -1345,6 +1356,7 @@ export type Database = {
           description?: string | null
           id?: string
           status?: string
+          unit_rate?: number | null
           valuation_id?: string
           work_package_id?: string | null
           work_package_name?: string | null
