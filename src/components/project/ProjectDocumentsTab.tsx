@@ -30,7 +30,9 @@ type ScopeElement = {
   confidence: "high" | "medium" | "low";
 };
 
-const ACCEPT = ".pdf,.docx,.xlsx,.xls,.csv,.txt";
+const ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt";
+const SUPPORTED_EXTS = ["pdf", "doc", "docx", "xls", "xlsx", "csv", "txt"] as const;
+const ACCEPTED_LABEL = "PDF, Word (.doc, .docx), Excel (.xls, .xlsx), CSV, or TXT";
 
 const TYPE_LABEL: Record<ScopeElement["element_type"], string> = {
   task: "Tasks",
@@ -80,8 +82,8 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
   const onUpload = async (file: File) => {
     if (!file) return;
     const ext = (file.name.split(".").pop() || "").toLowerCase();
-    if (!["pdf", "docx", "xlsx", "xls", "csv", "txt"].includes(ext)) {
-      toast.error("Unsupported file type");
+    if (!SUPPORTED_EXTS.includes(ext as any)) {
+      toast.error(`Unsupported file type ".${ext}". Accepted formats: ${ACCEPTED_LABEL}.`);
       return;
     }
     if (file.size > 20 * 1024 * 1024) {
@@ -234,7 +236,7 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : docs.length === 0 ? (
         <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
-          No documents uploaded yet. Supported: PDF, DOCX, XLSX, CSV, TXT.
+          No documents uploaded yet. Accepted formats: {ACCEPTED_LABEL}.
         </div>
       ) : (
         <div className="space-y-2">
@@ -796,6 +798,15 @@ async function extractText(buf: ArrayBuffer, ext: string): Promise<string> {
     const mammoth = await import("mammoth/mammoth.browser");
     const { value } = await (mammoth as any).extractRawText({ arrayBuffer: buf });
     return value || "";
+  }
+  if (e === "doc") {
+    // Legacy binary .doc isn't supported by mammoth. Try as a last resort, otherwise advise conversion.
+    try {
+      const mammoth = await import("mammoth/mammoth.browser");
+      const { value } = await (mammoth as any).extractRawText({ arrayBuffer: buf });
+      if (value && value.trim()) return value;
+    } catch {}
+    throw new Error("Legacy .doc files can't be read in the browser. Please re-save the file as .docx and upload again.");
   }
   if (e === "xlsx" || e === "xls") {
     const XLSX = await import("xlsx");
