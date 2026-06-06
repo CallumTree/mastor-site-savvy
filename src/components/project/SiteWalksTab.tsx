@@ -94,11 +94,6 @@ function formatMinutes(secs: number) {
   const m = Math.round(secs / 60);
   return `${m} min${m === 1 ? "" : "s"}`;
 }
-function confidenceClass(c: Confidence) {
-  if (c === "high") return "border-emerald-500/40 text-emerald-700 bg-emerald-500/10";
-  if (c === "medium") return "border-amber-500/40 text-amber-700 bg-amber-500/10";
-  return "border-rose-500/40 text-rose-700 bg-rose-500/10";
-}
 
 export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [status, setStatus] = useState<Status>("idle");
