@@ -389,7 +389,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       toast.success("Analysis complete");
       const row = data as unknown as AnalysisRow;
       setAnalyses((prev) => [row, ...prev]);
-      setViewingAnalysis(row);
+      setReviewingAnalysis(row);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message ?? "Analysis failed");
