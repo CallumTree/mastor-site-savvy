@@ -27,7 +27,9 @@ import {
   X,
   Pencil,
   Loader2,
+  ClipboardCheck,
 } from "lucide-react";
+import { AnalysisReview } from "./AnalysisReview";
 
 type SiteWalk = {
   id: string;
@@ -116,6 +118,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
   const [analysingId, setAnalysingId] = useState<string | null>(null);
   const [viewingAnalysis, setViewingAnalysis] = useState<AnalysisRow | null>(null);
+  const [reviewingAnalysis, setReviewingAnalysis] = useState<AnalysisRow | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -386,7 +389,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       toast.success("Analysis complete");
       const row = data as unknown as AnalysisRow;
       setAnalyses((prev) => [row, ...prev]);
-      setViewingAnalysis(row);
+      setReviewingAnalysis(row);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message ?? "Analysis failed");
@@ -678,6 +681,14 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                   <div className="flex gap-1 shrink-0">
                     <Button
                       size="sm"
+                      variant="outline"
+                      className="gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                      onClick={() => setReviewingAnalysis(a)}
+                    >
+                      <ClipboardCheck className="w-4 h-4" /> Review
+                    </Button>
+                    <Button
+                      size="sm"
                       variant="ghost"
                       className="gap-1"
                       onClick={() => setViewingAnalysis(a)}
@@ -796,6 +807,30 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               row={viewingAnalysis}
               projectId={projectId}
               walkTitle={walkById.get(viewingAnalysis.site_walk_id)?.title ?? "Site walk"}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Post-analysis review */}
+      <Dialog
+        open={!!reviewingAnalysis}
+        onOpenChange={(o) => !o && setReviewingAnalysis(null)}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4 text-primary" /> Review Findings
+            </DialogTitle>
+          </DialogHeader>
+          {reviewingAnalysis && (
+            <AnalysisReview
+              analysisId={reviewingAnalysis.id}
+              projectId={projectId}
+              siteWalkId={reviewingAnalysis.site_walk_id}
+              analysisJson={reviewingAnalysis.analysis_json}
+              walkTitle={walkById.get(reviewingAnalysis.site_walk_id)?.title ?? "Site walk"}
+              onDone={() => setReviewingAnalysis(null)}
             />
           )}
         </DialogContent>
