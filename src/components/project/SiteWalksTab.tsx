@@ -49,23 +49,21 @@ type SiteWalk = {
 
 type Confidence = "high" | "medium" | "low";
 
-type ProgressItem = { description: string; location: string; confidence: Confidence };
-type ProcurementItem = {
-  description: string;
-  quantity: number;
-  unit: string;
-  location: string;
-  confidence: Confidence;
+type RoomAnalysis = {
+  room: string;
+  progress: string[];
+  next_tasks: string[];
+  materials_needed: string[];
+  health_and_safety: string[];
+  valuation_notes: string[];
 };
-type VariationItem = { description: string; location: string; confidence: Confidence };
-type RiskItem = { description: string; location: string; confidence: Confidence };
 
 type Analysis = {
-  progress_items: ProgressItem[];
-  procurement_items: ProcurementItem[];
-  variation_items: VariationItem[];
-  risk_items: RiskItem[];
-  site_diary_summary: string;
+  summary: string;
+  rooms: RoomAnalysis[];
+  all_procurement: string[];
+  all_variations: string[];
+  all_health_and_safety: string[];
 };
 
 type AnalysisRow = {
