@@ -75,7 +75,7 @@ type AnalysisRow = {
 };
 
 type Status = "idle" | "recording" | "paused" | "finished";
-type ItemState = "suggested" | "approved" | "rejected";
+
 
 const QUICK_AREAS = ["Bedroom", "Bathroom", "Kitchen", "External"];
 
