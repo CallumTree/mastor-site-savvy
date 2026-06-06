@@ -122,7 +122,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
   const [analysingId, setAnalysingId] = useState<string | null>(null);
   const [viewingAnalysis, setViewingAnalysis] = useState<AnalysisRow | null>(null);
-  const [reviewingAnalysis, setReviewingAnalysis] = useState<AnalysisRow | null>(null);
+  
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
