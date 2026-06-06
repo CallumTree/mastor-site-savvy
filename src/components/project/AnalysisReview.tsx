@@ -57,6 +57,97 @@ function buildFindings(a: Analysis): Finding[] {
   return out;
 }
 
+const STOP_WORDS = new Set([
+  "the","a","an","and","or","of","to","in","on","at","for","is","are","was",
+  "were","be","been","with","by","this","that","it","its","as","from","but",
+  "not","no","yes","has","have","had","will","work","walls","wall","floor",
+  "room","area","site","job","now","today","yesterday","done","complete",
+  "completed","finished","progress","ongoing","partially","partial","fully",
+  "started","starting","installed","installing","installation",
+]);
+
+function tokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+}
+
+function scoreMatch(findingText: string, packageName: string, trade: string | null): number {
+  const ft = new Set(tokens(findingText));
+  if (ft.size === 0) return 0;
+  let score = 0;
+  for (const w of tokens(packageName)) if (ft.has(w)) score += 2;
+  for (const w of tokens(trade ?? "")) if (ft.has(w)) score += 1;
+  return score;
+}
+
+function detectCompletion(findingText: string): "Complete" | "In Progress" {
+  const t = findingText.toLowerCase();
+  const partialCue = /\b(partial|partially|in\s*progress|ongoing|started|started\s*on|halfway|half\s*done|some|continuing)\b/.test(
+    t,
+  );
+  const fullCue = /\b(fully|completely|finished|complete|completed|done|signed\s*off|handed\s*over|wrapped\s*up)\b/.test(
+    t,
+  );
+  if (fullCue && !partialCue) return "Complete";
+  return "In Progress";
+}
+
+async function linkProgressFindingToWorkPackage(
+  f: Finding,
+  projectId: string,
+) {
+  const { data: packages, error } = await (supabase as any)
+    .from("work_packages")
+    .select("id, package_name, trade, status")
+    .eq("project_id", projectId);
+  if (error) {
+    toast.error(`Match work package: ${error.message}`);
+    return;
+  }
+  const rows = (packages ?? []) as Array<{
+    id: string;
+    package_name: string;
+    trade: string | null;
+    status: string;
+  }>;
+  if (rows.length === 0) return;
+
+  let best: { row: (typeof rows)[number]; score: number } | null = null;
+  for (const row of rows) {
+    const s = scoreMatch(f.text, row.package_name, row.trade);
+    if (s > 0 && (!best || s > best.score)) best = { row, score: s };
+  }
+  if (!best) return;
+
+  const newStatus = detectCompletion(f.text);
+
+  if (best.row.status !== newStatus && best.row.status !== "Complete") {
+    const { error: upErr } = await (supabase as any)
+      .from("work_packages")
+      .update({ status: newStatus })
+      .eq("id", best.row.id);
+    if (upErr) toast.error(`Update work package: ${upErr.message}`);
+  }
+
+  const { error: claimErr } = await (supabase as any)
+    .from("claim_opportunities")
+    .insert({
+      project_id: projectId,
+      work_package_id: best.row.id,
+      work_package_name: best.row.package_name,
+      finding_text: f.text,
+      status: "Pending Review",
+    });
+  if (claimErr) {
+    toast.error(`Claim opportunity: ${claimErr.message}`);
+  } else {
+    toast.success(`Claim opportunity created for ${best.row.package_name}`);
+  }
+}
+
 export function AnalysisReview({
   analysisId,
   projectId,
@@ -143,6 +234,13 @@ export function AnalysisReview({
       setRowIds((p) => ({ ...p, [f.key]: (data as { id: string }).id }));
     }
     setStatuses((p) => ({ ...p, [f.key]: status }));
+
+    // When a progress finding is approved, try to match it to a work package
+    // and create a claim opportunity for the next-phase review.
+    if (status === "approved" && f.type === "progress") {
+      await linkProgressFindingToWorkPackage(f, projectId);
+    }
+
     setBusyKey(null);
   };
 

@@ -80,6 +80,64 @@ export type Database = {
         }
         Relationships: []
       }
+      claim_opportunities: {
+        Row: {
+          approved_finding_id: string | null
+          created_at: string
+          finding_text: string
+          id: string
+          project_id: string
+          status: string
+          updated_at: string
+          work_package_id: string | null
+          work_package_name: string
+        }
+        Insert: {
+          approved_finding_id?: string | null
+          created_at?: string
+          finding_text: string
+          id?: string
+          project_id: string
+          status?: string
+          updated_at?: string
+          work_package_id?: string | null
+          work_package_name: string
+        }
+        Update: {
+          approved_finding_id?: string | null
+          created_at?: string
+          finding_text?: string
+          id?: string
+          project_id?: string
+          status?: string
+          updated_at?: string
+          work_package_id?: string | null
+          work_package_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_opportunities_approved_finding_id_fkey"
+            columns: ["approved_finding_id"]
+            isOneToOne: false
+            referencedRelation: "approved_findings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_opportunities_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_opportunities_work_package_id_fkey"
+            columns: ["work_package_id"]
+            isOneToOne: false
+            referencedRelation: "work_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claimable_elements_library: {
         Row: {
           confidence_score: number
