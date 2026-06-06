@@ -51,6 +51,12 @@ export const parseBoQ = createServerFn({ method: "POST" })
       return { ok: false as const, error: "ANTHROPIC_API_KEY is not configured." };
     }
 
+    console.log("[parseBoQ] documentText length:", data.documentText.length);
+    console.log("[parseBoQ] documentText (first 500 chars):", data.documentText.slice(0, 500));
+    console.log("[parseBoQ] anthropic-version: 2023-06-01");
+    console.log("[parseBoQ] x-api-key present:", Boolean(apiKey), "length:", apiKey.length);
+    console.log("[parseBoQ] max_tokens: 8000");
+
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -73,9 +79,11 @@ export const parseBoQ = createServerFn({ method: "POST" })
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      console.error("Anthropic error", res.status, body);
-      return { ok: false as const, error: `Anthropic request failed (${res.status}).` };
+      console.error("[parseBoQ] Anthropic API error", res.status, res.statusText);
+      console.error("[parseBoQ] Anthropic error body:", body);
+      return { ok: false as const, error: `Anthropic ${res.status}: ${body.slice(0, 500)}` };
     }
+
 
     const body = await res.json();
     const text: string | undefined = body?.content?.[0]?.text;
