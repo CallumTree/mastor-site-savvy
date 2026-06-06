@@ -131,7 +131,9 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
   const onParse = async (doc: Doc) => {
     setParsingId(doc.id);
     try {
-      const { data: signed, error: signErr } = await supabase.storage.from("project-documents").createSignedUrl(doc.file_path, 120);
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("project-documents")
+        .createSignedUrl(doc.file_path, 120);
       if (signErr) throw signErr;
       const resp = await fetch(signed.signedUrl);
       const buf = await resp.arrayBuffer();
@@ -140,33 +142,28 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         toast.error("Could not extract any text from this document.");
         return;
       }
-      const result: any = await parseFn({ data: { text, document_name: doc.file_name } });
+
+      const result: any = await parseFn({ data: { documentText: text } });
       if (!result?.ok) {
         toast.error(result?.error || "Parse failed");
         return;
       }
-      const parsed = result.parsed as Record<string, any[]>;
-      const rows: any[] = [];
-      const push = (type: ScopeElement["element_type"], list: any[]) => {
-        for (const it of list ?? []) {
-          rows.push({
-            project_id: projectId,
-            document_id: doc.id,
-            element_type: type,
-            title: String(it.title ?? "").slice(0, 500),
-            description: it.description ? String(it.description).slice(0, 2000) : null,
-            quantity: typeof it.quantity === "number" ? it.quantity : null,
-            unit: it.unit ? String(it.unit).slice(0, 32) : null,
-            source_reference: it.source_reference ? String(it.source_reference).slice(0, 200) : null,
-            confidence: ["high", "medium", "low"].includes(it.confidence) ? it.confidence : "medium",
-          });
-        }
-      };
-      push("task", parsed.tasks);
-      push("labour_activity", parsed.labour_activities);
-      push("material", parsed.materials);
-      push("claimable_element", parsed.claimable_elements);
-      push("procurement_item", parsed.procurement_items);
+
+      const items: any[] = result.parsed?.items ?? [];
+      const rows = items.map((item) => ({
+        project_id: projectId,
+        document_id: doc.id,
+        element_type: "claimable_element",
+        title: item.description,
+        description: item.comments || null,
+        quantity: item.quantity,
+        unit: item.unit || null,
+        unit_rate: item.rate,
+        total_cost: item.cost,
+        source_reference: item.code || null,
+        location: item.location,
+        confidence: 1.0,
+      }));
 
       // Replace previous parse for this document
       await (supabase as any).from("scope_elements").delete().eq("document_id", doc.id);
@@ -174,32 +171,12 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         const { error: insErr } = await (supabase as any).from("scope_elements").insert(rows);
         if (insErr) throw insErr;
       }
-      await (supabase as any).from("project_documents").update({ parsed_at: new Date().toISOString() }).eq("id", doc.id);
+      await (supabase as any)
+        .from("project_documents")
+        .update({ parsed_at: new Date().toISOString() })
+        .eq("id", doc.id);
 
-      // Feed Construction Knowledge Engine
-      await learnFromParse(parsed, { project_id: projectId, document_id: doc.id, document_name: doc.file_name });
-
-      // Generate Procurement Register suggestions from parsed materials
-      const procAdded = await generateProcurementSuggestions(parsed, {
-        project_id: projectId,
-        document_id: doc.id,
-        document_name: doc.file_name,
-      });
-
-      // Persist Material Requirements (estimated quantities per work package)
-      const reqAdded = await persistMaterialRequirements(parsed, {
-        project_id: projectId,
-        document_id: doc.id,
-        document_name: doc.file_name,
-      });
-
-      toast.success(
-        `Parsed: ${rows.length} item${rows.length === 1 ? "" : "s"} · Knowledge updated${
-          procAdded ? ` · ${procAdded} procurement` : ""
-        }${reqAdded ? ` · ${reqAdded} material req${reqAdded === 1 ? "" : "s"}` : ""}`
-      );
-      setFilterDocId(doc.id);
-      load();
+      toast.success(`Parsed ${rows.length} item${rows.length === 1 ? "" : "s"}`);
       setFilterDocId(doc.id);
       load();
     } catch (e: any) {
@@ -209,6 +186,7 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
       setParsingId(null);
     }
   };
+
 
   const filteredElements = filterDocId === "all" ? elements : elements.filter((e) => e.document_id === filterDocId);
 
