@@ -886,9 +886,9 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                         month: "long",
                         year: "numeric",
                       })}{" "}
-                      · Progress {aj.progress_items?.length ?? 0} · Procurement{" "}
-                      {aj.procurement_items?.length ?? 0} · Variations{" "}
-                      {aj.variation_items?.length ?? 0} · Risks {aj.risk_items?.length ?? 0}
+                      · Rooms {aj.rooms?.length ?? 0} · Procurement{" "}
+                      {aj.all_procurement?.length ?? 0} · Variations{" "}
+                      {aj.all_variations?.length ?? 0} · H&amp;S {aj.all_health_and_safety?.length ?? 0}
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
