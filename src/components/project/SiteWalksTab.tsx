@@ -365,6 +365,9 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     }
     // Outstanding chunk uploads continue in the background;
     // the confirmation dialog disables Save while any are in flight.
+  };
+
+
 
 
   const handleStart = async (selectedMode: RecordingMode) => {
