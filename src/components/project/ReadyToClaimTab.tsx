@@ -15,7 +15,11 @@ type ClaimOpportunity = {
   status: string;
   created_at: string;
   updated_at: string;
+  unit_rate: number | null;
+  quantity: number | null;
+  claimed_value: number | null;
 };
+
 
 export function ReadyToClaimTab({ projectId }: { projectId: string }) {
   const [pending, setPending] = useState<ClaimOpportunity[]>([]);
@@ -101,7 +105,11 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
       description: c.finding_text,
       status: "Draft",
       claim_opportunity_id: c.id,
+      unit_rate: c.unit_rate,
+      claimed_qty: c.quantity,
+      claimed_value: c.claimed_value,
     }));
+
 
     const { error: iErr } = await supabase.from("valuation_items").insert(rows);
     setGenerating(false);
