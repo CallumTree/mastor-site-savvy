@@ -538,28 +538,22 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     }
     setAnalysingId(walk.id);
     try {
-      const result = await analyseFn({ data: { transcript: walk.transcript } });
+      const result = await analyseFn({
+        data: {
+          transcript: walk.transcript,
+          projectId,
+          siteWalkId: walk.id,
+          userId: DEV_USER.id,
+        },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
-      const { data, error } = await supabase
-        .from("analysis_results")
-        .insert({
-          project_id: projectId,
-          site_walk_id: walk.id,
-          analysis_json: result.analysis as any,
-        })
-        .select("*")
-        .single();
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
       toast.success("Analysis complete");
-      const row = data as unknown as AnalysisRow;
+      const row = result.row as unknown as AnalysisRow;
       setAnalyses((prev) => [row, ...prev]);
-      setReviewingAnalysis(row);
+      setViewingAnalysis(row);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message ?? "Analysis failed");
