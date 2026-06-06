@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedValuationsIdRouteImport } from './routes/_authenticated/valuations.$id'
 import { Route as AuthenticatedProjectsIdRouteImport } from './routes/_authenticated/projects.$id'
+import { Route as AuthenticatedValuationsIdInvoiceRouteImport } from './routes/_authenticated/valuations.$id.invoice'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -46,20 +47,28 @@ const AuthenticatedProjectsIdRoute = AuthenticatedProjectsIdRouteImport.update({
   path: '/projects/$id',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedValuationsIdInvoiceRoute =
+  AuthenticatedValuationsIdInvoiceRouteImport.update({
+    id: '/invoice',
+    path: '/invoice',
+    getParentRoute: () => AuthenticatedValuationsIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/projects/$id': typeof AuthenticatedProjectsIdRoute
-  '/valuations/$id': typeof AuthenticatedValuationsIdRoute
+  '/valuations/$id': typeof AuthenticatedValuationsIdRouteWithChildren
+  '/valuations/$id/invoice': typeof AuthenticatedValuationsIdInvoiceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/projects/$id': typeof AuthenticatedProjectsIdRoute
-  '/valuations/$id': typeof AuthenticatedValuationsIdRoute
+  '/valuations/$id': typeof AuthenticatedValuationsIdRouteWithChildren
+  '/valuations/$id/invoice': typeof AuthenticatedValuationsIdInvoiceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,13 +77,26 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/projects/$id': typeof AuthenticatedProjectsIdRoute
-  '/_authenticated/valuations/$id': typeof AuthenticatedValuationsIdRoute
+  '/_authenticated/valuations/$id': typeof AuthenticatedValuationsIdRouteWithChildren
+  '/_authenticated/valuations/$id/invoice': typeof AuthenticatedValuationsIdInvoiceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard' | '/projects/$id' | '/valuations/$id'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/projects/$id'
+    | '/valuations/$id'
+    | '/valuations/$id/invoice'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/projects/$id' | '/valuations/$id'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/projects/$id'
+    | '/valuations/$id'
+    | '/valuations/$id/invoice'
   id:
     | '__root__'
     | '/'
@@ -83,6 +105,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/projects/$id'
     | '/_authenticated/valuations/$id'
+    | '/_authenticated/valuations/$id/invoice'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -135,19 +158,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/valuations/$id/invoice': {
+      id: '/_authenticated/valuations/$id/invoice'
+      path: '/invoice'
+      fullPath: '/valuations/$id/invoice'
+      preLoaderRoute: typeof AuthenticatedValuationsIdInvoiceRouteImport
+      parentRoute: typeof AuthenticatedValuationsIdRoute
+    }
   }
 }
+
+interface AuthenticatedValuationsIdRouteChildren {
+  AuthenticatedValuationsIdInvoiceRoute: typeof AuthenticatedValuationsIdInvoiceRoute
+}
+
+const AuthenticatedValuationsIdRouteChildren: AuthenticatedValuationsIdRouteChildren =
+  {
+    AuthenticatedValuationsIdInvoiceRoute:
+      AuthenticatedValuationsIdInvoiceRoute,
+  }
+
+const AuthenticatedValuationsIdRouteWithChildren =
+  AuthenticatedValuationsIdRoute._addFileChildren(
+    AuthenticatedValuationsIdRouteChildren,
+  )
 
 interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedProjectsIdRoute: typeof AuthenticatedProjectsIdRoute
-  AuthenticatedValuationsIdRoute: typeof AuthenticatedValuationsIdRoute
+  AuthenticatedValuationsIdRoute: typeof AuthenticatedValuationsIdRouteWithChildren
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedProjectsIdRoute: AuthenticatedProjectsIdRoute,
-  AuthenticatedValuationsIdRoute: AuthenticatedValuationsIdRoute,
+  AuthenticatedValuationsIdRoute: AuthenticatedValuationsIdRouteWithChildren,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -162,3 +207,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
