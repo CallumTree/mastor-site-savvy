@@ -236,7 +236,7 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : docs.length === 0 ? (
         <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
-          No documents uploaded yet. Supported: PDF, DOCX, XLSX, CSV, TXT.
+          No documents uploaded yet. Accepted formats: {ACCEPTED_LABEL}.
         </div>
       ) : (
         <div className="space-y-2">
