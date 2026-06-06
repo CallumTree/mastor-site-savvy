@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FileText } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/valuations/$id")({
   component: ValuationPage,
@@ -199,7 +199,7 @@ function ValuationPage() {
         <SummaryCard label="Remaining Value" value={GBP.format(remaining)} />
       </section>
 
-      <div className="pt-2">
+      <div className="pt-2 space-y-2">
         <Button
           className="w-full"
           size="lg"
@@ -209,6 +209,17 @@ function ValuationPage() {
           <CheckCircle2 className="w-4 h-4 mr-2" />
           {isApproved ? "Valuation Finalised" : finalising ? "Finalising…" : "Finalise Valuation"}
         </Button>
+        {isApproved && (
+          <Button
+            className="w-full"
+            size="lg"
+            variant="secondary"
+            onClick={() => navigate({ to: "/valuations/$id/invoice", params: { id: valuation.id } })}
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            Generate Invoice
+          </Button>
+        )}
       </div>
     </div>
   );

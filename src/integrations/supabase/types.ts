@@ -218,6 +218,54 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_number: string
+          project_id: string
+          status: string
+          total_amount: number
+          updated_at: string
+          valuation_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_number: string
+          project_id: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          valuation_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_number?: string
+          project_id?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          valuation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_valuation_id_fkey"
+            columns: ["valuation_id"]
+            isOneToOne: false
+            referencedRelation: "valuations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_merge_suggestions: {
         Row: {
           created_at: string
