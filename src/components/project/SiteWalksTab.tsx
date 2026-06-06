@@ -28,8 +28,12 @@ import {
   Pencil,
   Loader2,
   ClipboardCheck,
+  Video,
+  FileVideo,
 } from "lucide-react";
 import { AnalysisReview } from "./AnalysisReview";
+
+type RecordingMode = "audio" | "video";
 
 type SiteWalk = {
   id: string;
@@ -37,7 +41,10 @@ type SiteWalk = {
   transcript: string | null;
   duration_seconds: number;
   created_at: string;
+  recording_type?: string | null;
+  video_path?: string | null;
 };
+
 
 type Confidence = "high" | "medium" | "low";
 
@@ -99,6 +106,7 @@ function confidenceClass(c: Confidence) {
 
 export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [status, setStatus] = useState<Status>("idle");
+  const [mode, setMode] = useState<RecordingMode>("audio");
   const [transcript, setTranscript] = useState("");
   const [interim, setInterim] = useState("");
   const [seconds, setSeconds] = useState(0);
@@ -112,6 +120,11 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [saveOpen, setSaveOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Video-only state
+  const [videoConfirmOpen, setVideoConfirmOpen] = useState(false);
+  const [chunksUploaded, setChunksUploaded] = useState(0);
+  const [chunksUploading, setChunksUploading] = useState(0);
 
   const [viewing, setViewing] = useState<SiteWalk | null>(null);
 
@@ -127,8 +140,17 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const transcriptRef = useRef("");
   const sessionBaseRef = useRef("");
 
+  // Video recording refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+  const videoSessionPathRef = useRef<string>("");
+  const videoChunkIndexRef = useRef(0);
+  const videoMimeRef = useRef<string>("video/webm");
+
   const analyseFn = useServerFn(analyseSiteWalk);
   const speechSupported = !!getSpeechRecognition();
+
 
   useEffect(() => {
     transcriptRef.current = transcript;
@@ -255,13 +277,111 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     setInterim("");
   };
 
-  const handleStart = () => {
+  const pickVideoMime = () => {
+    const candidates = [
+      "video/webm;codecs=vp9,opus",
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+      "video/mp4",
+    ];
+    for (const m of candidates) {
+      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return "video/webm";
+  };
+
+  const startVideoRecorder = async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      toast.error("Camera not supported in this browser.");
+      return false;
+    }
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: true,
+      });
+    } catch (e: any) {
+      setMicDenied(true);
+      toast.error("Camera/microphone access required for video diary.");
+      return false;
+    }
+    mediaStreamRef.current = stream;
+    if (videoPreviewRef.current) {
+      videoPreviewRef.current.srcObject = stream;
+      videoPreviewRef.current.muted = true;
+      videoPreviewRef.current.play().catch(() => {});
+    }
+
+    const mime = pickVideoMime();
+    videoMimeRef.current = mime;
+    const ext = mime.includes("mp4") ? "mp4" : "webm";
+    const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    videoSessionPathRef.current = `${projectId}/${sessionId}`;
+    videoChunkIndexRef.current = 0;
+    setChunksUploaded(0);
+    setChunksUploading(0);
+
+    const recorder = new MediaRecorder(stream, { mimeType: mime });
+    mediaRecorderRef.current = recorder;
+    recorder.ondataavailable = async (e: BlobEvent) => {
+      if (!e.data || e.data.size === 0) return;
+      const idx = videoChunkIndexRef.current++;
+      const path = `${videoSessionPathRef.current}/part-${String(idx).padStart(4, "0")}.${ext}`;
+      setChunksUploading((n) => n + 1);
+      const { error } = await supabase.storage
+        .from("site-walk-videos")
+        .upload(path, e.data, { contentType: mime, upsert: true });
+      setChunksUploading((n) => Math.max(0, n - 1));
+      if (error) {
+        console.error("Video chunk upload failed", error);
+        toast.error(`Chunk upload failed: ${error.message}`);
+      } else {
+        setChunksUploaded((n) => n + 1);
+      }
+    };
+    recorder.onerror = (ev: any) => {
+      console.error("MediaRecorder error", ev);
+      toast.error("Video recorder error");
+    };
+    // Emit a chunk every 30 seconds
+    recorder.start(30000);
+    return true;
+  };
+
+  const stopVideoRecorder = async () => {
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state !== "inactive") {
+      await new Promise<void>((resolve) => {
+        rec.onstop = () => resolve();
+        try { rec.stop(); } catch { resolve(); }
+      });
+    }
+    mediaRecorderRef.current = null;
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaStreamRef.current = null;
+    if (videoPreviewRef.current) {
+      videoPreviewRef.current.srcObject = null;
+    }
+    // Outstanding chunk uploads continue in the background;
+    // the confirmation dialog disables Save while any are in flight.
+  };
+
+
+
+
+  const handleStart = async (selectedMode: RecordingMode) => {
+    setMode(selectedMode);
     setTranscript("");
     transcriptRef.current = "";
     sessionBaseRef.current = "";
     setInterim("");
     setSeconds(0);
     setMicDenied(false);
+    if (selectedMode === "video") {
+      const ok = await startVideoRecorder();
+      if (!ok) return;
+    }
     startTimer();
     setStatus("recording");
     startRecognition();
@@ -269,20 +389,34 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const handlePause = () => {
     stopTimer();
     stopRecognition();
+    if (mode === "video" && mediaRecorderRef.current?.state === "recording") {
+      try { mediaRecorderRef.current.pause(); } catch {}
+    }
     setStatus("paused");
   };
   const handleResume = () => {
     startTimer();
     setStatus("recording");
     startRecognition();
+    if (mode === "video" && mediaRecorderRef.current?.state === "paused") {
+      try { mediaRecorderRef.current.resume(); } catch {}
+    }
   };
-  const handleFinish = () => {
+  const handleFinish = async () => {
     stopTimer();
     stopRecognition();
+    if (mode === "video") {
+      await stopVideoRecorder();
+      setStatus("finished");
+      setTitle(`Site diary – ${new Date().toLocaleDateString("en-GB")}`);
+      setVideoConfirmOpen(true);
+      return;
+    }
     setStatus("finished");
     setTitle(`Site walk – ${new Date().toLocaleDateString("en-GB")}`);
     setSaveOpen(true);
   };
+
 
   const insertMarker = (name: string) => {
     const marker = `[${name}]\n`;
@@ -333,18 +467,25 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       title: t,
       transcript: transcript.trim(),
       duration_seconds: seconds,
-    });
+      recording_type: mode,
+      video_path: mode === "video" ? videoSessionPathRef.current || null : null,
+    } as any);
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("Site walk saved");
+    toast.success(mode === "video" ? "Site diary saved" : "Site walk saved");
     setSaveOpen(false);
+    setVideoConfirmOpen(false);
     setStatus("idle");
+    setMode("audio");
     setTranscript("");
     transcriptRef.current = "";
     setInterim("");
     setSeconds(0);
     setTitle("");
     setMicDenied(false);
+    videoSessionPathRef.current = "";
+    videoChunkIndexRef.current = 0;
+    setChunksUploaded(0);
     loadAll();
   };
 
@@ -352,6 +493,36 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     setSaveOpen(false);
     setStatus("paused");
   };
+
+  const handleDiscardVideo = async () => {
+    // Best-effort cleanup of uploaded chunks
+    const prefix = videoSessionPathRef.current;
+    if (prefix) {
+      try {
+        const { data: files } = await supabase.storage
+          .from("site-walk-videos")
+          .list(prefix);
+        if (files && files.length) {
+          await supabase.storage
+            .from("site-walk-videos")
+            .remove(files.map((f) => `${prefix}/${f.name}`));
+        }
+      } catch (e) {
+        console.warn("Failed to clean up video chunks", e);
+      }
+    }
+    setVideoConfirmOpen(false);
+    setStatus("idle");
+    setMode("audio");
+    setTranscript("");
+    transcriptRef.current = "";
+    setSeconds(0);
+    setTitle("");
+    videoSessionPathRef.current = "";
+    videoChunkIndexRef.current = 0;
+    setChunksUploaded(0);
+  };
+
 
   const deleteWalk = async (id: string) => {
     if (!confirm("Are you sure you want to delete this Site Walk?")) return;
@@ -469,10 +640,25 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
         <div className="flex flex-wrap gap-2 justify-center">
           {status === "idle" && (
-            <Button onClick={handleStart} size="lg" className="gap-2 h-14 px-8 text-base">
-              <Mic className="w-5 h-5" /> Start Recording
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto justify-center">
+              <Button
+                onClick={() => handleStart("audio")}
+                size="lg"
+                className="gap-2 h-14 px-6 text-base"
+              >
+                <Mic className="w-5 h-5" /> Audio Site Walk
+              </Button>
+              <Button
+                onClick={() => handleStart("video")}
+                size="lg"
+                variant="secondary"
+                className="gap-2 h-14 px-6 text-base"
+              >
+                <Video className="w-5 h-5" /> Video Site Diary
+              </Button>
+            </div>
           )}
+
           {status === "recording" && (
             <>
               <Button onClick={handlePause} size="lg" variant="secondary" className="gap-2 h-14 px-6 text-base">
@@ -503,8 +689,30 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         {speechSupported && micDenied && isActive && (
           <p className="text-xs text-amber-600 text-center">
             Microphone access required for voice recording. You can continue using manual text entry.
-          </p>
+  </p>
         )}
+
+        {/* Video preview */}
+        {mode === "video" && isActive && (
+          <div className="space-y-2">
+            <video
+              ref={videoPreviewRef}
+              className="w-full max-h-[320px] rounded-md bg-black object-cover"
+              playsInline
+              muted
+            />
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <FileVideo className="w-3 h-3" /> Auto-saving every 30s
+              </span>
+              <span>
+                {chunksUploaded} chunk{chunksUploaded === 1 ? "" : "s"} saved
+                {chunksUploading > 0 ? ` · ${chunksUploading} uploading…` : ""}
+              </span>
+            </div>
+          </div>
+        )}
+
 
         {/* Area markers */}
         {isActive && (
@@ -597,9 +805,15 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                   className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-card border border-border hover:border-primary/40 transition-colors"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-foreground truncate">
-                      {w.title || "Untitled site walk"}
+                    <div className="text-sm font-medium text-foreground truncate flex items-center gap-2">
+                      {w.recording_type === "video" ? (
+                        <FileVideo className="w-3.5 h-3.5 text-primary shrink-0" />
+                      ) : (
+                        <Mic className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="truncate">{w.title || "Untitled site walk"}</span>
                     </div>
+
                     <div className="text-[11px] text-muted-foreground mt-0.5">
                       {new Date(w.created_at).toLocaleDateString("en-GB", {
                         day: "numeric",
@@ -769,6 +983,53 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Video Site Diary confirmation */}
+      <Dialog
+        open={videoConfirmOpen}
+        onOpenChange={(o) => {
+          if (!o && !saving) setVideoConfirmOpen(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileVideo className="w-4 h-4 text-primary" /> Save Video Site Diary
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground space-y-1">
+              <div>Duration: <span className="text-foreground font-medium">{formatDuration(seconds)}</span></div>
+              <div>Chunks saved: <span className="text-foreground font-medium">{chunksUploaded}</span>{chunksUploading > 0 && ` (${chunksUploading} still uploading…)`}</div>
+              <div>Transcript: <span className="text-foreground font-medium">{transcript.trim().length} chars</span></div>
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Title
+              </label>
+              <Input
+                autoFocus
+                placeholder="Video Site Diary"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Saving stores the video in the project's secure storage and keeps the transcript for AI analysis.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={handleDiscardVideo} disabled={saving}>
+              Discard
+            </Button>
+            <Button onClick={handleSave} disabled={saving || !title.trim() || chunksUploading > 0}>
+              {saving ? "Saving…" : "Save site diary"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
       {/* View transcript dialog */}
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
