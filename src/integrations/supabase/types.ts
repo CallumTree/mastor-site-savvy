@@ -1263,25 +1263,43 @@ export type Database = {
       }
       valuation_items: {
         Row: {
+          claim_opportunity_id: string | null
           claimed_qty: number | null
           claimed_value: number | null
-          contract_item_id: string
+          contract_item_id: string | null
+          created_at: string
+          description: string | null
           id: string
+          status: string
           valuation_id: string
+          work_package_id: string | null
+          work_package_name: string | null
         }
         Insert: {
+          claim_opportunity_id?: string | null
           claimed_qty?: number | null
           claimed_value?: number | null
-          contract_item_id: string
+          contract_item_id?: string | null
+          created_at?: string
+          description?: string | null
           id?: string
+          status?: string
           valuation_id: string
+          work_package_id?: string | null
+          work_package_name?: string | null
         }
         Update: {
+          claim_opportunity_id?: string | null
           claimed_qty?: number | null
           claimed_value?: number | null
-          contract_item_id?: string
+          contract_item_id?: string | null
+          created_at?: string
+          description?: string | null
           id?: string
+          status?: string
           valuation_id?: string
+          work_package_id?: string | null
+          work_package_name?: string | null
         }
         Relationships: [
           {

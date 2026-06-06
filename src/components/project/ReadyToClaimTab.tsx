@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -20,6 +21,8 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
   const [pending, setPending] = useState<ClaimOpportunity[]>([]);
   const [approved, setApproved] = useState<ClaimOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +60,55 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
 
     toast.success(status === "Approved" ? "Claim approved" : "Claim dismissed");
     load();
+  };
+
+  const generateValuation = async () => {
+    if (approved.length === 0) return;
+    setGenerating(true);
+
+    // Determine next valuation number for this project
+    const { data: existing, error: exErr } = await supabase
+      .from("valuations")
+      .select("valuation_number")
+      .eq("project_id", projectId);
+    if (exErr) {
+      setGenerating(false);
+      return toast.error(exErr.message);
+    }
+    const nextNum =
+      (existing ?? []).reduce((m, v) => Math.max(m, v.valuation_number ?? 0), 0) + 1;
+
+    const { data: val, error: vErr } = await supabase
+      .from("valuations")
+      .insert({
+        project_id: projectId,
+        status: "Draft",
+        valuation_number: nextNum,
+        valuation_date: new Date().toISOString().slice(0, 10),
+      })
+      .select()
+      .single();
+
+    if (vErr || !val) {
+      setGenerating(false);
+      return toast.error(vErr?.message ?? "Failed to create valuation");
+    }
+
+    const rows = approved.map((c) => ({
+      valuation_id: val.id,
+      work_package_id: c.work_package_id,
+      work_package_name: c.work_package_name,
+      description: c.finding_text,
+      status: "Draft",
+      claim_opportunity_id: c.id,
+    }));
+
+    const { error: iErr } = await supabase.from("valuation_items").insert(rows);
+    setGenerating(false);
+    if (iErr) return toast.error(iErr.message);
+
+    toast.success(`Valuation IV-${String(nextNum).padStart(2, "0")} created`);
+    navigate({ to: "/valuations/$id", params: { id: val.id } });
   };
 
   if (loading) {
@@ -155,12 +207,11 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
               <Button
                 className="w-full"
                 size="lg"
-                onClick={() => {
-                  toast.info("Generate Valuation — coming in the next phase.");
-                }}
+                disabled={generating || approved.length === 0}
+                onClick={generateValuation}
               >
                 <CircleDollarSign className="w-4 h-4 mr-2" />
-                Generate Valuation
+                {generating ? "Generating…" : "Generate Valuation"}
               </Button>
             </div>
           </div>
