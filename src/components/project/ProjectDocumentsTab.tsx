@@ -799,6 +799,15 @@ async function extractText(buf: ArrayBuffer, ext: string): Promise<string> {
     const { value } = await (mammoth as any).extractRawText({ arrayBuffer: buf });
     return value || "";
   }
+  if (e === "doc") {
+    // Legacy binary .doc isn't supported by mammoth. Try as a last resort, otherwise advise conversion.
+    try {
+      const mammoth = await import("mammoth/mammoth.browser");
+      const { value } = await (mammoth as any).extractRawText({ arrayBuffer: buf });
+      if (value && value.trim()) return value;
+    } catch {}
+    throw new Error("Legacy .doc files can't be read in the browser. Please re-save the file as .docx and upload again.");
+  }
   if (e === "xlsx" || e === "xls") {
     const XLSX = await import("xlsx");
     const wb = XLSX.read(buf, { type: "array" });
