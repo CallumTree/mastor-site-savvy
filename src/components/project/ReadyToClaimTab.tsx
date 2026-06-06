@@ -158,12 +158,11 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
               <Button
                 className="w-full"
                 size="lg"
-                onClick={() => {
-                  toast.info("Generate Valuation — coming in the next phase.");
-                }}
+                disabled={generating || approved.length === 0}
+                onClick={generateValuation}
               >
                 <CircleDollarSign className="w-4 h-4 mr-2" />
-                Generate Valuation
+                {generating ? "Generating…" : "Generate Valuation"}
               </Button>
             </div>
           </div>
