@@ -978,6 +978,53 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         </DialogContent>
       </Dialog>
 
+      {/* Video Site Diary confirmation */}
+      <Dialog
+        open={videoConfirmOpen}
+        onOpenChange={(o) => {
+          if (!o && !saving) setVideoConfirmOpen(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileVideo className="w-4 h-4 text-primary" /> Save Video Site Diary
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground space-y-1">
+              <div>Duration: <span className="text-foreground font-medium">{formatDuration(seconds)}</span></div>
+              <div>Chunks saved: <span className="text-foreground font-medium">{chunksUploaded}</span>{chunksUploading > 0 && ` (${chunksUploading} still uploading…)`}</div>
+              <div>Transcript: <span className="text-foreground font-medium">{transcript.trim().length} chars</span></div>
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Title
+              </label>
+              <Input
+                autoFocus
+                placeholder="Video Site Diary"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Saving stores the video in the project's secure storage and keeps the transcript for AI analysis.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={handleDiscardVideo} disabled={saving}>
+              Discard
+            </Button>
+            <Button onClick={handleSave} disabled={saving || !title.trim() || chunksUploading > 0}>
+              {saving ? "Saving…" : "Save site diary"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
       {/* View transcript dialog */}
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-2xl">
