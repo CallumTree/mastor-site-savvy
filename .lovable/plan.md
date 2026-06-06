@@ -1,103 +1,26 @@
-## Goal
 
-Close the £0 invoice gap by pricing every claim opportunity from contract items at creation time, carrying those numbers through to valuations and invoices, and letting the user override on the Valuation screen.
+## Where the key goes
 
----
+The `ANTHROPIC_API_KEY` is now stored as a server-side secret in Lovable Cloud. It is automatically available as `process.env.ANTHROPIC_API_KEY` to any server-side code. It must NEVER be referenced from browser code (components, hooks) — that would bundle it into the client and leak it.
 
-## 1. Database changes
+## Steps
 
-**Migration on `claim_opportunities`** — add three nullable numeric columns:
-- `unit_rate` numeric
-- `quantity` numeric
-- `claimed_value` numeric
+1. **Create `src/lib/parseDocument.functions.ts`** — a TanStack `createServerFn` that:
+   - Reads `process.env.ANTHROPIC_API_KEY` inside the handler
+   - Takes `{ documentText, projectId, documentId }` as validated input
+   - Calls `https://api.anthropic.com/v1/messages` with the proper headers (`x-api-key`, `anthropic-version: 2023-06-01`, `content-type`) — these are missing from the current `lib/parseDocument.js` and would 401
+   - Uses the same system prompt and JSON output contract you put in `lib/parseDocument.js`
+   - Inserts the parsed rows into `scope_elements` via the authenticated Supabase client (using `requireSupabaseAuth` middleware so RLS applies as the user)
+   - Returns `{ ok: true, parsed }` or `{ ok: false, error }`
 
-**Migration on `valuation_items`** — add one column (the rest already exist):
-- `unit_rate` numeric
-  *(table already has `claimed_qty` and `claimed_value`; we'll reuse `claimed_qty` as the editable quantity field.)*
+2. **Update `src/components/project/ProjectDocumentsTab.tsx`** — replace whatever currently calls the old parser (or the browser-side `lib/parseDocument.js`) with `useServerFn(parseBoQ)` and call it after the upload completes. Show toast on error.
 
-No new tables, no RLS changes.
+3. **Keep or remove `lib/parseDocument.js`** — the new server function is the single source of truth. I'll delete `lib/parseDocument.js` so it can't accidentally be imported from the browser (where it would leak the key and CORS-fail anyway). If you want to keep it as reference, say so and I'll leave it.
 
----
+## Technical notes
 
-## 2. Pricing logic at finding-approval time
+- Anthropic's API rejects browser `fetch` calls without `anthropic-dangerous-direct-browser-access: true` AND would expose the key — running server-side fixes both.
+- The handler will read the key per-request (not at module scope) so it works correctly on Cloudflare Workers.
+- Errors from Anthropic (401/429/5xx) are caught and returned as `{ ok: false, error }` so the UI can show a clean message.
 
-In `src/components/project/AnalysisReview.tsx`, extend `linkProgressFindingToWorkPackage`:
-
-After resolving the matching work package, run a second match against `contract_items` for the same project:
-
-```text
-score = (description token overlap × 2) + (trade/code token overlap × 1)
-```
-
-- Tokenise the finding text + work package name vs. each contract item's `description` (and `code`)
-- Pick the highest-scoring row above a minimum threshold
-- Pull `unit_rate` and `total_qty` (use as `quantity`)
-- Compute `claimed_value = unit_rate × quantity`
-- If no match found → leave the three fields null (UI will show "—" and editing on the Valuation screen will fill them in)
-
-Write those three fields into the `claim_opportunities` insert.
-
----
-
-## 3. Carry pricing through to valuation_items
-
-In `src/components/project/ReadyToClaimTab.tsx` → `generateValuation()`:
-
-When mapping approved claim opportunities into `valuation_items` rows, include:
-- `unit_rate` → from claim opportunity
-- `claimed_qty` → from claim opportunity `quantity`
-- `claimed_value` → from claim opportunity
-
----
-
-## 4. Valuation screen — editable line items
-
-In `src/routes/_authenticated/valuations.$id.tsx`:
-
-**New columns in the line items table:**
-
-| Work Package | Description | Unit Rate | Quantity | Value |
-|---|---|---|---|---|
-
-- **Unit Rate** and **Quantity** become inline `<Input type="number">` fields when the valuation status is `Draft`.
-- On every change, locally recompute `claimed_value = unit_rate × quantity` and update the row.
-- Auto-save (debounced ~400ms) writes `unit_rate`, `claimed_qty`, `claimed_value` back to the `valuation_items` row. No save button.
-- When status is `Approved`, render as plain text (read-only).
-
-**Summary recalculation:**
-
-Replace the current count-based "This Claim" with the real £ figure:
-
-- **Previously Claimed** — sum of `claimed_value` across all prior Approved valuations for this project *(unchanged logic)*
-- **This Claim** — `Σ claimed_value` of this valuation's line items *(was: count)*
-- **Total Claimed** — `Previously Claimed + This Claim`
-- **Remaining Value** — `project.gross_value (or contract_value) − Total Claimed`
-
-All four figures display as £.
-
-**Footer row** on the table shows the live £ total of the current line items, matching "This Claim".
-
----
-
-## 5. Downstream effects on Invoice screen
-
-`src/routes/_authenticated/valuations.$id.invoice.tsx` already sums `claimed_value` into `invoice.total_amount` at creation. Once steps 1–4 are in, invoice totals will be correct automatically — **no changes needed there**, but I'll re-verify after the build.
-
----
-
-## Files touched
-
-- New migration (2 ALTER TABLEs)
-- `src/components/project/AnalysisReview.tsx` — pricing match logic
-- `src/components/project/ReadyToClaimTab.tsx` — carry fields into valuation_items insert
-- `src/routes/_authenticated/valuations.$id.tsx` — editable columns, autosave, £ summary
-
----
-
-## Out of scope (flagging for later)
-
-- Locking down editable quantity to ≤ remaining contract qty
-- Showing which contract item a claim was matched to (for transparency / unmatch button)
-- Bulk re-pricing of existing claim opportunities created before this change *(they'll still be £0 unless re-approved or manually edited on the Valuation screen)*
-
-Tell me to proceed and I'll switch to build.
+Approve and I'll implement.
