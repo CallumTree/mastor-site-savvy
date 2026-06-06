@@ -82,8 +82,8 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
   const onUpload = async (file: File) => {
     if (!file) return;
     const ext = (file.name.split(".").pop() || "").toLowerCase();
-    if (!["pdf", "docx", "xlsx", "xls", "csv", "txt"].includes(ext)) {
-      toast.error("Unsupported file type");
+    if (!SUPPORTED_EXTS.includes(ext as any)) {
+      toast.error(`Unsupported file type ".${ext}". Accepted formats: ${ACCEPTED_LABEL}.`);
       return;
     }
     if (file.size > 20 * 1024 * 1024) {
