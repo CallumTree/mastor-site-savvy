@@ -805,9 +805,15 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                   className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-card border border-border hover:border-primary/40 transition-colors"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-foreground truncate">
-                      {w.title || "Untitled site walk"}
+                    <div className="text-sm font-medium text-foreground truncate flex items-center gap-2">
+                      {w.recording_type === "video" ? (
+                        <FileVideo className="w-3.5 h-3.5 text-primary shrink-0" />
+                      ) : (
+                        <Mic className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="truncate">{w.title || "Untitled site walk"}</span>
                     </div>
+
                     <div className="text-[11px] text-muted-foreground mt-0.5">
                       {new Date(w.created_at).toLocaleDateString("en-GB", {
                         day: "numeric",
