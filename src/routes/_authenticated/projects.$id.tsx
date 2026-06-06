@@ -169,6 +169,16 @@ function ProjectDetail() {
           </Section>
         </TabsContent>
 
+        <TabsContent value="variations" className="mt-4 space-y-8">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Variations</p>
+          <VariationsTab projectId={project.id} />
+        </TabsContent>
+
+        <TabsContent value="procurement" className="mt-4 space-y-8">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Procurement</p>
+          <ProcurementTab projectId={project.id} />
+        </TabsContent>
+
         <TabsContent value="ready-to-claim" className="mt-4 space-y-8">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Recover Revenue</p>
           <ReadyToClaimTab projectId={project.id} />
