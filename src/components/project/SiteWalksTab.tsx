@@ -363,12 +363,9 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     if (videoPreviewRef.current) {
       videoPreviewRef.current.srcObject = null;
     }
-    // Wait briefly for outstanding chunk uploads to settle
-    const deadline = Date.now() + 15000;
-    while (chunksUploading > 0 && Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  };
+    // Outstanding chunk uploads continue in the background;
+    // the confirmation dialog disables Save while any are in flight.
+
 
   const handleStart = async (selectedMode: RecordingMode) => {
     setMode(selectedMode);
