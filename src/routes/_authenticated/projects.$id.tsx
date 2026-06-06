@@ -133,6 +133,12 @@ function ProjectDetail() {
           <TabsTrigger value="site-walks" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
             Site Walks
           </TabsTrigger>
+          <TabsTrigger value="variations" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+            Variations
+          </TabsTrigger>
+          <TabsTrigger value="procurement" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+            Procurement
+          </TabsTrigger>
           <TabsTrigger value="ready-to-claim" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
             Ready To Claim
           </TabsTrigger>
