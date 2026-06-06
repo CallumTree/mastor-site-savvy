@@ -124,12 +124,22 @@ function ProjectDetail() {
       </header>
 
       <Tabs defaultValue="scope-documents">
-        <TabsList className="w-full grid grid-cols-5 bg-secondary p-1 h-auto">
-          <TabsTrigger value="scope-documents" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Scope & Documents</TabsTrigger>
-          <TabsTrigger value="site-walks" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Site Walks</TabsTrigger>
-          <TabsTrigger value="ready-to-claim" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Ready To Claim</TabsTrigger>
-          <TabsTrigger value="valuations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Valuations</TabsTrigger>
-          <TabsTrigger value="invoices" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Invoices</TabsTrigger>
+        <TabsList className="w-full flex gap-2 overflow-x-auto bg-transparent p-0 h-auto scrollbar-hide">
+          <TabsTrigger value="scope-documents" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+            Scope & Documents
+          </TabsTrigger>
+          <TabsTrigger value="site-walks" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+            Site Walks
+          </TabsTrigger>
+          <TabsTrigger value="ready-to-claim" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+            Ready To Claim
+          </TabsTrigger>
+          <TabsTrigger value="valuations" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+            Valuations
+          </TabsTrigger>
+          <TabsTrigger value="invoices" className="shrink-0 rounded-full px-4 py-2 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+            Invoices
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="scope-documents" className="mt-4 space-y-8">
