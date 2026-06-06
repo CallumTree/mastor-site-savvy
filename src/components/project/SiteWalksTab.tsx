@@ -44,7 +44,7 @@ type SiteWalk = {
 };
 
 
-type Confidence = "high" | "medium" | "low";
+
 
 type RoomAnalysis = {
   room: string;
