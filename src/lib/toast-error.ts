@@ -47,7 +47,7 @@ export function describeError(err: unknown): { type: string; message: string } {
 export function showError(context: string, err: unknown): void {
   const { type, message } = describeError(err);
   console.error(`[${context}]`, err);
-  toast.error(`[${context}] ${type}: ${message}`);
+  toast.error(`${context} — ${type}: ${message}`);
 }
 
 /**
