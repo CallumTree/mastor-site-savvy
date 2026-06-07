@@ -163,7 +163,18 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     transcriptRef.current = transcript;
-  }, [transcript]);
+    if (status === "recording" || status === "paused") {
+      const tl = transcriptTimelineRef.current;
+      const last = tl[tl.length - 1];
+      if (!last || last.text !== transcript) {
+        tl.push({ t: secondsRef.current, text: transcript });
+      }
+    }
+  }, [transcript, status]);
+
+  useEffect(() => {
+    secondsRef.current = seconds;
+  }, [seconds]);
 
   const loadAll = async () => {
     setLoading(true);
