@@ -89,6 +89,7 @@ export type Database = {
           id: string
           project_id: string
           quantity: number | null
+          scope_element_id: string | null
           status: string
           unit_rate: number | null
           updated_at: string
@@ -103,6 +104,7 @@ export type Database = {
           id?: string
           project_id: string
           quantity?: number | null
+          scope_element_id?: string | null
           status?: string
           unit_rate?: number | null
           updated_at?: string
@@ -117,6 +119,7 @@ export type Database = {
           id?: string
           project_id?: string
           quantity?: number | null
+          scope_element_id?: string | null
           status?: string
           unit_rate?: number | null
           updated_at?: string
@@ -136,6 +139,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_opportunities_scope_element_id_fkey"
+            columns: ["scope_element_id"]
+            isOneToOne: false
+            referencedRelation: "scope_elements"
             referencedColumns: ["id"]
           },
           {
@@ -1041,44 +1051,53 @@ export type Database = {
       }
       scope_elements: {
         Row: {
+          claimed_in_valuation: Json | null
           confidence: string
           created_at: string
           description: string | null
           document_id: string | null
           element_type: string
           id: string
+          invoiced_in: Json | null
           parent_id: string | null
           project_id: string
           quantity: number | null
           source_reference: string | null
+          status: string
           title: string
           unit: string | null
         }
         Insert: {
+          claimed_in_valuation?: Json | null
           confidence?: string
           created_at?: string
           description?: string | null
           document_id?: string | null
           element_type: string
           id?: string
+          invoiced_in?: Json | null
           parent_id?: string | null
           project_id: string
           quantity?: number | null
           source_reference?: string | null
+          status?: string
           title: string
           unit?: string | null
         }
         Update: {
+          claimed_in_valuation?: Json | null
           confidence?: string
           created_at?: string
           description?: string | null
           document_id?: string | null
           element_type?: string
           id?: string
+          invoiced_in?: Json | null
           parent_id?: string | null
           project_id?: string
           quantity?: number | null
           source_reference?: string | null
+          status?: string
           title?: string
           unit?: string | null
         }
@@ -1405,6 +1424,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          scope_element_id: string | null
           status: string
           unit_rate: number | null
           valuation_id: string
@@ -1419,6 +1439,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          scope_element_id?: string | null
           status?: string
           unit_rate?: number | null
           valuation_id: string
@@ -1433,6 +1454,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          scope_element_id?: string | null
           status?: string
           unit_rate?: number | null
           valuation_id?: string
@@ -1445,6 +1467,13 @@ export type Database = {
             columns: ["contract_item_id"]
             isOneToOne: false
             referencedRelation: "contract_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_items_scope_element_id_fkey"
+            columns: ["scope_element_id"]
+            isOneToOne: false
+            referencedRelation: "scope_elements"
             referencedColumns: ["id"]
           },
           {
