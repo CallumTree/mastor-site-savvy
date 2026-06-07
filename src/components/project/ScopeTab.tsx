@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { showError } from "@/lib/toast-error";
 import { Plus, Trash2, Save, X } from "lucide-react";
 
 type ContractItem = {
@@ -48,7 +49,7 @@ function ContractItemsSection({ projectId }: { projectId: string }) {
       .select("*")
       .eq("project_id", projectId)
       .order("created_at", { ascending: true });
-    if (error) toast.error(error.message);
+    if (error) showError("Scope", error);
     setItems((data ?? []) as ContractItem[]);
     setLoading(false);
   };
@@ -70,7 +71,7 @@ function ContractItemsSection({ projectId }: { projectId: string }) {
     const { error } = editing.id
       ? await supabase.from("contract_items").update(payload).eq("id", editing.id)
       : await supabase.from("contract_items").insert(payload);
-    if (error) return toast.error(error.message);
+    if (error) return showError("Scope", error);
     toast.success("Saved");
     setEditing(null);
     load();
@@ -78,7 +79,7 @@ function ContractItemsSection({ projectId }: { projectId: string }) {
 
   const remove = async (id: string) => {
     const { error } = await supabase.from("contract_items").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) return showError("Scope", error);
     load();
   };
 
@@ -156,7 +157,7 @@ function VariationsSection({ projectId }: { projectId: string }) {
       .select("*")
       .eq("project_id", projectId)
       .order("created_at", { ascending: true });
-    if (error) toast.error(error.message);
+    if (error) showError("Scope", error);
     setItems((data ?? []) as Variation[]);
     setLoading(false);
   };
@@ -178,7 +179,7 @@ function VariationsSection({ projectId }: { projectId: string }) {
     const { error } = editing.id
       ? await supabase.from("variations").update(payload).eq("id", editing.id)
       : await supabase.from("variations").insert(payload);
-    if (error) return toast.error(error.message);
+    if (error) return showError("Scope", error);
     toast.success("Saved");
     setEditing(null);
     load();
@@ -186,7 +187,7 @@ function VariationsSection({ projectId }: { projectId: string }) {
 
   const remove = async (id: string) => {
     const { error } = await supabase.from("variations").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) return showError("Scope", error);
     load();
   };
 

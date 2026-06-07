@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { showError } from "@/lib/toast-error";
 import { ClipboardCheck, FileCheck, X, CircleDollarSign } from "lucide-react";
 
 type ClaimOpportunity = {
@@ -38,7 +39,7 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      toast.error(error.message);
+      showError("Ready To Claim", error);
     } else {
       const list = (data ?? []) as ClaimOpportunity[];
       setPending(list.filter((c) => c.status === "Pending Review"));
@@ -58,7 +59,7 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
       .eq("id", id);
 
     if (error) {
-      toast.error(error.message);
+      showError("Ready To Claim", error);
       return;
     }
 
@@ -77,7 +78,7 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
       .eq("project_id", projectId);
     if (exErr) {
       setGenerating(false);
-      return toast.error(exErr.message);
+      return showError("Ready To Claim", exErr);
     }
     const nextNum =
       (existing ?? []).reduce((m, v) => Math.max(m, v.valuation_number ?? 0), 0) + 1;
@@ -95,7 +96,7 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
 
     if (vErr || !val) {
       setGenerating(false);
-      return toast.error(vErr?.message ?? "Failed to create valuation");
+      return showError("Ready To Claim", vErr ?? new Error("Failed to create valuation"));
     }
 
     const rows = approved.map((c) => ({
@@ -113,7 +114,7 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
 
     const { error: iErr } = await supabase.from("valuation_items").insert(rows);
     setGenerating(false);
-    if (iErr) return toast.error(iErr.message);
+    if (iErr) return showError("Ready To Claim", iErr);
 
     toast.success(`Valuation IV-${String(nextNum).padStart(2, "0")} created`);
     navigate({ to: "/valuations/$id", params: { id: val.id } });

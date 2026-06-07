@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { showError } from "@/lib/toast-error";
 import { FileText } from "lucide-react";
 
 type Invoice = {
@@ -28,7 +29,7 @@ export function InvoicesTab({ projectId }: { projectId: string }) {
         .select("*")
         .eq("project_id", projectId)
         .order("created_at", { ascending: false });
-      if (error) toast.error(error.message);
+      if (error) showError("Invoices", error);
       setInvoices((data ?? []) as Invoice[]);
       setLoading(false);
     })();
