@@ -183,6 +183,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         .from("site_walks")
         .select("*")
         .eq("project_id", projectId)
+        .neq("status", "recording")
         .order("created_at", { ascending: false }),
       supabase
         .from("analysis_results")
