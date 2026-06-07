@@ -131,7 +131,16 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
   const [analysingId, setAnalysingId] = useState<string | null>(null);
   const [viewingAnalysis, setViewingAnalysis] = useState<AnalysisRow | null>(null);
-  
+
+  // Snapshots for the current recording session
+  const [sessionPhotos, setSessionPhotos] = useState<
+    Array<{ id: string; signedUrl: string | null; timestamp_seconds: number }>
+  >([]);
+  const [snapBusy, setSnapBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const transcriptTimelineRef = useRef<Array<{ t: number; text: string }>>([]);
+  const secondsRef = useRef(0);
+  const currentWalkIdRef = useRef<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
