@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { Plus, Trash2, Save, X, ChevronDown, ChevronRight, Archive } from "lucide-react";
+import { Plus, Trash2, Save, X, ChevronDown, ChevronRight, Archive, HelpCircle } from "lucide-react";
+import { classifyProcurement, PHASES, phaseName, UNMATCHED_PHASE_ORDER, type MinimalScopeElement } from "@/lib/procurement-phase";
 
 type ProcurementItem = {
   id: string;
@@ -16,8 +17,12 @@ type ProcurementItem = {
   estimated_cost: number | null;
   supplier: string | null;
   status: string;
+  scope_element_id: string | null;
+  phase_order: number;
   created_at?: string;
 };
+
+const STATUS_RANK: Record<string, number> = { Required: 0, Quoted: 1, Ordered: 2 };
 
 const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
 const STATUSES = ["Required", "Quoted", "Ordered", "Delivered", "Dismissed"];
