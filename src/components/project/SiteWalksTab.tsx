@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { showError } from "@/lib/toast-error";
 import {
   Mic,
   MicOff,
@@ -160,8 +161,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         .eq("project_id", projectId)
         .order("created_at", { ascending: false }),
     ]);
-    if (we) toast.error(we.message);
-    if (ae) toast.error(ae.message);
+    if (we) showError("Site Walks", we);
+    if (ae) showError("Site Walks", ae);
     setWalks((walkData ?? []) as SiteWalk[]);
     setAnalyses((anData ?? []) as unknown as AnalysisRow[]);
     setLoading(false);
@@ -461,7 +462,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       video_path: mode === "video" ? videoSessionPathRef.current || null : null,
     } as any);
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) return showError("Site Walks", error);
     toast.success(mode === "video" ? "Site diary saved" : "Site walk saved");
     setSaveOpen(false);
     setVideoConfirmOpen(false);
@@ -517,7 +518,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const deleteWalk = async (id: string) => {
     if (!confirm("Are you sure you want to delete this Site Walk?")) return;
     const { error } = await supabase.from("site_walks").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) return showError("Site Walks", error);
     toast.success("Deleted");
     loadAll();
   };
@@ -551,7 +552,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       setViewingAnalysis(row);
     } catch (e: any) {
       console.error(e);
-      toast.error(e?.message ?? "Analysis failed");
+      showError("Site Walks", e ?? new Error("Analysis failed"));
     } finally {
       setAnalysingId(null);
     }
@@ -560,7 +561,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const deleteAnalysis = async (id: string) => {
     if (!confirm("Delete this analysis?")) return;
     const { error } = await supabase.from("analysis_results").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) return showError("Site Walks", error);
     setAnalyses((prev) => prev.filter((a) => a.id !== id));
     if (viewingAnalysis?.id === id) setViewingAnalysis(null);
     toast.success("Analysis deleted");
@@ -1092,7 +1093,7 @@ function AnalysisViewer({
       .single();
     if (fErr || !finding) {
       setBusyKey(null);
-      return toast.error(fErr?.message ?? "Failed to save finding");
+      return showError("Site Walks", fErr ?? new Error("Failed to save finding"));
     }
     const { error: cErr } = await supabase.from("claim_opportunities").insert({
       project_id: projectId,
@@ -1102,7 +1103,7 @@ function AnalysisViewer({
       status: "Pending Review",
     });
     setBusyKey(null);
-    if (cErr) return toast.error(cErr.message);
+    if (cErr) return showError("Site Walks", cErr);
     setApprovedKeys((s) => new Set(s).add(key));
     toast.success("Sent to Ready To Claim");
   };

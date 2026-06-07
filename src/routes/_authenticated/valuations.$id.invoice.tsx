@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { showError } from "@/lib/toast-error";
 import { ArrowLeft, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -158,7 +159,7 @@ function InvoicePage() {
       .single();
 
     if (cErr || !created) {
-      toast.error(cErr?.message ?? "Failed to create invoice");
+      showError("Invoice", cErr ?? new Error("Failed to create invoice"));
     } else {
       setInvoice(created as Invoice);
     }
@@ -227,7 +228,7 @@ function InvoicePage() {
         .update({ status: "Sent" })
         .eq("id", invoice.id);
       if (error) {
-        toast.error(error.message);
+        showError("Invoice", error);
       } else {
         setInvoice({ ...invoice, status: "Sent" });
         toast.success("Invoice marked as sent");

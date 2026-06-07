@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { showError } from "@/lib/toast-error";
 import { ChevronDown, ChevronRight, Plus, Save } from "lucide-react";
 
 type Valuation = {
@@ -46,7 +47,7 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
       .select("*")
       .eq("project_id", projectId)
       .order("valuation_number", { ascending: false, nullsFirst: false });
-    if (error) toast.error(error.message);
+    if (error) showError("Valuations", error);
     setVals((data ?? []) as Valuation[]);
     setLoading(false);
   };
@@ -69,7 +70,7 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
       status: "Draft",
       valuation_date: new Date().toISOString().slice(0, 10),
     });
-    if (error) return toast.error(error.message);
+    if (error) return showError("Valuations", error);
     toast.success(`Draft IV-${String(next).padStart(2, "0")} created`);
     load();
   };
@@ -156,8 +157,8 @@ function ClaimProgressTable({
         .select("*, valuations!inner(project_id)")
         .eq("valuations.project_id", projectId),
     ]);
-    if (ci.error) toast.error(ci.error.message);
-    if (vi.error) toast.error(vi.error.message);
+    if (ci.error) showError("Valuations", ci.error);
+    if (vi.error) showError("Valuations", vi.error);
     const contractItems = (ci.data ?? []) as ContractItem[];
     const claims = (vi.data ?? []) as ValuationItem[];
     setItems(contractItems);
@@ -231,7 +232,7 @@ function ClaimProgressTable({
       }));
     }
     setSavingId(null);
-    if (error) return toast.error(error.message);
+    if (error) return showError("Valuations", error);
     toast.success("Claim saved");
     load();
   };

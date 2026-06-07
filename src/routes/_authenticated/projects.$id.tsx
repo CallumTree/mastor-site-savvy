@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ChevronLeft, MapPin, Building2 } from "lucide-react";
 import { toast } from "sonner";
+import { showError } from "@/lib/toast-error";
 import { ScopeTab } from "@/components/project/ScopeTab";
 import { ValuationsTab } from "@/components/project/ValuationsTab";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
@@ -65,7 +66,7 @@ function ProjectDetail() {
         (supabase as any).from("procurement_items").select("status, estimated_cost").eq("project_id", id),
         (supabase as any).from("potential_claims").select("status, contract_value").eq("project_id", id),
       ]);
-      if (pe) toast.error(pe.message);
+      if (pe) showError("Project", pe);
       setProject((p as Project) ?? null);
       const openVariations = (vars ?? []).filter((v: any) => v.status !== "Approved" && v.status !== "Rejected").length;
       const procurementOutstanding = (procs ?? []).filter((x: any) => x.status === "Required" || x.status === "Quoted").length;

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { showError } from "@/lib/toast-error";
 import { Plus, Trash2, Save, X, ChevronDown, ChevronRight, Archive } from "lucide-react";
 
 type ProcurementItem = {
@@ -44,7 +45,7 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
       .select("*")
       .eq("project_id", projectId)
       .order("created_at", { ascending: true });
-    if (error) toast.error(error.message);
+    if (error) showError("Procurement", error);
     setItems((data ?? []) as ProcurementItem[]);
     setLoading(false);
   };
@@ -70,7 +71,7 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
     const { error } = editing.id
       ? await (supabase as any).from("procurement_items").update(payload).eq("id", editing.id)
       : await (supabase as any).from("procurement_items").insert(payload);
-    if (error) return toast.error(error.message);
+    if (error) return showError("Procurement", error);
     toast.success("Saved");
     setEditing(null);
     load();
@@ -78,13 +79,13 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
 
   const setStatus = async (id: string, status: string) => {
     const { error } = await (supabase as any).from("procurement_items").update({ status }).eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) return showError("Procurement", error);
     load();
   };
 
   const remove = async (id: string) => {
     const { error } = await (supabase as any).from("procurement_items").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) return showError("Procurement", error);
     load();
   };
 

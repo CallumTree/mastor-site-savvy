@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { showError } from "@/lib/toast-error";
 import { ArrowLeft, CheckCircle2, FileText } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/valuations/$id")({
@@ -59,7 +60,7 @@ function ValuationPage() {
       .eq("id", id)
       .maybeSingle();
     if (vErr || !val) {
-      toast.error(vErr?.message ?? "Valuation not found");
+      showError("Valuation", vErr ?? new Error("Valuation not found"));
       setLoading(false);
       return;
     }
@@ -144,7 +145,7 @@ function ValuationPage() {
           claimed_value: current.claimed_value,
         })
         .eq("id", itemId);
-      if (error) toast.error(error.message);
+      if (error) showError("Valuation", error);
     }, 400);
   };
 
@@ -155,7 +156,7 @@ function ValuationPage() {
       .update({ status: "Approved" })
       .eq("id", id);
     setFinalising(false);
-    if (error) return toast.error(error.message);
+    if (error) return showError("Valuation", error);
     toast.success("Valuation finalised");
     load();
   };
