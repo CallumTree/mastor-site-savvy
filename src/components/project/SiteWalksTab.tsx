@@ -578,15 +578,23 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       toast.error("Please enter a title");
       return;
     }
+    const walkId = currentWalkIdRef.current;
+    if (!walkId) {
+      toast.error("No active recording");
+      return;
+    }
     setSaving(true);
-    const { error } = await supabase.from("site_walks").insert({
-      project_id: projectId,
-      title: t,
-      transcript: transcript.trim(),
-      duration_seconds: seconds,
-      recording_type: mode,
-      video_path: mode === "video" ? videoSessionPathRef.current || null : null,
-    } as any);
+    const { error } = await supabase
+      .from("site_walks")
+      .update({
+        title: t,
+        transcript: transcript.trim(),
+        duration_seconds: seconds,
+        recording_type: mode,
+        video_path: mode === "video" ? videoSessionPathRef.current || null : null,
+        status: "completed",
+      } as any)
+      .eq("id", walkId);
     setSaving(false);
     if (error) return showError("Site Walks", error);
     toast.success(mode === "video" ? "Site diary saved" : "Site walk saved");
@@ -603,12 +611,35 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     videoSessionPathRef.current = "";
     videoChunkIndexRef.current = 0;
     setChunksUploaded(0);
+    setSessionPhotos([]);
+    transcriptTimelineRef.current = [];
+    currentWalkIdRef.current = null;
     loadAll();
   };
 
   const handleCancelSave = () => {
     setSaveOpen(false);
     setStatus("paused");
+  };
+
+  const cleanupDraftWalk = async () => {
+    const walkId = currentWalkIdRef.current;
+    if (!walkId) return;
+    // Delete uploaded snapshots from storage (DB rows cascade)
+    try {
+      const { data: files } = await supabase.storage
+        .from(SITE_WALK_PHOTO_BUCKET)
+        .list(`${projectId}/${walkId}`);
+      if (files && files.length) {
+        await supabase.storage
+          .from(SITE_WALK_PHOTO_BUCKET)
+          .remove(files.map((f) => `${projectId}/${walkId}/${f.name}`));
+      }
+    } catch (e) {
+      console.warn("Failed to clean up snapshots", e);
+    }
+    await supabase.from("site_walks").delete().eq("id", walkId);
+    currentWalkIdRef.current = null;
   };
 
   const handleDiscardVideo = async () => {
@@ -628,6 +659,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         console.warn("Failed to clean up video chunks", e);
       }
     }
+    await cleanupDraftWalk();
     setVideoConfirmOpen(false);
     setStatus("idle");
     setMode("audio");
@@ -638,7 +670,10 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     videoSessionPathRef.current = "";
     videoChunkIndexRef.current = 0;
     setChunksUploaded(0);
+    setSessionPhotos([]);
+    transcriptTimelineRef.current = [];
   };
+
 
 
   const deleteWalk = async (id: string) => {
