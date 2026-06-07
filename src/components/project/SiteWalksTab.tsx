@@ -1291,6 +1291,41 @@ function AnalysisViewer({
   const a = row.analysis_json ?? ({} as Analysis);
   const [approvedKeys, setApprovedKeys] = useState<Set<string>>(new Set());
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [walkPhotos, setWalkPhotos] = useState<
+    Array<{ id: string; signedUrl: string | null; transcript_context: string | null; timestamp_seconds: number }>
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("site_walk_photos" as any)
+        .select("id, storage_path, transcript_context, timestamp_seconds")
+        .eq("site_walk_id", row.site_walk_id)
+        .order("timestamp_seconds", { ascending: true });
+      if (cancelled) return;
+      const rows = (data ?? []) as any[];
+      const urls = await signManyPhotoUrls(rows.map((r) => r.storage_path));
+      setWalkPhotos(
+        rows.map((r) => ({
+          id: r.id,
+          signedUrl: r.storage_path ? urls[r.storage_path] ?? null : null,
+          transcript_context: r.transcript_context ?? null,
+          timestamp_seconds: r.timestamp_seconds ?? 0,
+        })),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [row.site_walk_id]);
+
+  const photosForRoom = (roomName: string) => {
+    const n = roomName.toLowerCase();
+    return walkPhotos.filter((p) =>
+      (p.transcript_context ?? "").toLowerCase().includes(n),
+    );
+  };
 
   const approveProgress = async (roomName: string, text: string) => {
     const key = `${roomName}::${text}`;
