@@ -120,6 +120,7 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
       unit_rate: c.unit_rate,
       claimed_qty: c.quantity,
       claimed_value: c.claimed_value,
+      scope_element_id: c.scope_element_id,
     }));
 
 
@@ -127,7 +128,17 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
     setGenerating(false);
     if (iErr) return showError("Ready To Claim", iErr);
 
-    toast.success(`Valuation IV-${String(nextNum).padStart(2, "0")} created`);
+    const valNumber = `IV-${String(nextNum).padStart(2, "0")}`;
+    const scopeIds = approved.map((c) => c.scope_element_id).filter(Boolean) as string[];
+    if (scopeIds.length > 0) {
+      const { error: scErr } = await (supabase as any)
+        .from("scope_elements")
+        .update({ status: "Claimed", claimed_in_valuation: { id: val.id, number: valNumber } })
+        .in("id", scopeIds);
+      if (scErr) showError("Ready To Claim", scErr);
+    }
+
+    toast.success(`Valuation ${valNumber} created`);
     navigate({ to: "/valuations/$id", params: { id: val.id } });
   };
 
