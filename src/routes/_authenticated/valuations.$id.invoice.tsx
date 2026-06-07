@@ -7,6 +7,7 @@ import { showError } from "@/lib/toast-error";
 import { ArrowLeft, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getCurrentProfile, getLogoSignedUrl, getLogoDataUrl, type Profile } from "@/lib/profile";
 
 export const Route = createFileRoute("/_authenticated/valuations/$id/invoice")({
   component: InvoicePage,
