@@ -98,6 +98,10 @@ function AuthPage() {
           .update({
             full_name: fullName,
             company_name: companyName,
+            company_address_line1: addressLine1 || null,
+            company_address_line2: addressLine2 || null,
+            company_town: town || null,
+            company_postcode: postcode || null,
             ...(logoPath ? { company_logo_url: logoPath } : {}),
           })
           .eq("user_id", user.id);
