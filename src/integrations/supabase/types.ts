@@ -876,6 +876,36 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          company_logo_url: string | null
+          company_name: string
+          created_at: string
+          full_name: string
+          trial_ends_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_logo_url?: string | null
+          company_name: string
+          created_at?: string
+          full_name: string
+          trial_ends_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_logo_url?: string | null
+          company_name?: string
+          created_at?: string
+          full_name?: string
+          trial_ends_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       progress_logs: {
         Row: {
           created_at: string

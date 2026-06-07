@@ -7,6 +7,7 @@ import { showError } from "@/lib/toast-error";
 import { ArrowLeft, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getCurrentProfile, getLogoSignedUrl, getLogoDataUrl, type Profile } from "@/lib/profile";
 
 export const Route = createFileRoute("/_authenticated/valuations/$id/invoice")({
   component: InvoicePage,
@@ -60,7 +61,20 @@ function InvoicePage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [previouslyClaimed, setPreviouslyClaimed] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const creatingRef = useRef(false);
+
+  // Load company profile + signed logo URL for on-screen display
+  useEffect(() => {
+    (async () => {
+      const p = await getCurrentProfile();
+      setProfile(p);
+      if (p?.company_logo_url) {
+        setLogoUrl(await getLogoSignedUrl(p.company_logo_url));
+      }
+    })();
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -176,20 +190,40 @@ function InvoicePage() {
     const clientName = project.client_name ?? project.client ?? "—";
     const today = new Date().toLocaleDateString("en-GB");
 
+    // Top-left: company logo (if any) + company name
+    let cursorX = 14;
+    if (profile?.company_logo_url) {
+      const logo = await getLogoDataUrl(profile.company_logo_url);
+      if (logo) {
+        const fmt = logo.mime.includes("jpeg") ? "JPEG" : logo.mime.includes("svg") ? "PNG" : "PNG";
+        try {
+          doc.addImage(logo.dataUrl, fmt, 14, 12, 18, 18);
+          cursorX = 36;
+        } catch {
+          /* fall through to text-only */
+        }
+      }
+    }
+    if (profile?.company_name) {
+      doc.setFontSize(14);
+      doc.text(profile.company_name, cursorX, 22);
+    }
+
+    // Top-right: invoice meta
     doc.setFontSize(20);
-    doc.text("INVOICE", 14, 20);
+    doc.text("INVOICE", 196, 20, { align: "right" });
     doc.setFontSize(10);
-    doc.text(`Invoice #: ${invoice.invoice_number}`, 14, 28);
-    doc.text(`Date: ${today}`, 14, 34);
+    doc.text(`Invoice #: ${invoice.invoice_number}`, 196, 28, { align: "right" });
+    doc.text(`Date: ${today}`, 196, 34, { align: "right" });
 
     doc.setFontSize(12);
-    doc.text(project.name, 14, 46);
+    doc.text(project.name, 14, 48);
     doc.setFontSize(10);
-    doc.text(`Client: ${clientName}`, 14, 52);
+    doc.text(`Client: ${clientName}`, 14, 54);
     doc.text(
       `Valuation: IV-${String(valuation.valuation_number ?? 0).padStart(2, "0")}`,
       14,
-      58,
+      60,
     );
 
     autoTable(doc, {
@@ -263,6 +297,24 @@ function InvoicePage() {
           <ArrowLeft className="w-4 h-4 mr-1" /> Back to valuation
         </Button>
       </div>
+
+      {/* Company brand row */}
+      {(logoUrl || profile?.company_name) && (
+        <div className="flex items-center gap-3">
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={profile?.company_name ?? "Company logo"}
+              className="h-12 w-12 rounded object-contain border border-border bg-card"
+            />
+          ) : null}
+          {profile?.company_name && (
+            <div className="font-display text-xl font-semibold text-primary">
+              {profile.company_name}
+            </div>
+          )}
+        </div>
+      )}
 
       <header className="space-y-1 border-b border-border pb-4">
         <h1 className="text-2xl font-semibold text-primary">{project.name}</h1>
