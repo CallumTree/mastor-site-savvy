@@ -900,26 +900,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   </p>
         )}
 
-        {/* Video preview */}
-        {mode === "video" && isActive && (
-          <div className="space-y-2">
-            <video
-              ref={videoPreviewRef}
-              className="w-full max-h-[320px] rounded-md bg-black object-cover"
-              playsInline
-              muted
-            />
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <FileVideo className="w-3 h-3" /> Auto-saving every 30s
-              </span>
-              <span>
-                {chunksUploaded} chunk{chunksUploaded === 1 ? "" : "s"} saved
-                {chunksUploading > 0 ? ` · ${chunksUploading} uploading…` : ""}
-              </span>
-            </div>
-          </div>
-        )}
+        {/* Video preview is rendered as a full-screen overlay below */}
 
 
         {/* Area markers */}
