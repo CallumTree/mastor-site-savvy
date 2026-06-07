@@ -195,7 +195,12 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
         .eq("project_id", data.projectId)
         .in("status", ["Required", "Quoted", "Ordered"]);
       const existingNorm = (existingProc ?? []).map((r: any) => normaliseText(String(r.description ?? "")));
-      const toInsert: Array<{ project_id: string; description: string; status: string }> = [];
+      const { data: scopeRows } = await supabaseAdmin
+        .from("scope_elements")
+        .select("id, title, description")
+        .eq("project_id", data.projectId);
+      const { classifyProcurement } = await import("./procurement-phase");
+      const toInsert: Array<{ project_id: string; description: string; status: string; scope_element_id: string | null; phase_order: number }> = [];
       const seenThisRun: string[] = [];
       for (const raw of procurement) {
         const desc = raw.trim();
@@ -205,7 +210,14 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
           continue;
         }
         seenThisRun.push(n);
-        toInsert.push({ project_id: data.projectId, description: desc, status: "Required" });
+        const cls = classifyProcurement(desc, (scopeRows ?? []) as any);
+        toInsert.push({
+          project_id: data.projectId,
+          description: desc,
+          status: "Required",
+          scope_element_id: cls.scope_element_id,
+          phase_order: cls.phase_order,
+        });
       }
       if (toInsert.length) {
         const { error: pErr } = await supabaseAdmin.from("procurement_items").insert(toInsert);

@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { Plus, Trash2, Save, X, ChevronDown, ChevronRight, Archive } from "lucide-react";
+import { Plus, Trash2, Save, X, ChevronDown, ChevronRight, Archive, HelpCircle } from "lucide-react";
+import { classifyProcurement, PHASES, phaseName, UNMATCHED_PHASE_ORDER, type MinimalScopeElement } from "@/lib/procurement-phase";
 
 type ProcurementItem = {
   id: string;
@@ -16,8 +17,12 @@ type ProcurementItem = {
   estimated_cost: number | null;
   supplier: string | null;
   status: string;
+  scope_element_id: string | null;
+  phase_order: number;
   created_at?: string;
 };
+
+const STATUS_RANK: Record<string, number> = { Required: 0, Quoted: 1, Ordered: 2 };
 
 const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
 const STATUSES = ["Required", "Quoted", "Ordered", "Delivered", "Dismissed"];
@@ -34,19 +39,27 @@ const STATUS_STYLES: Record<string, string> = {
 
 export function ProcurementTab({ projectId }: { projectId: string }) {
   const [items, setItems] = useState<ProcurementItem[]>([]);
+  const [scopeElements, setScopeElements] = useState<MinimalScopeElement[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<ProcurementItem> | null>(null);
   const [showArchive, setShowArchive] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await (supabase as any)
-      .from("procurement_items")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: true });
+    const [{ data, error }, { data: scope }] = await Promise.all([
+      (supabase as any)
+        .from("procurement_items")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("scope_elements")
+        .select("id, title, description")
+        .eq("project_id", projectId),
+    ]);
     if (error) showError("Procurement", error);
     setItems((data ?? []) as ProcurementItem[]);
+    setScopeElements((scope ?? []) as MinimalScopeElement[]);
     setLoading(false);
   };
 
@@ -59,19 +72,27 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
       toast.error("Description is required");
       return;
     }
+    const description = editing.description.trim();
+    // If the user hasn't manually picked a scope element, classify now.
+    const classified =
+      editing.scope_element_id !== undefined && editing.scope_element_id !== null
+        ? { scope_element_id: editing.scope_element_id, phase_order: editing.phase_order ?? UNMATCHED_PHASE_ORDER }
+        : classifyProcurement(description, scopeElements);
     const payload = {
       project_id: projectId,
-      description: editing.description.trim(),
+      description,
       quantity: editing.quantity != null ? Number(editing.quantity) : null,
       unit: editing.unit ?? null,
       estimated_cost: editing.estimated_cost != null ? Number(editing.estimated_cost) : null,
       supplier: editing.supplier ?? null,
       status: editing.status ?? "Required",
+      scope_element_id: classified.scope_element_id,
+      phase_order: classified.phase_order,
     };
     const { error } = editing.id
       ? await (supabase as any).from("procurement_items").update(payload).eq("id", editing.id)
       : await (supabase as any).from("procurement_items").insert(payload);
-    if (error) return showError("Procurement", error);
+    if (error) return showError("Save procurement", error);
     toast.success("Saved");
     setEditing(null);
     load();
@@ -141,6 +162,31 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
               {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              className="h-9 px-2 rounded-md border border-input bg-background text-xs"
+              value={editing.scope_element_id ?? ""}
+              onChange={(e) => {
+                const id = e.target.value || null;
+                setEditing({ ...editing, scope_element_id: id });
+              }}
+            >
+              <option value="">Auto-match scope element</option>
+              {scopeElements.map((s) => (
+                <option key={s.id} value={s.id}>{s.title}</option>
+              ))}
+            </select>
+            <select
+              className="h-9 px-2 rounded-md border border-input bg-background text-xs"
+              value={editing.phase_order ?? ""}
+              onChange={(e) => setEditing({ ...editing, phase_order: e.target.value === "" ? UNMATCHED_PHASE_ORDER : Number(e.target.value) })}
+            >
+              <option value="">Auto-detect phase</option>
+              {PHASES.map((p) => (
+                <option key={p.order} value={p.order}>{p.order}. {p.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex gap-2 justify-end">
             <Button size="sm" variant="ghost" onClick={() => setEditing(null)}><X className="w-3 h-3 mr-1" />Cancel</Button>
             <Button size="sm" onClick={save}><Save className="w-3 h-3 mr-1" />Save</Button>
@@ -155,11 +201,12 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
           No active procurement items.
         </div>
       ) : (
-        <div className="space-y-2">
-          {activeItems.map((p) => (
-            <Row key={p.id} item={p} onEdit={() => setEditing(p)} onRemove={() => remove(p.id)} onStatus={(s) => setStatus(p.id, s)} />
-          ))}
-        </div>
+        <PhaseGroupedList
+          items={activeItems}
+          onEdit={(p) => setEditing(p)}
+          onRemove={remove}
+          onStatus={setStatus}
+        />
       )}
 
       {archiveItems.length > 0 && (
@@ -220,7 +267,17 @@ function Row({
     <div className="p-3 rounded-md bg-card border border-border">
       <div className="flex justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-medium text-foreground">{item.description}</div>
+          <div className="text-sm font-medium text-foreground flex items-center gap-1.5">
+            {item.description}
+            {!item.scope_element_id && (
+              <span
+                className="inline-flex items-center gap-0.5 text-[9px] uppercase tracking-wider text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded px-1 py-px"
+                title="Not matched to a scope element — edit to assign manually"
+              >
+                <HelpCircle className="w-2.5 h-2.5" /> Unmatched
+              </span>
+            )}
+          </div>
           <div className="text-xs text-muted-foreground mt-0.5">
             {item.quantity ?? 0} {item.unit ?? ""} · {item.supplier || "No supplier"}
           </div>
@@ -253,6 +310,60 @@ function Row({
         <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={onEdit}>Edit</Button>
         <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={onRemove}><Trash2 className="w-3 h-3" /></Button>
       </div>
+    </div>
+  );
+}
+
+function PhaseGroupedList({
+  items,
+  onEdit,
+  onRemove,
+  onStatus,
+}: {
+  items: ProcurementItem[];
+  onEdit: (p: ProcurementItem) => void;
+  onRemove: (id: string) => void;
+  onStatus: (id: string, s: string) => void;
+}) {
+  const groups = new Map<number, ProcurementItem[]>();
+  for (const it of items) {
+    const k = it.phase_order ?? UNMATCHED_PHASE_ORDER;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k)!.push(it);
+  }
+  const orderedKeys = Array.from(groups.keys()).sort((a, b) => a - b);
+  return (
+    <div className="space-y-4">
+      {orderedKeys.map((k) => {
+        const rows = (groups.get(k) ?? []).slice().sort((a, b) => {
+          const ra = STATUS_RANK[a.status] ?? 99;
+          const rb = STATUS_RANK[b.status] ?? 99;
+          if (ra !== rb) return ra - rb;
+          return (a.created_at ?? "").localeCompare(b.created_at ?? "");
+        });
+        return (
+          <div key={k} className="space-y-2">
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-foreground/70">
+                {String(k).padStart(2, "0")} · {phaseName(k)}
+              </span>
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-[10px] text-muted-foreground">{rows.length}</span>
+            </div>
+            <div className="space-y-2">
+              {rows.map((p) => (
+                <Row
+                  key={p.id}
+                  item={p}
+                  onEdit={() => onEdit(p)}
+                  onRemove={() => onRemove(p.id)}
+                  onStatus={(s) => onStatus(p.id, s)}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
