@@ -86,16 +86,17 @@ function AuthPage() {
         else logoPath = path;
       }
 
-      // Create profile row (only works once user has a session)
+      // The DB trigger already created the profile from user metadata.
+      // Update it with the logo path (and ensure name/company are in sync).
       if (data.session) {
-        const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-        const { error: pErr } = await supabase.from("profiles").insert({
-          user_id: user.id,
-          full_name: fullName,
-          company_name: companyName,
-          company_logo_url: logoPath,
-          trial_ends_at: trialEnds,
-        });
+        const { error: pErr } = await supabase
+          .from("profiles")
+          .update({
+            full_name: fullName,
+            company_name: companyName,
+            ...(logoPath ? { company_logo_url: logoPath } : {}),
+          })
+          .eq("user_id", user.id);
         if (pErr) showError("Create profile", pErr);
         toast.success("Welcome to Mastor");
         navigate({ to: "/dashboard", replace: true });
