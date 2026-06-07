@@ -1395,6 +1395,7 @@ function AnalysisViewer({
               approvedKeys={approvedKeys}
               busyKey={busyKey}
               onApprove={approveProgress}
+              photos={photosForRoom(r.room)}
             />
           ))}
         </div>
