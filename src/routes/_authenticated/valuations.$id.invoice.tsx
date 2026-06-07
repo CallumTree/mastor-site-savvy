@@ -61,7 +61,20 @@ function InvoicePage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [previouslyClaimed, setPreviouslyClaimed] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const creatingRef = useRef(false);
+
+  // Load company profile + signed logo URL for on-screen display
+  useEffect(() => {
+    (async () => {
+      const p = await getCurrentProfile();
+      setProfile(p);
+      if (p?.company_logo_url) {
+        setLogoUrl(await getLogoSignedUrl(p.company_logo_url));
+      }
+    })();
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
