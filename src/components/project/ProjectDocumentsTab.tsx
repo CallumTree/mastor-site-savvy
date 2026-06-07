@@ -17,6 +17,8 @@ type Doc = {
   uploaded_at: string;
 };
 
+type ScopeStatus = "Not Started" | "In Progress" | "Claimed" | "Disputed" | "Invoiced";
+
 type ScopeElement = {
   id: string;
   project_id: string;
@@ -28,6 +30,9 @@ type ScopeElement = {
   unit: string | null;
   source_reference: string | null;
   confidence: "high" | "medium" | "low";
+  status?: ScopeStatus | null;
+  claimed_in_valuation?: { id?: string; number?: string } | null;
+  invoiced_in?: { id?: string; number?: string } | null;
 };
 
 const ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt";
