@@ -39,19 +39,27 @@ const STATUS_STYLES: Record<string, string> = {
 
 export function ProcurementTab({ projectId }: { projectId: string }) {
   const [items, setItems] = useState<ProcurementItem[]>([]);
+  const [scopeElements, setScopeElements] = useState<MinimalScopeElement[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<ProcurementItem> | null>(null);
   const [showArchive, setShowArchive] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await (supabase as any)
-      .from("procurement_items")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: true });
+    const [{ data, error }, { data: scope }] = await Promise.all([
+      (supabase as any)
+        .from("procurement_items")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("scope_elements")
+        .select("id, title, description")
+        .eq("project_id", projectId),
+    ]);
     if (error) showError("Procurement", error);
     setItems((data ?? []) as ProcurementItem[]);
+    setScopeElements((scope ?? []) as MinimalScopeElement[]);
     setLoading(false);
   };
 
@@ -64,19 +72,27 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
       toast.error("Description is required");
       return;
     }
+    const description = editing.description.trim();
+    // If the user hasn't manually picked a scope element, classify now.
+    const classified =
+      editing.scope_element_id !== undefined && editing.scope_element_id !== null
+        ? { scope_element_id: editing.scope_element_id, phase_order: editing.phase_order ?? UNMATCHED_PHASE_ORDER }
+        : classifyProcurement(description, scopeElements);
     const payload = {
       project_id: projectId,
-      description: editing.description.trim(),
+      description,
       quantity: editing.quantity != null ? Number(editing.quantity) : null,
       unit: editing.unit ?? null,
       estimated_cost: editing.estimated_cost != null ? Number(editing.estimated_cost) : null,
       supplier: editing.supplier ?? null,
       status: editing.status ?? "Required",
+      scope_element_id: classified.scope_element_id,
+      phase_order: classified.phase_order,
     };
     const { error } = editing.id
       ? await (supabase as any).from("procurement_items").update(payload).eq("id", editing.id)
       : await (supabase as any).from("procurement_items").insert(payload);
-    if (error) return showError("Procurement", error);
+    if (error) return showError("Save procurement", error);
     toast.success("Saved");
     setEditing(null);
     load();
