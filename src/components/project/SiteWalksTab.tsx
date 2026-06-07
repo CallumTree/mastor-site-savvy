@@ -832,6 +832,63 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           )}
         </div>
 
+        {/* Snapshot — one-tap photo capture during recording */}
+        {isActive && (
+          <div className="space-y-3">
+            <div className="flex justify-center">
+              <Button
+                onClick={takeSnapshot}
+                disabled={snapBusy}
+                size="lg"
+                aria-label="Take snapshot"
+                className="h-20 w-20 rounded-full p-0 bg-[#D4AF37] hover:bg-[#bf9a2e] text-primary shadow-lg shadow-[#D4AF37]/30 ring-4 ring-[#D4AF37]/20"
+              >
+                {snapBusy ? (
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                ) : (
+                  <Camera className="w-9 h-9" strokeWidth={2.25} />
+                )}
+              </Button>
+            </div>
+            <p className="text-[11px] text-center text-muted-foreground -mt-1">
+              Tap to capture a photo · {sessionPhotos.length} saved this walk
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleSnapshotFile}
+            />
+            {sessionPhotos.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                {sessionPhotos.map((p) => (
+                  <div
+                    key={p.id}
+                    className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden border border-border bg-muted"
+                  >
+                    {p.signedUrl ? (
+                      <img
+                        src={p.signedUrl}
+                        alt={`Snapshot at ${formatDuration(p.timestamp_seconds)}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full">
+                        <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <span className="absolute bottom-0 right-0 bg-black/60 text-white text-[9px] font-mono px-1 rounded-tl">
+                      {formatDuration(p.timestamp_seconds)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {!speechSupported && (
           <p className="text-xs text-amber-600 text-center">
             Voice recognition not supported in this browser. Use Chrome on desktop or Android — you can still type notes manually.
