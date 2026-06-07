@@ -229,6 +229,38 @@ function AuthPage() {
                   onChange={(e) => setCompanyName(e.target.value)}
                 />
               </Field>
+              <Field label="Company Address — Line 1">
+                <Input
+                  autoComplete="address-line1"
+                  placeholder="Street address"
+                  value={addressLine1}
+                  onChange={(e) => setAddressLine1(e.target.value)}
+                />
+              </Field>
+              <Field label="Company Address — Line 2">
+                <Input
+                  autoComplete="address-line2"
+                  placeholder="Apt, suite, building (optional)"
+                  value={addressLine2}
+                  onChange={(e) => setAddressLine2(e.target.value)}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Town">
+                  <Input
+                    autoComplete="address-level2"
+                    value={town}
+                    onChange={(e) => setTown(e.target.value)}
+                  />
+                </Field>
+                <Field label="Postcode">
+                  <Input
+                    autoComplete="postal-code"
+                    value={postcode}
+                    onChange={(e) => setPostcode(e.target.value.toUpperCase())}
+                  />
+                </Field>
+              </div>
 
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">
