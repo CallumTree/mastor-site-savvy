@@ -190,20 +190,40 @@ function InvoicePage() {
     const clientName = project.client_name ?? project.client ?? "—";
     const today = new Date().toLocaleDateString("en-GB");
 
+    // Top-left: company logo (if any) + company name
+    let cursorX = 14;
+    if (profile?.company_logo_url) {
+      const logo = await getLogoDataUrl(profile.company_logo_url);
+      if (logo) {
+        const fmt = logo.mime.includes("jpeg") ? "JPEG" : logo.mime.includes("svg") ? "PNG" : "PNG";
+        try {
+          doc.addImage(logo.dataUrl, fmt, 14, 12, 18, 18);
+          cursorX = 36;
+        } catch {
+          /* fall through to text-only */
+        }
+      }
+    }
+    if (profile?.company_name) {
+      doc.setFontSize(14);
+      doc.text(profile.company_name, cursorX, 22);
+    }
+
+    // Top-right: invoice meta
     doc.setFontSize(20);
-    doc.text("INVOICE", 14, 20);
+    doc.text("INVOICE", 196, 20, { align: "right" });
     doc.setFontSize(10);
-    doc.text(`Invoice #: ${invoice.invoice_number}`, 14, 28);
-    doc.text(`Date: ${today}`, 14, 34);
+    doc.text(`Invoice #: ${invoice.invoice_number}`, 196, 28, { align: "right" });
+    doc.text(`Date: ${today}`, 196, 34, { align: "right" });
 
     doc.setFontSize(12);
-    doc.text(project.name, 14, 46);
+    doc.text(project.name, 14, 48);
     doc.setFontSize(10);
-    doc.text(`Client: ${clientName}`, 14, 52);
+    doc.text(`Client: ${clientName}`, 14, 54);
     doc.text(
       `Valuation: IV-${String(valuation.valuation_number ?? 0).padStart(2, "0")}`,
       14,
-      58,
+      60,
     );
 
     autoTable(doc, {
