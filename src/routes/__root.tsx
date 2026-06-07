@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
+import { showError } from "../lib/toast-error";
 
 function NotFoundComponent() {
   return (
@@ -94,11 +95,34 @@ function AuthInvalidator() {
   return null;
 }
 
+function GlobalErrorListeners() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onRejection = (e: PromiseRejectionEvent) => {
+      // Avoid double-toasting Query/Mutation errors — they have their own handler
+      const reason: any = e.reason;
+      if (reason && typeof reason === "object" && reason.__handledByQuery) return;
+      showError("Unhandled", e.reason);
+    };
+    const onError = (e: ErrorEvent) => {
+      showError("Runtime", e.error ?? e.message);
+    };
+    window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener("error", onError);
+    return () => {
+      window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener("error", onError);
+    };
+  }, []);
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
       <AuthInvalidator />
+      <GlobalErrorListeners />
       <Outlet />
       <Toaster />
     </QueryClientProvider>
