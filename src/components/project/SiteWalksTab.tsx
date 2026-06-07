@@ -1456,11 +1456,13 @@ function RoomCard({
   approvedKeys,
   busyKey,
   onApprove,
+  photos = [],
 }: {
   room: RoomAnalysis;
   approvedKeys: Set<string>;
   busyKey: string | null;
   onApprove: (roomName: string, text: string) => void;
+  photos?: Array<{ id: string; signedUrl: string | null; timestamp_seconds: number }>;
 }) {
   const progressItems = room.progress ?? [];
   const sections: Array<{ label: string; items: string[]; tone?: string }> = [
