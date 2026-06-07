@@ -751,6 +751,101 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-6">
+      {/* Full-screen camera viewfinder while recording video */}
+      {mode === "video" && isActive && (
+        <div className="fixed inset-0 z-[100] bg-black">
+          <video
+            ref={videoPreviewRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            playsInline
+            muted
+            autoPlay
+          />
+
+          {/* Timer top centre */}
+          <div className="absolute top-[max(env(safe-area-inset-top),1rem)] left-0 right-0 flex justify-center pointer-events-none">
+            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/55 backdrop-blur-sm">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  status === "recording" ? "bg-red-500 animate-pulse" : "bg-amber-400"
+                }`}
+              />
+              <span className="font-mono text-white text-base tabular-nums tracking-wider">
+                {formatDuration(seconds)}
+              </span>
+            </div>
+          </div>
+
+          {/* Upload status (small, top right) */}
+          <div className="absolute top-[max(env(safe-area-inset-top),1rem)] right-3 pointer-events-none">
+            <span className="text-[10px] text-white/80 bg-black/45 backdrop-blur-sm px-2 py-1 rounded-full">
+              {chunksUploaded} saved{chunksUploading > 0 ? ` · ${chunksUploading}↑` : ""}
+            </span>
+          </div>
+
+          {/* Bottom control bar */}
+          <div className="absolute bottom-0 left-0 right-0 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-6 px-6 bg-gradient-to-t from-black/70 to-transparent">
+            <div className="flex items-center justify-between max-w-md mx-auto">
+              {/* Snapshot bottom left */}
+              <button
+                type="button"
+                onClick={takeSnapshot}
+                disabled={snapBusy}
+                aria-label="Take snapshot"
+                className="h-14 w-14 rounded-full bg-[#D4AF37] text-primary shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
+              >
+                {snapBusy ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  <Camera className="w-7 h-7" strokeWidth={2.25} />
+                )}
+              </button>
+
+              {/* Pause / Resume centre */}
+              {status === "recording" ? (
+                <button
+                  type="button"
+                  onClick={handlePause}
+                  aria-label="Pause recording"
+                  className="h-20 w-20 rounded-full bg-white text-black shadow-xl shadow-black/40 flex items-center justify-center ring-4 ring-white/30 active:scale-95 transition-transform"
+                >
+                  <Pause className="w-9 h-9" strokeWidth={2.5} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResume}
+                  aria-label="Resume recording"
+                  className="h-20 w-20 rounded-full bg-white text-red-600 shadow-xl shadow-black/40 flex items-center justify-center ring-4 ring-white/30 active:scale-95 transition-transform"
+                >
+                  <Play className="w-9 h-9" strokeWidth={2.5} />
+                </button>
+              )}
+
+              {/* Stop bottom right */}
+              <button
+                type="button"
+                onClick={handleFinish}
+                aria-label="Stop recording"
+                className="h-14 w-14 rounded-full bg-red-600 text-white shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform"
+              >
+                <Square className="w-6 h-6 fill-current" strokeWidth={2.5} />
+              </button>
+            </div>
+          </div>
+
+          {/* Hidden file input for fallback (not used in video mode but kept mounted) */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleSnapshotFile}
+          />
+        </div>
+      )}
+
       {/* Recorder */}
       <section className="rounded-xl border border-border bg-card p-5 space-y-5 shadow-sm">
         <div className="flex items-center justify-between gap-2">
