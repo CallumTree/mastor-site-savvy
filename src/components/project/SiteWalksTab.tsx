@@ -387,6 +387,78 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     // the confirmation dialog disables Save while any are in flight.
   };
 
+  /* ---------------- Snapshots ---------------- */
+
+  const persistSnapshot = async (blob: Blob) => {
+    const walkId = currentWalkIdRef.current;
+    if (!walkId) {
+      toast.error("Start recording before taking a snapshot");
+      return;
+    }
+    setSnapBusy(true);
+    try {
+      const ts = secondsRef.current;
+      const path = `${projectId}/${walkId}/${Date.now()}.jpg`;
+      const { error: upErr } = await supabase.storage
+        .from(SITE_WALK_PHOTO_BUCKET)
+        .upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: false });
+      if (upErr) return showError("Snapshot", upErr);
+
+      const context = transcriptContextAt(transcriptTimelineRef.current, ts, 15);
+      const { data: row, error: insErr } = await supabase
+        .from("site_walk_photos" as any)
+        .insert({
+          site_walk_id: walkId,
+          project_id: projectId,
+          photo_url: path,
+          storage_path: path,
+          timestamp_seconds: ts,
+          transcript_context: context || null,
+        } as any)
+        .select("id")
+        .single();
+      if (insErr || !row) return showError("Snapshot", insErr ?? new Error("Insert failed"));
+
+      const { data: signed } = await supabase.storage
+        .from(SITE_WALK_PHOTO_BUCKET)
+        .createSignedUrl(path, 60 * 60);
+      setSessionPhotos((prev) => [
+        ...prev,
+        {
+          id: (row as any).id,
+          signedUrl: signed?.signedUrl ?? null,
+          timestamp_seconds: ts,
+        },
+      ]);
+      toast.success("Snapshot saved");
+    } finally {
+      setSnapBusy(false);
+    }
+  };
+
+  const takeSnapshot = async () => {
+    if (snapBusy) return;
+    if (mode === "video" && videoPreviewRef.current) {
+      const blob = await captureVideoFrame(videoPreviewRef.current);
+      if (!blob) {
+        toast.error("Could not capture frame");
+        return;
+      }
+      await persistSnapshot(blob);
+      return;
+    }
+    // Audio mode → open device camera via file input
+    fileInputRef.current?.click();
+  };
+
+  const handleSnapshotFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    await persistSnapshot(file);
+  };
+
+
 
 
 
