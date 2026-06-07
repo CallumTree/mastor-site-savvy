@@ -678,8 +678,10 @@ export type Database = {
           description: string | null
           estimated_cost: number | null
           id: string
+          phase_order: number
           project_id: string
           quantity: number | null
+          scope_element_id: string | null
           status: string
           supplier: string | null
           updated_at: string
@@ -689,8 +691,10 @@ export type Database = {
           description?: string | null
           estimated_cost?: number | null
           id?: string
+          phase_order?: number
           project_id: string
           quantity?: number | null
+          scope_element_id?: string | null
           status?: string
           supplier?: string | null
           updated_at?: string
@@ -700,8 +704,10 @@ export type Database = {
           description?: string | null
           estimated_cost?: number | null
           id?: string
+          phase_order?: number
           project_id?: string
           quantity?: number | null
+          scope_element_id?: string | null
           status?: string
           supplier?: string | null
           updated_at?: string
@@ -712,6 +718,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_items_scope_element_id_fkey"
+            columns: ["scope_element_id"]
+            isOneToOne: false
+            referencedRelation: "scope_elements"
             referencedColumns: ["id"]
           },
         ]
