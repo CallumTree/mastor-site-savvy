@@ -29,6 +29,10 @@ function AuthPage() {
   // Signup fields
   const [fullName, setFullName] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [town, setTown] = useState("");
+  const [postcode, setPostcode] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
   // If session appears (e.g. after sign in event), bounce to dashboard
