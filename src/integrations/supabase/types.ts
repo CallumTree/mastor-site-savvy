@@ -1049,6 +1049,71 @@ export type Database = {
         }
         Relationships: []
       }
+      scope_element_history: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          project_id: string
+          rejection_reason: string | null
+          scope_element_id: string | null
+          valuation_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          project_id: string
+          rejection_reason?: string | null
+          scope_element_id?: string | null
+          valuation_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          project_id?: string
+          rejection_reason?: string | null
+          scope_element_id?: string | null
+          valuation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scope_element_history_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scope_element_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scope_element_history_scope_element_id_fkey"
+            columns: ["scope_element_id"]
+            isOneToOne: false
+            referencedRelation: "scope_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scope_element_history_valuation_id_fkey"
+            columns: ["valuation_id"]
+            isOneToOne: false
+            referencedRelation: "valuations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scope_elements: {
         Row: {
           claimed_in_valuation: Json | null
