@@ -313,3 +313,57 @@ function Row({
     </div>
   );
 }
+
+function PhaseGroupedList({
+  items,
+  onEdit,
+  onRemove,
+  onStatus,
+}: {
+  items: ProcurementItem[];
+  onEdit: (p: ProcurementItem) => void;
+  onRemove: (id: string) => void;
+  onStatus: (id: string, s: string) => void;
+}) {
+  const groups = new Map<number, ProcurementItem[]>();
+  for (const it of items) {
+    const k = it.phase_order ?? UNMATCHED_PHASE_ORDER;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k)!.push(it);
+  }
+  const orderedKeys = Array.from(groups.keys()).sort((a, b) => a - b);
+  return (
+    <div className="space-y-4">
+      {orderedKeys.map((k) => {
+        const rows = (groups.get(k) ?? []).slice().sort((a, b) => {
+          const ra = STATUS_RANK[a.status] ?? 99;
+          const rb = STATUS_RANK[b.status] ?? 99;
+          if (ra !== rb) return ra - rb;
+          return (a.created_at ?? "").localeCompare(b.created_at ?? "");
+        });
+        return (
+          <div key={k} className="space-y-2">
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-foreground/70">
+                {String(k).padStart(2, "0")} · {phaseName(k)}
+              </span>
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-[10px] text-muted-foreground">{rows.length}</span>
+            </div>
+            <div className="space-y-2">
+              {rows.map((p) => (
+                <Row
+                  key={p.id}
+                  item={p}
+                  onEdit={() => onEdit(p)}
+                  onRemove={() => onRemove(p.id)}
+                  onStatus={(s) => onStatus(p.id, s)}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
