@@ -1536,6 +1536,28 @@ function RoomCard({
           </div>
         ))}
       </div>
+
+      {photos.length > 0 && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+            Photos ({photos.length})
+          </div>
+          <div className="flex gap-2 overflow-x-auto">
+            {photos.map((p) => (
+              <div
+                key={p.id}
+                className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden border border-border bg-muted"
+              >
+                {p.signedUrl ? (
+                  <img src={p.signedUrl} alt="Site photo" className="w-full h-full object-cover" />
+                ) : (
+                  <ImageIcon className="w-5 h-5 text-muted-foreground m-auto" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
