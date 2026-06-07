@@ -162,6 +162,31 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
               {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              className="h-9 px-2 rounded-md border border-input bg-background text-xs"
+              value={editing.scope_element_id ?? ""}
+              onChange={(e) => {
+                const id = e.target.value || null;
+                setEditing({ ...editing, scope_element_id: id });
+              }}
+            >
+              <option value="">Auto-match scope element</option>
+              {scopeElements.map((s) => (
+                <option key={s.id} value={s.id}>{s.title}</option>
+              ))}
+            </select>
+            <select
+              className="h-9 px-2 rounded-md border border-input bg-background text-xs"
+              value={editing.phase_order ?? ""}
+              onChange={(e) => setEditing({ ...editing, phase_order: e.target.value === "" ? UNMATCHED_PHASE_ORDER : Number(e.target.value) })}
+            >
+              <option value="">Auto-detect phase</option>
+              {PHASES.map((p) => (
+                <option key={p.order} value={p.order}>{p.order}. {p.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex gap-2 justify-end">
             <Button size="sm" variant="ghost" onClick={() => setEditing(null)}><X className="w-3 h-3 mr-1" />Cancel</Button>
             <Button size="sm" onClick={save}><Save className="w-3 h-3 mr-1" />Save</Button>
@@ -176,11 +201,12 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
           No active procurement items.
         </div>
       ) : (
-        <div className="space-y-2">
-          {activeItems.map((p) => (
-            <Row key={p.id} item={p} onEdit={() => setEditing(p)} onRemove={() => remove(p.id)} onStatus={(s) => setStatus(p.id, s)} />
-          ))}
-        </div>
+        <PhaseGroupedList
+          items={activeItems}
+          onEdit={(p) => setEditing(p)}
+          onRemove={remove}
+          onStatus={setStatus}
+        />
       )}
 
       {archiveItems.length > 0 && (
