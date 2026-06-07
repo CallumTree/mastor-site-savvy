@@ -19,6 +19,7 @@ type ClaimOpportunity = {
   unit_rate: number | null;
   quantity: number | null;
   claimed_value: number | null;
+  scope_element_id: string | null;
 };
 
 
