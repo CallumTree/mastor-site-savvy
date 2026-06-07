@@ -298,6 +298,24 @@ function InvoicePage() {
         </Button>
       </div>
 
+      {/* Company brand row */}
+      {(logoUrl || profile?.company_name) && (
+        <div className="flex items-center gap-3">
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={profile?.company_name ?? "Company logo"}
+              className="h-12 w-12 rounded object-contain border border-border bg-card"
+            />
+          ) : null}
+          {profile?.company_name && (
+            <div className="font-display text-xl font-semibold text-primary">
+              {profile.company_name}
+            </div>
+          )}
+        </div>
+      )}
+
       <header className="space-y-1 border-b border-border pb-4">
         <h1 className="text-2xl font-semibold text-primary">{project.name}</h1>
         <div className="text-sm text-muted-foreground">Client: {clientName}</div>
