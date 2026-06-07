@@ -878,8 +878,12 @@ export type Database = {
       }
       profiles: {
         Row: {
+          company_address_line1: string | null
+          company_address_line2: string | null
           company_logo_url: string | null
           company_name: string
+          company_postcode: string | null
+          company_town: string | null
           created_at: string
           full_name: string
           trial_ends_at: string
@@ -887,8 +891,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          company_address_line1?: string | null
+          company_address_line2?: string | null
           company_logo_url?: string | null
           company_name: string
+          company_postcode?: string | null
+          company_town?: string | null
           created_at?: string
           full_name: string
           trial_ends_at?: string
@@ -896,8 +904,12 @@ export type Database = {
           user_id: string
         }
         Update: {
+          company_address_line1?: string | null
+          company_address_line2?: string | null
           company_logo_url?: string | null
           company_name?: string
+          company_postcode?: string | null
+          company_town?: string | null
           created_at?: string
           full_name?: string
           trial_ends_at?: string

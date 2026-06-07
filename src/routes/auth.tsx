@@ -29,6 +29,10 @@ function AuthPage() {
   // Signup fields
   const [fullName, setFullName] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [town, setTown] = useState("");
+  const [postcode, setPostcode] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
   // If session appears (e.g. after sign in event), bounce to dashboard
@@ -94,6 +98,10 @@ function AuthPage() {
           .update({
             full_name: fullName,
             company_name: companyName,
+            company_address_line1: addressLine1 || null,
+            company_address_line2: addressLine2 || null,
+            company_town: town || null,
+            company_postcode: postcode || null,
             ...(logoPath ? { company_logo_url: logoPath } : {}),
           })
           .eq("user_id", user.id);
@@ -221,6 +229,38 @@ function AuthPage() {
                   onChange={(e) => setCompanyName(e.target.value)}
                 />
               </Field>
+              <Field label="Company Address — Line 1">
+                <Input
+                  autoComplete="address-line1"
+                  placeholder="Street address"
+                  value={addressLine1}
+                  onChange={(e) => setAddressLine1(e.target.value)}
+                />
+              </Field>
+              <Field label="Company Address — Line 2">
+                <Input
+                  autoComplete="address-line2"
+                  placeholder="Apt, suite, building (optional)"
+                  value={addressLine2}
+                  onChange={(e) => setAddressLine2(e.target.value)}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Town">
+                  <Input
+                    autoComplete="address-level2"
+                    value={town}
+                    onChange={(e) => setTown(e.target.value)}
+                  />
+                </Field>
+                <Field label="Postcode">
+                  <Input
+                    autoComplete="postal-code"
+                    value={postcode}
+                    onChange={(e) => setPostcode(e.target.value.toUpperCase())}
+                  />
+                </Field>
+              </div>
 
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">
