@@ -54,14 +54,24 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
   }, [load]);
 
   const updateStatus = async (id: string, status: "Approved" | "Dismissed") => {
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("claim_opportunities")
       .update({ status })
-      .eq("id", id);
+      .eq("id", id)
+      .select("scope_element_id")
+      .maybeSingle();
 
     if (error) {
       showError("Ready To Claim", error);
       return;
+    }
+
+    if (status === "Approved" && (updated as any)?.scope_element_id) {
+      const { error: sErr } = await (supabase as any)
+        .from("scope_elements")
+        .update({ status: "In Progress" })
+        .eq("id", (updated as any).scope_element_id);
+      if (sErr) showError("Ready To Claim", sErr);
     }
 
     toast.success(status === "Approved" ? "Claim approved" : "Claim dismissed");
