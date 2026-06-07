@@ -397,11 +397,36 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     sessionBaseRef.current = "";
     setInterim("");
     setSeconds(0);
+    secondsRef.current = 0;
+    transcriptTimelineRef.current = [];
+    setSessionPhotos([]);
     setMicDenied(false);
     if (selectedMode === "video") {
       const ok = await startVideoRecorder();
       if (!ok) return;
     }
+    // Create a draft site_walks row so photos can reference it immediately.
+    const draftTitle =
+      selectedMode === "video"
+        ? `Site diary – ${new Date().toLocaleDateString("en-GB")}`
+        : `Site walk – ${new Date().toLocaleDateString("en-GB")}`;
+    const { data: draft, error: draftErr } = await supabase
+      .from("site_walks")
+      .insert({
+        project_id: projectId,
+        title: draftTitle,
+        transcript: "",
+        duration_seconds: 0,
+        recording_type: selectedMode,
+        status: "recording",
+      } as any)
+      .select("id")
+      .single();
+    if (draftErr || !draft) {
+      if (selectedMode === "video") await stopVideoRecorder();
+      return showError("Site Walks", draftErr ?? new Error("Could not start walk"));
+    }
+    currentWalkIdRef.current = (draft as any).id as string;
     startTimer();
     setStatus("recording");
     startRecognition();
