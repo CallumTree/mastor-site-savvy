@@ -267,7 +267,17 @@ function Row({
     <div className="p-3 rounded-md bg-card border border-border">
       <div className="flex justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-medium text-foreground">{item.description}</div>
+          <div className="text-sm font-medium text-foreground flex items-center gap-1.5">
+            {item.description}
+            {!item.scope_element_id && (
+              <span
+                className="inline-flex items-center gap-0.5 text-[9px] uppercase tracking-wider text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded px-1 py-px"
+                title="Not matched to a scope element — edit to assign manually"
+              >
+                <HelpCircle className="w-2.5 h-2.5" /> Unmatched
+              </span>
+            )}
+          </div>
           <div className="text-xs text-muted-foreground mt-0.5">
             {item.quantity ?? 0} {item.unit ?? ""} · {item.supplier || "No supplier"}
           </div>
