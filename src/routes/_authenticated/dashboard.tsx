@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, HardHat, ClipboardCheck, AlertTriangle, MapPin, Sparkles, Inbox, CheckCircle2, FileEdit, Package, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
+import { showError } from "@/lib/toast-error";
 
 
 type Project = {
@@ -42,7 +43,7 @@ function Dashboard() {
       supabase.from("projects").select("*").order("created_at", { ascending: false }),
       (supabase as any).from("approved_findings").select("finding_type, status, approved_at"),
     ]);
-    if (error) toast.error(error.message);
+    if (error) showError("Dashboard", error);
     setProjects((data ?? []) as Project[]);
     const f = (findings ?? []) as { finding_type: string; status: string; approved_at: string | null }[];
     setAi({
@@ -203,7 +204,7 @@ function NewProjectDialog({ onCreated }: { onCreated: () => void }) {
       progress: 0,
     });
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { showError("Dashboard", error); return; }
     toast.success("Project created");
     setName(""); setClient(""); setLocation(""); setValue(""); setNotes("");
     onCreated();
