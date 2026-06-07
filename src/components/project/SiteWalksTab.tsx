@@ -319,7 +319,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
+        video: true,
         audio: true,
       });
     } catch (e: any) {
