@@ -176,6 +176,21 @@ function InvoicePage() {
       showError("Invoice", cErr ?? new Error("Failed to create invoice"));
     } else {
       setInvoice(created as Invoice);
+      // Mark linked scope items as Invoiced
+      const { data: viRows } = await supabase
+        .from("valuation_items")
+        .select("scope_element_id")
+        .eq("valuation_id", val.id);
+      const scopeIds = ((viRows ?? []) as any[])
+        .map((r) => r.scope_element_id)
+        .filter(Boolean) as string[];
+      if (scopeIds.length > 0) {
+        const { error: sErr } = await (supabase as any)
+          .from("scope_elements")
+          .update({ status: "Invoiced", invoiced_in: { id: created.id, number: invoiceNumber } })
+          .in("id", scopeIds);
+        if (sErr) showError("Invoice", sErr);
+      }
     }
     setLoading(false);
   }, [id]);

@@ -17,6 +17,8 @@ type Doc = {
   uploaded_at: string;
 };
 
+type ScopeStatus = "Not Started" | "In Progress" | "Claimed" | "Disputed" | "Invoiced";
+
 type ScopeElement = {
   id: string;
   project_id: string;
@@ -28,6 +30,9 @@ type ScopeElement = {
   unit: string | null;
   source_reference: string | null;
   confidence: "high" | "medium" | "low";
+  status?: ScopeStatus | null;
+  claimed_in_valuation?: { id?: string; number?: string } | null;
+  invoiced_in?: { id?: string; number?: string } | null;
 };
 
 const ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt";
@@ -332,6 +337,35 @@ function ParsedScopeView({
   );
 }
 
+function ScopeStatusBadge({ item }: { item: ScopeElement }) {
+  const status = (item.status ?? "Not Started") as ScopeStatus;
+  const styles: Record<ScopeStatus, string> = {
+    "Not Started": "bg-muted text-muted-foreground border-border",
+    "In Progress": "bg-blue-500/15 text-blue-600 border-blue-500/30",
+    Claimed: "bg-amber-500/15 text-amber-600 border-amber-500/30",
+    Disputed: "bg-red-500/15 text-red-600 border-red-500/30",
+    Invoiced: "bg-green-500/15 text-green-600 border-green-500/30",
+  };
+  const ref =
+    status === "Invoiced"
+      ? item.invoiced_in?.number
+      : status === "Claimed"
+        ? item.claimed_in_valuation?.number
+        : null;
+  return (
+    <div className="flex items-center gap-1.5 shrink-0">
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase tracking-wider border ${styles[status]}`}
+      >
+        {status}
+      </span>
+      {ref && (
+        <span className="text-[10px] text-muted-foreground font-medium">{ref}</span>
+      )}
+    </div>
+  );
+}
+
 function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
   const docName = docs.find((d) => d.id === item.document_id)?.file_name;
   return (
@@ -352,7 +386,10 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
             {docName && <span>Doc: {docName}</span>}
           </div>
         </div>
-        <ConfidenceBadge value={item.confidence} />
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <ScopeStatusBadge item={item} />
+          <ConfidenceBadge value={item.confidence} />
+        </div>
       </div>
     </div>
   );
