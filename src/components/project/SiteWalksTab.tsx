@@ -28,7 +28,16 @@ import {
   Loader2,
   Video,
   FileVideo,
+  Camera,
+  ImageIcon,
 } from "lucide-react";
+import {
+  SITE_WALK_PHOTO_BUCKET,
+  captureVideoFrame,
+  signManyPhotoUrls,
+  transcriptContextAt,
+  type SiteWalkPhoto,
+} from "@/lib/site-walk-photos";
 
 
 type RecordingMode = "audio" | "video";
