@@ -28,7 +28,16 @@ import {
   Loader2,
   Video,
   FileVideo,
+  Camera,
+  ImageIcon,
 } from "lucide-react";
+import {
+  SITE_WALK_PHOTO_BUCKET,
+  captureVideoFrame,
+  signManyPhotoUrls,
+  transcriptContextAt,
+  type SiteWalkPhoto,
+} from "@/lib/site-walk-photos";
 
 
 type RecordingMode = "audio" | "video";
@@ -122,7 +131,16 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
   const [analysingId, setAnalysingId] = useState<string | null>(null);
   const [viewingAnalysis, setViewingAnalysis] = useState<AnalysisRow | null>(null);
-  
+
+  // Snapshots for the current recording session
+  const [sessionPhotos, setSessionPhotos] = useState<
+    Array<{ id: string; signedUrl: string | null; timestamp_seconds: number }>
+  >([]);
+  const [snapBusy, setSnapBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const transcriptTimelineRef = useRef<Array<{ t: number; text: string }>>([]);
+  const secondsRef = useRef(0);
+  const currentWalkIdRef = useRef<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -145,7 +163,18 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     transcriptRef.current = transcript;
-  }, [transcript]);
+    if (status === "recording" || status === "paused") {
+      const tl = transcriptTimelineRef.current;
+      const last = tl[tl.length - 1];
+      if (!last || last.text !== transcript) {
+        tl.push({ t: secondsRef.current, text: transcript });
+      }
+    }
+  }, [transcript, status]);
+
+  useEffect(() => {
+    secondsRef.current = seconds;
+  }, [seconds]);
 
   const loadAll = async () => {
     setLoading(true);
@@ -154,6 +183,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         .from("site_walks")
         .select("*")
         .eq("project_id", projectId)
+        .neq("status", "recording")
         .order("created_at", { ascending: false }),
       supabase
         .from("analysis_results")
@@ -358,6 +388,78 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     // the confirmation dialog disables Save while any are in flight.
   };
 
+  /* ---------------- Snapshots ---------------- */
+
+  const persistSnapshot = async (blob: Blob) => {
+    const walkId = currentWalkIdRef.current;
+    if (!walkId) {
+      toast.error("Start recording before taking a snapshot");
+      return;
+    }
+    setSnapBusy(true);
+    try {
+      const ts = secondsRef.current;
+      const path = `${projectId}/${walkId}/${Date.now()}.jpg`;
+      const { error: upErr } = await supabase.storage
+        .from(SITE_WALK_PHOTO_BUCKET)
+        .upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: false });
+      if (upErr) return showError("Snapshot", upErr);
+
+      const context = transcriptContextAt(transcriptTimelineRef.current, ts, 15);
+      const { data: row, error: insErr } = await supabase
+        .from("site_walk_photos" as any)
+        .insert({
+          site_walk_id: walkId,
+          project_id: projectId,
+          photo_url: path,
+          storage_path: path,
+          timestamp_seconds: ts,
+          transcript_context: context || null,
+        } as any)
+        .select("id")
+        .single();
+      if (insErr || !row) return showError("Snapshot", insErr ?? new Error("Insert failed"));
+
+      const { data: signed } = await supabase.storage
+        .from(SITE_WALK_PHOTO_BUCKET)
+        .createSignedUrl(path, 60 * 60);
+      setSessionPhotos((prev) => [
+        ...prev,
+        {
+          id: (row as any).id,
+          signedUrl: signed?.signedUrl ?? null,
+          timestamp_seconds: ts,
+        },
+      ]);
+      toast.success("Snapshot saved");
+    } finally {
+      setSnapBusy(false);
+    }
+  };
+
+  const takeSnapshot = async () => {
+    if (snapBusy) return;
+    if (mode === "video" && videoPreviewRef.current) {
+      const blob = await captureVideoFrame(videoPreviewRef.current);
+      if (!blob) {
+        toast.error("Could not capture frame");
+        return;
+      }
+      await persistSnapshot(blob);
+      return;
+    }
+    // Audio mode → open device camera via file input
+    fileInputRef.current?.click();
+  };
+
+  const handleSnapshotFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    await persistSnapshot(file);
+  };
+
+
 
 
 
@@ -368,11 +470,36 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     sessionBaseRef.current = "";
     setInterim("");
     setSeconds(0);
+    secondsRef.current = 0;
+    transcriptTimelineRef.current = [];
+    setSessionPhotos([]);
     setMicDenied(false);
     if (selectedMode === "video") {
       const ok = await startVideoRecorder();
       if (!ok) return;
     }
+    // Create a draft site_walks row so photos can reference it immediately.
+    const draftTitle =
+      selectedMode === "video"
+        ? `Site diary – ${new Date().toLocaleDateString("en-GB")}`
+        : `Site walk – ${new Date().toLocaleDateString("en-GB")}`;
+    const { data: draft, error: draftErr } = await supabase
+      .from("site_walks")
+      .insert({
+        project_id: projectId,
+        title: draftTitle,
+        transcript: "",
+        duration_seconds: 0,
+        recording_type: selectedMode,
+        status: "recording",
+      } as any)
+      .select("id")
+      .single();
+    if (draftErr || !draft) {
+      if (selectedMode === "video") await stopVideoRecorder();
+      return showError("Site Walks", draftErr ?? new Error("Could not start walk"));
+    }
+    currentWalkIdRef.current = (draft as any).id as string;
     startTimer();
     setStatus("recording");
     startRecognition();
@@ -452,15 +579,23 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       toast.error("Please enter a title");
       return;
     }
+    const walkId = currentWalkIdRef.current;
+    if (!walkId) {
+      toast.error("No active recording");
+      return;
+    }
     setSaving(true);
-    const { error } = await supabase.from("site_walks").insert({
-      project_id: projectId,
-      title: t,
-      transcript: transcript.trim(),
-      duration_seconds: seconds,
-      recording_type: mode,
-      video_path: mode === "video" ? videoSessionPathRef.current || null : null,
-    } as any);
+    const { error } = await supabase
+      .from("site_walks")
+      .update({
+        title: t,
+        transcript: transcript.trim(),
+        duration_seconds: seconds,
+        recording_type: mode,
+        video_path: mode === "video" ? videoSessionPathRef.current || null : null,
+        status: "completed",
+      } as any)
+      .eq("id", walkId);
     setSaving(false);
     if (error) return showError("Site Walks", error);
     toast.success(mode === "video" ? "Site diary saved" : "Site walk saved");
@@ -477,12 +612,35 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     videoSessionPathRef.current = "";
     videoChunkIndexRef.current = 0;
     setChunksUploaded(0);
+    setSessionPhotos([]);
+    transcriptTimelineRef.current = [];
+    currentWalkIdRef.current = null;
     loadAll();
   };
 
   const handleCancelSave = () => {
     setSaveOpen(false);
     setStatus("paused");
+  };
+
+  const cleanupDraftWalk = async () => {
+    const walkId = currentWalkIdRef.current;
+    if (!walkId) return;
+    // Delete uploaded snapshots from storage (DB rows cascade)
+    try {
+      const { data: files } = await supabase.storage
+        .from(SITE_WALK_PHOTO_BUCKET)
+        .list(`${projectId}/${walkId}`);
+      if (files && files.length) {
+        await supabase.storage
+          .from(SITE_WALK_PHOTO_BUCKET)
+          .remove(files.map((f) => `${projectId}/${walkId}/${f.name}`));
+      }
+    } catch (e) {
+      console.warn("Failed to clean up snapshots", e);
+    }
+    await supabase.from("site_walks").delete().eq("id", walkId);
+    currentWalkIdRef.current = null;
   };
 
   const handleDiscardVideo = async () => {
@@ -502,6 +660,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         console.warn("Failed to clean up video chunks", e);
       }
     }
+    await cleanupDraftWalk();
     setVideoConfirmOpen(false);
     setStatus("idle");
     setMode("audio");
@@ -512,7 +671,10 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     videoSessionPathRef.current = "";
     videoChunkIndexRef.current = 0;
     setChunksUploaded(0);
+    setSessionPhotos([]);
+    transcriptTimelineRef.current = [];
   };
+
 
 
   const deleteWalk = async (id: string) => {
@@ -669,6 +831,63 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
             </>
           )}
         </div>
+
+        {/* Snapshot — one-tap photo capture during recording */}
+        {isActive && (
+          <div className="space-y-3">
+            <div className="flex justify-center">
+              <Button
+                onClick={takeSnapshot}
+                disabled={snapBusy}
+                size="lg"
+                aria-label="Take snapshot"
+                className="h-20 w-20 rounded-full p-0 bg-[#D4AF37] hover:bg-[#bf9a2e] text-primary shadow-lg shadow-[#D4AF37]/30 ring-4 ring-[#D4AF37]/20"
+              >
+                {snapBusy ? (
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                ) : (
+                  <Camera className="w-9 h-9" strokeWidth={2.25} />
+                )}
+              </Button>
+            </div>
+            <p className="text-[11px] text-center text-muted-foreground -mt-1">
+              Tap to capture a photo · {sessionPhotos.length} saved this walk
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleSnapshotFile}
+            />
+            {sessionPhotos.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                {sessionPhotos.map((p) => (
+                  <div
+                    key={p.id}
+                    className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden border border-border bg-muted"
+                  >
+                    {p.signedUrl ? (
+                      <img
+                        src={p.signedUrl}
+                        alt={`Snapshot at ${formatDuration(p.timestamp_seconds)}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full">
+                        <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <span className="absolute bottom-0 right-0 bg-black/60 text-white text-[9px] font-mono px-1 rounded-tl">
+                      {formatDuration(p.timestamp_seconds)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {!speechSupported && (
           <p className="text-xs text-amber-600 text-center">
@@ -1072,6 +1291,41 @@ function AnalysisViewer({
   const a = row.analysis_json ?? ({} as Analysis);
   const [approvedKeys, setApprovedKeys] = useState<Set<string>>(new Set());
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [walkPhotos, setWalkPhotos] = useState<
+    Array<{ id: string; signedUrl: string | null; transcript_context: string | null; timestamp_seconds: number }>
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("site_walk_photos" as any)
+        .select("id, storage_path, transcript_context, timestamp_seconds")
+        .eq("site_walk_id", row.site_walk_id)
+        .order("timestamp_seconds", { ascending: true });
+      if (cancelled) return;
+      const rows = (data ?? []) as any[];
+      const urls = await signManyPhotoUrls(rows.map((r) => r.storage_path));
+      setWalkPhotos(
+        rows.map((r) => ({
+          id: r.id,
+          signedUrl: r.storage_path ? urls[r.storage_path] ?? null : null,
+          transcript_context: r.transcript_context ?? null,
+          timestamp_seconds: r.timestamp_seconds ?? 0,
+        })),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [row.site_walk_id]);
+
+  const photosForRoom = (roomName: string) => {
+    const n = roomName.toLowerCase();
+    return walkPhotos.filter((p) =>
+      (p.transcript_context ?? "").toLowerCase().includes(n),
+    );
+  };
 
   const approveProgress = async (roomName: string, text: string) => {
     const key = `${roomName}::${text}`;
@@ -1141,6 +1395,7 @@ function AnalysisViewer({
               approvedKeys={approvedKeys}
               busyKey={busyKey}
               onApprove={approveProgress}
+              photos={photosForRoom(r.room)}
             />
           ))}
         </div>
@@ -1201,11 +1456,13 @@ function RoomCard({
   approvedKeys,
   busyKey,
   onApprove,
+  photos = [],
 }: {
   room: RoomAnalysis;
   approvedKeys: Set<string>;
   busyKey: string | null;
   onApprove: (roomName: string, text: string) => void;
+  photos?: Array<{ id: string; signedUrl: string | null; timestamp_seconds: number }>;
 }) {
   const progressItems = room.progress ?? [];
   const sections: Array<{ label: string; items: string[]; tone?: string }> = [
@@ -1279,6 +1536,28 @@ function RoomCard({
           </div>
         ))}
       </div>
+
+      {photos.length > 0 && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+            Photos ({photos.length})
+          </div>
+          <div className="flex gap-2 overflow-x-auto">
+            {photos.map((p) => (
+              <div
+                key={p.id}
+                className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden border border-border bg-muted"
+              >
+                {p.signedUrl ? (
+                  <img src={p.signedUrl} alt="Site photo" className="w-full h-full object-cover" />
+                ) : (
+                  <ImageIcon className="w-5 h-5 text-muted-foreground m-auto" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

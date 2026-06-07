@@ -258,6 +258,72 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
       }
     }
 
+    // -------- Match snapshots to nearest finding --------
+    // For each photo on this walk, pick the variation/procurement row whose
+    // description best overlaps the photo's transcript_context (last 15s).
+    try {
+      const { data: photos } = await supabaseAdmin
+        .from("site_walk_photos")
+        .select("id, transcript_context, timestamp_seconds, linked_variation_id, linked_procurement_id")
+        .eq("site_walk_id", data.siteWalkId);
+      const photoRows = (photos ?? []) as any[];
+      if (photoRows.length) {
+        const [{ data: varRows }, { data: procRows }] = await Promise.all([
+          supabaseAdmin
+            .from("variations")
+            .select("id, description")
+            .eq("project_id", data.projectId),
+          supabaseAdmin
+            .from("procurement_items")
+            .select("id, description")
+            .eq("project_id", data.projectId),
+        ]);
+        const candidates: Array<{ id: string; kind: "variation" | "procurement"; tokens: Set<string> }> = [];
+        for (const r of (varRows ?? []) as any[]) {
+          if (!r.description) continue;
+          candidates.push({
+            id: r.id,
+            kind: "variation",
+            tokens: new Set(normaliseText(r.description).split(" ").filter((t) => t.length > 2)),
+          });
+        }
+        for (const r of (procRows ?? []) as any[]) {
+          if (!r.description) continue;
+          candidates.push({
+            id: r.id,
+            kind: "procurement",
+            tokens: new Set(normaliseText(r.description).split(" ").filter((t) => t.length > 2)),
+          });
+        }
+        for (const photo of photoRows) {
+          if (photo.linked_variation_id || photo.linked_procurement_id) continue;
+          const ctx = String(photo.transcript_context ?? "").trim();
+          if (!ctx) continue;
+          const ctxTokens = new Set(
+            normaliseText(ctx).split(" ").filter((t) => t.length > 2),
+          );
+          if (ctxTokens.size === 0) continue;
+          let best: { score: number; id: string; kind: "variation" | "procurement" } | null = null;
+          for (const c of candidates) {
+            let overlap = 0;
+            for (const t of c.tokens) if (ctxTokens.has(t)) overlap++;
+            if (overlap >= 2 && (!best || overlap > best.score)) {
+              best = { score: overlap, id: c.id, kind: c.kind };
+            }
+          }
+          if (best) {
+            const update =
+              best.kind === "variation"
+                ? { linked_variation_id: best.id }
+                : { linked_procurement_id: best.id };
+            await supabaseAdmin.from("site_walk_photos").update(update).eq("id", photo.id);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[analyseSiteWalk] photo matching failed", e);
+    }
+
     // Mark site walk as analysed
     const { error: updateErr } = await supabaseAdmin
       .from("site_walks")

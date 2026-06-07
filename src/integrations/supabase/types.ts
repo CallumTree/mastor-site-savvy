@@ -1203,6 +1203,77 @@ export type Database = {
           },
         ]
       }
+      site_walk_photos: {
+        Row: {
+          ai_tags: Json | null
+          created_at: string
+          id: string
+          linked_procurement_id: string | null
+          linked_variation_id: string | null
+          photo_url: string
+          project_id: string
+          site_walk_id: string
+          storage_path: string | null
+          timestamp_seconds: number
+          transcript_context: string | null
+        }
+        Insert: {
+          ai_tags?: Json | null
+          created_at?: string
+          id?: string
+          linked_procurement_id?: string | null
+          linked_variation_id?: string | null
+          photo_url: string
+          project_id: string
+          site_walk_id: string
+          storage_path?: string | null
+          timestamp_seconds?: number
+          transcript_context?: string | null
+        }
+        Update: {
+          ai_tags?: Json | null
+          created_at?: string
+          id?: string
+          linked_procurement_id?: string | null
+          linked_variation_id?: string | null
+          photo_url?: string
+          project_id?: string
+          site_walk_id?: string
+          storage_path?: string | null
+          timestamp_seconds?: number
+          transcript_context?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_walk_photos_linked_procurement_id_fkey"
+            columns: ["linked_procurement_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_walk_photos_linked_variation_id_fkey"
+            columns: ["linked_variation_id"]
+            isOneToOne: false
+            referencedRelation: "variations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_walk_photos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_walk_photos_site_walk_id_fkey"
+            columns: ["site_walk_id"]
+            isOneToOne: false
+            referencedRelation: "site_walks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site_walks: {
         Row: {
           created_at: string
