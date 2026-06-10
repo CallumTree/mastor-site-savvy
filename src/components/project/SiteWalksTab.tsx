@@ -143,9 +143,29 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
   // Snapshots for the current recording session
   const [sessionPhotos, setSessionPhotos] = useState<
-    Array<{ id: string; signedUrl: string | null; timestamp_seconds: number }>
+    Array<{
+      id: string;
+      signedUrl: string | null;
+      timestamp_seconds: number;
+      hasLocation: boolean;
+      created_at: string;
+    }>
   >([]);
   const [snapBusy, setSnapBusy] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [dualCamera, setDualCamera] = useState(false);
+  const [annotator, setAnnotator] = useState<{
+    blob: Blob;
+    timestamp: number;
+    location: { lat: number; lng: number } | null;
+    transcriptContext: string;
+  } | null>(null);
+  const [photoViewer, setPhotoViewer] = useState<{
+    signedUrl: string;
+    timestamp_seconds: number;
+    hasLocation: boolean;
+    created_at: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const transcriptTimelineRef = useRef<Array<{ t: number; text: string }>>([]);
   const secondsRef = useRef(0);
@@ -162,9 +182,16 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+  const frontStreamRef = useRef<MediaStream | null>(null);
+  const frontVideoRef = useRef<HTMLVideoElement | null>(null);
   const videoSessionPathRef = useRef<string>("");
   const videoChunkIndexRef = useRef(0);
   const videoMimeRef = useRef<string>("video/webm");
+
+  // Hold-to-stop
+  const stopHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [stopProgress, setStopProgress] = useState(0);
+  const stopProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const analyseFn = useServerFn(analyseSiteWalk);
   const speechSupported = !!getSpeechRecognition();
