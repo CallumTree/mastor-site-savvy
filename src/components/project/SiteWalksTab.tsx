@@ -901,6 +901,17 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
             autoPlay
           />
 
+          {/* Front camera PiP overlay (top right) */}
+          {dualCamera && (
+            <video
+              ref={frontVideoRef}
+              className="absolute top-[max(env(safe-area-inset-top),3.25rem)] right-3 w-28 h-40 object-cover rounded-lg border-2 border-white/70 shadow-lg shadow-black/40 bg-black"
+              playsInline
+              muted
+              autoPlay
+            />
+          )}
+
           {/* Timer top centre */}
           <div className="absolute top-[max(env(safe-area-inset-top),1rem)] left-0 right-0 flex justify-center pointer-events-none">
             <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/55 backdrop-blur-sm">
@@ -915,12 +926,48 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
             </div>
           </div>
 
-          {/* Upload status (small, top right) */}
-          <div className="absolute top-[max(env(safe-area-inset-top),1rem)] right-3 pointer-events-none">
+          {/* Upload + mute status (top right under PiP) */}
+          <div className="absolute top-[max(env(safe-area-inset-top),1rem)] left-3 pointer-events-none flex flex-col gap-1 items-start">
             <span className="text-[10px] text-white/80 bg-black/45 backdrop-blur-sm px-2 py-1 rounded-full">
               {chunksUploaded} saved{chunksUploading > 0 ? ` · ${chunksUploading}↑` : ""}
             </span>
+            {muted && (
+              <span className="text-[10px] text-white bg-red-600/80 px-2 py-1 rounded-full flex items-center gap-1">
+                <VolumeX className="w-3 h-3" /> Muted
+              </span>
+            )}
           </div>
+
+          {/* Session photo strip */}
+          {sessionPhotos.length > 0 && (
+            <div className="absolute left-0 right-0 bottom-[140px] px-3 pointer-events-auto">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {sessionPhotos.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => p.signedUrl && setPhotoViewer({
+                      signedUrl: p.signedUrl,
+                      timestamp_seconds: p.timestamp_seconds,
+                      hasLocation: p.hasLocation,
+                      created_at: p.created_at,
+                    })}
+                    className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden border border-white/40 bg-black/40"
+                  >
+                    {p.signedUrl ? (
+                      <img src={p.signedUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Loader2 className="w-4 h-4 m-auto mt-5 text-white animate-spin" />
+                    )}
+                    <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-mono px-1 flex items-center justify-between">
+                      <span>{formatDuration(p.timestamp_seconds)}</span>
+                      {p.hasLocation && <MapPin className="w-2.5 h-2.5" />}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Bottom control bar */}
           <div className="absolute bottom-0 left-0 right-0 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-6 px-6 bg-gradient-to-t from-black/70 to-transparent">
@@ -938,6 +985,18 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 ) : (
                   <Camera className="w-7 h-7" strokeWidth={2.25} />
                 )}
+              </button>
+
+              {/* Mute left of pause */}
+              <button
+                type="button"
+                onClick={toggleMute}
+                aria-label={muted ? "Unmute" : "Mute"}
+                className={`h-12 w-12 rounded-full shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform ${
+                  muted ? "bg-red-600 text-white" : "bg-white/85 text-black"
+                }`}
+              >
+                {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
               </button>
 
               {/* Pause / Resume centre */}
@@ -961,19 +1020,30 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 </button>
               )}
 
-              {/* Stop bottom right */}
+              {/* Hold-to-stop bottom right */}
               <button
                 type="button"
-                onClick={handleFinish}
-                aria-label="Stop recording"
-                className="h-14 w-14 rounded-full bg-red-600 text-white shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform"
+                onPointerDown={beginHoldStop}
+                onPointerUp={cancelHoldStop}
+                onPointerLeave={cancelHoldStop}
+                onPointerCancel={cancelHoldStop}
+                aria-label="Hold to stop recording"
+                title="Hold 2s to stop"
+                className="relative h-14 w-14 rounded-full bg-red-600 text-white shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform overflow-hidden"
               >
-                <Square className="w-6 h-6 fill-current" strokeWidth={2.5} />
+                <Square className="w-6 h-6 fill-current relative z-10" strokeWidth={2.5} />
+                {stopProgress > 0 && (
+                  <span
+                    className="absolute inset-0 bg-white/30"
+                    style={{ clipPath: `inset(${100 - stopProgress}% 0 0 0)` }}
+                  />
+                )}
               </button>
             </div>
+            <p className="text-center text-[10px] text-white/70 mt-2">Hold the stop button for 2 seconds</p>
           </div>
 
-          {/* Hidden file input for fallback (not used in video mode but kept mounted) */}
+          {/* Hidden file input (unused in video mode but kept mounted) */}
           <input
             ref={fileInputRef}
             type="file"
