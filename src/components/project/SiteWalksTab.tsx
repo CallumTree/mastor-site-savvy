@@ -347,7 +347,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     return "video/webm";
   };
 
-  const startVideoRecorder = async () => {
+  const startVideoRecorder = async (withDualCamera = false) => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       toast.error("Camera not supported in this browser.");
       return false;
@@ -355,7 +355,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: withDualCamera ? { facingMode: { ideal: "environment" } } : true,
         audio: true,
       });
     } catch (e: any) {
@@ -368,6 +368,24 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       videoPreviewRef.current.srcObject = stream;
       videoPreviewRef.current.muted = true;
       videoPreviewRef.current.play().catch(() => {});
+    }
+
+    // Try to acquire front camera as a separate stream for PiP overlay
+    if (withDualCamera) {
+      try {
+        const front = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "user" } },
+          audio: false,
+        });
+        frontStreamRef.current = front;
+        if (frontVideoRef.current) {
+          frontVideoRef.current.srcObject = front;
+          frontVideoRef.current.muted = true;
+          frontVideoRef.current.play().catch(() => {});
+        }
+      } catch {
+        toast.message("Front camera unavailable, recording back camera only.");
+      }
     }
 
     const mime = pickVideoMime();
@@ -401,7 +419,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       console.error("MediaRecorder error", ev);
       toast.error("Video recorder error");
     };
-    // Emit a chunk every 30 seconds
     recorder.start(30000);
     return true;
   };
@@ -417,76 +434,167 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     mediaRecorderRef.current = null;
     mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
     mediaStreamRef.current = null;
-    if (videoPreviewRef.current) {
-      videoPreviewRef.current.srcObject = null;
-    }
-    // Outstanding chunk uploads continue in the background;
-    // the confirmation dialog disables Save while any are in flight.
+    frontStreamRef.current?.getTracks().forEach((t) => t.stop());
+    frontStreamRef.current = null;
+    if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
+    if (frontVideoRef.current) frontVideoRef.current.srcObject = null;
+  };
+
+  /* ---------------- Mute ---------------- */
+
+  const toggleMute = () => {
+    const next = !muted;
+    setMuted(next);
+    // Mute audio in the recorded video stream
+    mediaStreamRef.current?.getAudioTracks().forEach((t) => (t.enabled = !next));
+    // Pause / resume transcription so muted audio doesn't get captured as text
+    if (next) stopRecognition();
+    else if (status === "recording") startRecognition();
   };
 
   /* ---------------- Snapshots ---------------- */
 
-  const persistSnapshot = async (blob: Blob) => {
+  const beginSnapshot = async () => {
+    if (snapBusy) return;
     const walkId = currentWalkIdRef.current;
     if (!walkId) {
       toast.error("Start recording before taking a snapshot");
       return;
     }
-    setSnapBusy(true);
-    try {
-      const ts = secondsRef.current;
-      const path = `${projectId}/${walkId}/${Date.now()}.jpg`;
-      const { error: upErr } = await supabase.storage
-        .from(SITE_WALK_PHOTO_BUCKET)
-        .upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: false });
-      if (upErr) return showError("Snapshot", upErr);
-
-      const context = transcriptContextAt(transcriptTimelineRef.current, ts, 15);
-      const { data: row, error: insErr } = await supabase
-        .from("site_walk_photos" as any)
-        .insert({
-          site_walk_id: walkId,
-          project_id: projectId,
-          photo_url: path,
-          storage_path: path,
-          timestamp_seconds: ts,
-          transcript_context: context || null,
-        } as any)
-        .select("id")
-        .single();
-      if (insErr || !row) return showError("Snapshot", insErr ?? new Error("Insert failed"));
-
-      const { data: signed } = await supabase.storage
-        .from(SITE_WALK_PHOTO_BUCKET)
-        .createSignedUrl(path, 60 * 60);
-      setSessionPhotos((prev) => [
-        ...prev,
-        {
-          id: (row as any).id,
-          signedUrl: signed?.signedUrl ?? null,
-          timestamp_seconds: ts,
-        },
-      ]);
-      toast.success("Snapshot saved");
-    } finally {
-      setSnapBusy(false);
-    }
-  };
-
-  const takeSnapshot = async () => {
-    if (snapBusy) return;
     if (mode === "video" && videoPreviewRef.current) {
-      const blob = await captureVideoFrame(videoPreviewRef.current);
-      if (!blob) {
-        toast.error("Could not capture frame");
-        return;
+      setSnapBusy(true);
+      try {
+        const blob = dualCamera
+          ? await captureDualCameraFrame(videoPreviewRef.current, frontVideoRef.current)
+          : await captureVideoFrame(videoPreviewRef.current);
+        if (!blob) {
+          toast.error("Could not capture frame");
+          return;
+        }
+        const ts = secondsRef.current;
+        const context = transcriptContextAt(transcriptTimelineRef.current, ts, 15);
+        const location = await getDeviceLocation(2500);
+        setAnnotator({ blob, timestamp: ts, location, transcriptContext: context });
+      } finally {
+        setSnapBusy(false);
       }
-      await persistSnapshot(blob);
       return;
     }
     // Audio mode → open device camera via file input
     fileInputRef.current?.click();
   };
+
+  const handleSnapshotFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const ts = secondsRef.current;
+    const context = transcriptContextAt(transcriptTimelineRef.current, ts, 15);
+    const location = await getDeviceLocation(2500);
+    setAnnotator({ blob: file, timestamp: ts, location, transcriptContext: context });
+  };
+
+  const persistAnnotatedSnapshot = async (
+    shapes: AnnotationShape[],
+    displayW: number,
+    displayH: number,
+  ) => {
+    if (!annotator) return;
+    const walkId = currentWalkIdRef.current;
+    if (!walkId) {
+      toast.error("Start recording before taking a snapshot");
+      setAnnotator(null);
+      return;
+    }
+    setSnapBusy(true);
+    try {
+      const { blob, timestamp, location, transcriptContext } = annotator;
+      const stamp = Date.now();
+      const origPath = `${projectId}/${walkId}/${stamp}.jpg`;
+      const { error: upErr } = await supabase.storage
+        .from(SITE_WALK_PHOTO_BUCKET)
+        .upload(origPath, blob, { contentType: blob.type || "image/jpeg", upsert: false });
+      if (upErr) return showError("Snapshot", upErr);
+
+      let annotatedPath: string | null = null;
+      if (shapes.length > 0) {
+        const annotated = await flattenAnnotations(blob, shapes, displayW, displayH);
+        annotatedPath = `${projectId}/${walkId}/${stamp}-annotated.jpg`;
+        const { error: aErr } = await supabase.storage
+          .from(SITE_WALK_PHOTO_BUCKET)
+          .upload(annotatedPath, annotated, { contentType: "image/jpeg", upsert: false });
+        if (aErr) {
+          console.error("Annotated upload failed", aErr);
+          annotatedPath = null;
+        }
+      }
+
+      const { data: row, error: insErr } = await supabase
+        .from("site_walk_photos" as any)
+        .insert({
+          site_walk_id: walkId,
+          project_id: projectId,
+          photo_url: annotatedPath ?? origPath,
+          storage_path: origPath,
+          timestamp_seconds: timestamp,
+          transcript_context: transcriptContext || null,
+          location_lat: location?.lat ?? null,
+          location_lng: location?.lng ?? null,
+          annotations: shapes.length > 0 ? (shapes as any) : null,
+          annotated_photo_url: annotatedPath,
+          annotated_storage_path: annotatedPath,
+        } as any)
+        .select("id, created_at")
+        .single();
+      if (insErr || !row) return showError("Snapshot", insErr ?? new Error("Insert failed"));
+
+      const { data: signed } = await supabase.storage
+        .from(SITE_WALK_PHOTO_BUCKET)
+        .createSignedUrl(annotatedPath ?? origPath, 60 * 60);
+      setSessionPhotos((prev) => [
+        ...prev,
+        {
+          id: (row as any).id as string,
+          signedUrl: signed?.signedUrl ?? null,
+          timestamp_seconds: timestamp,
+          hasLocation: !!location,
+          created_at: (row as any).created_at ?? new Date().toISOString(),
+        },
+      ]);
+      toast.success(location ? "Snapshot saved with location" : "Snapshot saved");
+      setAnnotator(null);
+    } finally {
+      setSnapBusy(false);
+    }
+  };
+
+  /* ---------------- Hold-to-stop ---------------- */
+
+  const beginHoldStop = () => {
+    if (stopHoldTimerRef.current) return;
+    setStopProgress(0);
+    const started = Date.now();
+    stopProgressTimerRef.current = setInterval(() => {
+      const pct = Math.min(100, ((Date.now() - started) / 2000) * 100);
+      setStopProgress(pct);
+    }, 50);
+    stopHoldTimerRef.current = setTimeout(() => {
+      cancelHoldStop();
+      handleFinish();
+    }, 2000);
+  };
+  const cancelHoldStop = () => {
+    if (stopHoldTimerRef.current) {
+      clearTimeout(stopHoldTimerRef.current);
+      stopHoldTimerRef.current = null;
+    }
+    if (stopProgressTimerRef.current) {
+      clearInterval(stopProgressTimerRef.current);
+      stopProgressTimerRef.current = null;
+    }
+    setStopProgress(0);
+  };
+
 
   const handleSnapshotFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
