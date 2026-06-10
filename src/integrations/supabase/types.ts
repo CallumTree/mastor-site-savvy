@@ -1206,10 +1206,15 @@ export type Database = {
       site_walk_photos: {
         Row: {
           ai_tags: Json | null
+          annotated_photo_url: string | null
+          annotated_storage_path: string | null
+          annotations: Json | null
           created_at: string
           id: string
           linked_procurement_id: string | null
           linked_variation_id: string | null
+          location_lat: number | null
+          location_lng: number | null
           photo_url: string
           project_id: string
           site_walk_id: string
@@ -1219,10 +1224,15 @@ export type Database = {
         }
         Insert: {
           ai_tags?: Json | null
+          annotated_photo_url?: string | null
+          annotated_storage_path?: string | null
+          annotations?: Json | null
           created_at?: string
           id?: string
           linked_procurement_id?: string | null
           linked_variation_id?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
           photo_url: string
           project_id: string
           site_walk_id: string
@@ -1232,10 +1242,15 @@ export type Database = {
         }
         Update: {
           ai_tags?: Json | null
+          annotated_photo_url?: string | null
+          annotated_storage_path?: string | null
+          annotations?: Json | null
           created_at?: string
           id?: string
           linked_procurement_id?: string | null
           linked_variation_id?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
           photo_url?: string
           project_id?: string
           site_walk_id?: string

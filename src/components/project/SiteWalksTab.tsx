@@ -30,14 +30,23 @@ import {
   FileVideo,
   Camera,
   ImageIcon,
+  Volume2,
+  VolumeX,
+  MapPin,
+  Users,
 } from "lucide-react";
 import {
   SITE_WALK_PHOTO_BUCKET,
   captureVideoFrame,
+  captureDualCameraFrame,
   signManyPhotoUrls,
   transcriptContextAt,
+  getDeviceLocation,
+  flattenAnnotations,
+  type AnnotationShape,
   type SiteWalkPhoto,
 } from "@/lib/site-walk-photos";
+import { PhotoAnnotator } from "./PhotoAnnotator";
 
 
 type RecordingMode = "audio" | "video";
@@ -134,9 +143,29 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
   // Snapshots for the current recording session
   const [sessionPhotos, setSessionPhotos] = useState<
-    Array<{ id: string; signedUrl: string | null; timestamp_seconds: number }>
+    Array<{
+      id: string;
+      signedUrl: string | null;
+      timestamp_seconds: number;
+      hasLocation: boolean;
+      created_at: string;
+    }>
   >([]);
   const [snapBusy, setSnapBusy] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [dualCamera, setDualCamera] = useState(false);
+  const [annotator, setAnnotator] = useState<{
+    blob: Blob;
+    timestamp: number;
+    location: { lat: number; lng: number } | null;
+    transcriptContext: string;
+  } | null>(null);
+  const [photoViewer, setPhotoViewer] = useState<{
+    signedUrl: string;
+    timestamp_seconds: number;
+    hasLocation: boolean;
+    created_at: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const transcriptTimelineRef = useRef<Array<{ t: number; text: string }>>([]);
   const secondsRef = useRef(0);
@@ -153,9 +182,16 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+  const frontStreamRef = useRef<MediaStream | null>(null);
+  const frontVideoRef = useRef<HTMLVideoElement | null>(null);
   const videoSessionPathRef = useRef<string>("");
   const videoChunkIndexRef = useRef(0);
   const videoMimeRef = useRef<string>("video/webm");
+
+  // Hold-to-stop
+  const stopHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [stopProgress, setStopProgress] = useState(0);
+  const stopProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const analyseFn = useServerFn(analyseSiteWalk);
   const speechSupported = !!getSpeechRecognition();
@@ -311,7 +347,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     return "video/webm";
   };
 
-  const startVideoRecorder = async () => {
+  const startVideoRecorder = async (withDualCamera = false) => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       toast.error("Camera not supported in this browser.");
       return false;
@@ -319,7 +355,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: withDualCamera ? { facingMode: { ideal: "environment" } } : true,
         audio: true,
       });
     } catch (e: any) {
@@ -332,6 +368,24 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       videoPreviewRef.current.srcObject = stream;
       videoPreviewRef.current.muted = true;
       videoPreviewRef.current.play().catch(() => {});
+    }
+
+    // Try to acquire front camera as a separate stream for PiP overlay
+    if (withDualCamera) {
+      try {
+        const front = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "user" } },
+          audio: false,
+        });
+        frontStreamRef.current = front;
+        if (frontVideoRef.current) {
+          frontVideoRef.current.srcObject = front;
+          frontVideoRef.current.muted = true;
+          frontVideoRef.current.play().catch(() => {});
+        }
+      } catch {
+        toast.message("Front camera unavailable, recording back camera only.");
+      }
     }
 
     const mime = pickVideoMime();
@@ -365,7 +419,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       console.error("MediaRecorder error", ev);
       toast.error("Video recorder error");
     };
-    // Emit a chunk every 30 seconds
     recorder.start(30000);
     return true;
   };
@@ -381,71 +434,50 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     mediaRecorderRef.current = null;
     mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
     mediaStreamRef.current = null;
-    if (videoPreviewRef.current) {
-      videoPreviewRef.current.srcObject = null;
-    }
-    // Outstanding chunk uploads continue in the background;
-    // the confirmation dialog disables Save while any are in flight.
+    frontStreamRef.current?.getTracks().forEach((t) => t.stop());
+    frontStreamRef.current = null;
+    if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
+    if (frontVideoRef.current) frontVideoRef.current.srcObject = null;
+  };
+
+  /* ---------------- Mute ---------------- */
+
+  const toggleMute = () => {
+    const next = !muted;
+    setMuted(next);
+    // Mute audio in the recorded video stream
+    mediaStreamRef.current?.getAudioTracks().forEach((t) => (t.enabled = !next));
+    // Pause / resume transcription so muted audio doesn't get captured as text
+    if (next) stopRecognition();
+    else if (status === "recording") startRecognition();
   };
 
   /* ---------------- Snapshots ---------------- */
 
-  const persistSnapshot = async (blob: Blob) => {
+  const beginSnapshot = async () => {
+    if (snapBusy) return;
     const walkId = currentWalkIdRef.current;
     if (!walkId) {
       toast.error("Start recording before taking a snapshot");
       return;
     }
-    setSnapBusy(true);
-    try {
-      const ts = secondsRef.current;
-      const path = `${projectId}/${walkId}/${Date.now()}.jpg`;
-      const { error: upErr } = await supabase.storage
-        .from(SITE_WALK_PHOTO_BUCKET)
-        .upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: false });
-      if (upErr) return showError("Snapshot", upErr);
-
-      const context = transcriptContextAt(transcriptTimelineRef.current, ts, 15);
-      const { data: row, error: insErr } = await supabase
-        .from("site_walk_photos" as any)
-        .insert({
-          site_walk_id: walkId,
-          project_id: projectId,
-          photo_url: path,
-          storage_path: path,
-          timestamp_seconds: ts,
-          transcript_context: context || null,
-        } as any)
-        .select("id")
-        .single();
-      if (insErr || !row) return showError("Snapshot", insErr ?? new Error("Insert failed"));
-
-      const { data: signed } = await supabase.storage
-        .from(SITE_WALK_PHOTO_BUCKET)
-        .createSignedUrl(path, 60 * 60);
-      setSessionPhotos((prev) => [
-        ...prev,
-        {
-          id: (row as any).id,
-          signedUrl: signed?.signedUrl ?? null,
-          timestamp_seconds: ts,
-        },
-      ]);
-      toast.success("Snapshot saved");
-    } finally {
-      setSnapBusy(false);
-    }
-  };
-
-  const takeSnapshot = async () => {
-    if (snapBusy) return;
     if (mode === "video" && videoPreviewRef.current) {
-      const blob = await captureVideoFrame(videoPreviewRef.current);
-      if (!blob) {
-        toast.error("Could not capture frame");
-        return;
+      setSnapBusy(true);
+      try {
+        const blob = dualCamera
+          ? await captureDualCameraFrame(videoPreviewRef.current, frontVideoRef.current)
+          : await captureVideoFrame(videoPreviewRef.current);
+        if (!blob) {
+          toast.error("Could not capture frame");
+          return;
+        }
+        const ts = secondsRef.current;
+        const context = transcriptContextAt(transcriptTimelineRef.current, ts, 15);
+        const location = await getDeviceLocation(2500);
+        setAnnotator({ blob, timestamp: ts, location, transcriptContext: context });
+      } finally {
+        setSnapBusy(false);
       }
-      await persistSnapshot(blob);
       return;
     }
     // Audio mode → open device camera via file input
@@ -456,8 +488,114 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    await persistSnapshot(file);
+    const ts = secondsRef.current;
+    const context = transcriptContextAt(transcriptTimelineRef.current, ts, 15);
+    const location = await getDeviceLocation(2500);
+    setAnnotator({ blob: file, timestamp: ts, location, transcriptContext: context });
   };
+
+  const persistAnnotatedSnapshot = async (
+    shapes: AnnotationShape[],
+    displayW: number,
+    displayH: number,
+  ) => {
+    if (!annotator) return;
+    const walkId = currentWalkIdRef.current;
+    if (!walkId) {
+      toast.error("Start recording before taking a snapshot");
+      setAnnotator(null);
+      return;
+    }
+    setSnapBusy(true);
+    try {
+      const { blob, timestamp, location, transcriptContext } = annotator;
+      const stamp = Date.now();
+      const origPath = `${projectId}/${walkId}/${stamp}.jpg`;
+      const { error: upErr } = await supabase.storage
+        .from(SITE_WALK_PHOTO_BUCKET)
+        .upload(origPath, blob, { contentType: blob.type || "image/jpeg", upsert: false });
+      if (upErr) return showError("Snapshot", upErr);
+
+      let annotatedPath: string | null = null;
+      if (shapes.length > 0) {
+        const annotated = await flattenAnnotations(blob, shapes, displayW, displayH);
+        annotatedPath = `${projectId}/${walkId}/${stamp}-annotated.jpg`;
+        const { error: aErr } = await supabase.storage
+          .from(SITE_WALK_PHOTO_BUCKET)
+          .upload(annotatedPath, annotated, { contentType: "image/jpeg", upsert: false });
+        if (aErr) {
+          console.error("Annotated upload failed", aErr);
+          annotatedPath = null;
+        }
+      }
+
+      const { data: row, error: insErr } = await supabase
+        .from("site_walk_photos" as any)
+        .insert({
+          site_walk_id: walkId,
+          project_id: projectId,
+          photo_url: annotatedPath ?? origPath,
+          storage_path: origPath,
+          timestamp_seconds: timestamp,
+          transcript_context: transcriptContext || null,
+          location_lat: location?.lat ?? null,
+          location_lng: location?.lng ?? null,
+          annotations: shapes.length > 0 ? (shapes as any) : null,
+          annotated_photo_url: annotatedPath,
+          annotated_storage_path: annotatedPath,
+        } as any)
+        .select("id, created_at")
+        .single();
+      if (insErr || !row) return showError("Snapshot", insErr ?? new Error("Insert failed"));
+
+      const { data: signed } = await supabase.storage
+        .from(SITE_WALK_PHOTO_BUCKET)
+        .createSignedUrl(annotatedPath ?? origPath, 60 * 60);
+      setSessionPhotos((prev) => [
+        ...prev,
+        {
+          id: (row as any).id as string,
+          signedUrl: signed?.signedUrl ?? null,
+          timestamp_seconds: timestamp,
+          hasLocation: !!location,
+          created_at: (row as any).created_at ?? new Date().toISOString(),
+        },
+      ]);
+      toast.success(location ? "Snapshot saved with location" : "Snapshot saved");
+      setAnnotator(null);
+    } finally {
+      setSnapBusy(false);
+    }
+  };
+
+  /* ---------------- Hold-to-stop ---------------- */
+
+  const beginHoldStop = () => {
+    if (stopHoldTimerRef.current) return;
+    setStopProgress(0);
+    const started = Date.now();
+    stopProgressTimerRef.current = setInterval(() => {
+      const pct = Math.min(100, ((Date.now() - started) / 2000) * 100);
+      setStopProgress(pct);
+    }, 50);
+    stopHoldTimerRef.current = setTimeout(() => {
+      cancelHoldStop();
+      handleFinish();
+    }, 2000);
+  };
+  const cancelHoldStop = () => {
+    if (stopHoldTimerRef.current) {
+      clearTimeout(stopHoldTimerRef.current);
+      stopHoldTimerRef.current = null;
+    }
+    if (stopProgressTimerRef.current) {
+      clearInterval(stopProgressTimerRef.current);
+      stopProgressTimerRef.current = null;
+    }
+    setStopProgress(0);
+  };
+
+
 
 
 
@@ -473,9 +611,10 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     secondsRef.current = 0;
     transcriptTimelineRef.current = [];
     setSessionPhotos([]);
+    setMuted(false);
     setMicDenied(false);
     if (selectedMode === "video") {
-      const ok = await startVideoRecorder();
+      const ok = await startVideoRecorder(dualCamera);
       if (!ok) return;
     }
     // Create a draft site_walks row so photos can reference it immediately.
@@ -762,6 +901,17 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
             autoPlay
           />
 
+          {/* Front camera PiP overlay (top right) */}
+          {dualCamera && (
+            <video
+              ref={frontVideoRef}
+              className="absolute top-[max(env(safe-area-inset-top),3.25rem)] right-3 w-28 h-40 object-cover rounded-lg border-2 border-white/70 shadow-lg shadow-black/40 bg-black"
+              playsInline
+              muted
+              autoPlay
+            />
+          )}
+
           {/* Timer top centre */}
           <div className="absolute top-[max(env(safe-area-inset-top),1rem)] left-0 right-0 flex justify-center pointer-events-none">
             <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/55 backdrop-blur-sm">
@@ -776,12 +926,48 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
             </div>
           </div>
 
-          {/* Upload status (small, top right) */}
-          <div className="absolute top-[max(env(safe-area-inset-top),1rem)] right-3 pointer-events-none">
+          {/* Upload + mute status (top right under PiP) */}
+          <div className="absolute top-[max(env(safe-area-inset-top),1rem)] left-3 pointer-events-none flex flex-col gap-1 items-start">
             <span className="text-[10px] text-white/80 bg-black/45 backdrop-blur-sm px-2 py-1 rounded-full">
               {chunksUploaded} saved{chunksUploading > 0 ? ` · ${chunksUploading}↑` : ""}
             </span>
+            {muted && (
+              <span className="text-[10px] text-white bg-red-600/80 px-2 py-1 rounded-full flex items-center gap-1">
+                <VolumeX className="w-3 h-3" /> Muted
+              </span>
+            )}
           </div>
+
+          {/* Session photo strip */}
+          {sessionPhotos.length > 0 && (
+            <div className="absolute left-0 right-0 bottom-[140px] px-3 pointer-events-auto">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {sessionPhotos.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => p.signedUrl && setPhotoViewer({
+                      signedUrl: p.signedUrl,
+                      timestamp_seconds: p.timestamp_seconds,
+                      hasLocation: p.hasLocation,
+                      created_at: p.created_at,
+                    })}
+                    className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden border border-white/40 bg-black/40"
+                  >
+                    {p.signedUrl ? (
+                      <img src={p.signedUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Loader2 className="w-4 h-4 m-auto mt-5 text-white animate-spin" />
+                    )}
+                    <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-mono px-1 flex items-center justify-between">
+                      <span>{formatDuration(p.timestamp_seconds)}</span>
+                      {p.hasLocation && <MapPin className="w-2.5 h-2.5" />}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Bottom control bar */}
           <div className="absolute bottom-0 left-0 right-0 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-6 px-6 bg-gradient-to-t from-black/70 to-transparent">
@@ -789,7 +975,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               {/* Snapshot bottom left */}
               <button
                 type="button"
-                onClick={takeSnapshot}
+                onClick={beginSnapshot}
                 disabled={snapBusy}
                 aria-label="Take snapshot"
                 className="h-14 w-14 rounded-full bg-[#D4AF37] text-primary shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
@@ -799,6 +985,18 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 ) : (
                   <Camera className="w-7 h-7" strokeWidth={2.25} />
                 )}
+              </button>
+
+              {/* Mute left of pause */}
+              <button
+                type="button"
+                onClick={toggleMute}
+                aria-label={muted ? "Unmute" : "Mute"}
+                className={`h-12 w-12 rounded-full shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform ${
+                  muted ? "bg-red-600 text-white" : "bg-white/85 text-black"
+                }`}
+              >
+                {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
               </button>
 
               {/* Pause / Resume centre */}
@@ -822,19 +1020,30 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 </button>
               )}
 
-              {/* Stop bottom right */}
+              {/* Hold-to-stop bottom right */}
               <button
                 type="button"
-                onClick={handleFinish}
-                aria-label="Stop recording"
-                className="h-14 w-14 rounded-full bg-red-600 text-white shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform"
+                onPointerDown={beginHoldStop}
+                onPointerUp={cancelHoldStop}
+                onPointerLeave={cancelHoldStop}
+                onPointerCancel={cancelHoldStop}
+                aria-label="Hold to stop recording"
+                title="Hold 2s to stop"
+                className="relative h-14 w-14 rounded-full bg-red-600 text-white shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform overflow-hidden"
               >
-                <Square className="w-6 h-6 fill-current" strokeWidth={2.5} />
+                <Square className="w-6 h-6 fill-current relative z-10" strokeWidth={2.5} />
+                {stopProgress > 0 && (
+                  <span
+                    className="absolute inset-0 bg-white/30"
+                    style={{ clipPath: `inset(${100 - stopProgress}% 0 0 0)` }}
+                  />
+                )}
               </button>
             </div>
+            <p className="text-center text-[10px] text-white/70 mt-2">Hold the stop button for 2 seconds</p>
           </div>
 
-          {/* Hidden file input for fallback (not used in video mode but kept mounted) */}
+          {/* Hidden file input (unused in video mode but kept mounted) */}
           <input
             ref={fileInputRef}
             type="file"
@@ -886,22 +1095,34 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
         <div className="flex flex-wrap gap-2 justify-center">
           {status === "idle" && (
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto justify-center">
-              <Button
-                onClick={() => handleStart("audio")}
-                size="lg"
-                className="gap-2 h-14 px-6 text-base"
-              >
-                <Mic className="w-5 h-5" /> Audio Site Walk
-              </Button>
-              <Button
-                onClick={() => handleStart("video")}
-                size="lg"
-                variant="secondary"
-                className="gap-2 h-14 px-6 text-base"
-              >
-                <Video className="w-5 h-5" /> Video Site Diary
-              </Button>
+            <div className="flex flex-col gap-3 w-full sm:w-auto items-center">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  onClick={() => handleStart("audio")}
+                  size="lg"
+                  className="gap-2 h-14 px-6 text-base"
+                >
+                  <Mic className="w-5 h-5" /> Audio Site Walk
+                </Button>
+                <Button
+                  onClick={() => handleStart("video")}
+                  size="lg"
+                  variant="secondary"
+                  className="gap-2 h-14 px-6 text-base"
+                >
+                  <Video className="w-5 h-5" /> Video Site Diary
+                </Button>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={dualCamera}
+                  onChange={(e) => setDualCamera(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <Users className="w-3.5 h-3.5" />
+                Dual camera (back + front PiP) for video diary
+              </label>
             </div>
           )}
 
@@ -910,9 +1131,23 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               <Button onClick={handlePause} size="lg" variant="secondary" className="gap-2 h-14 px-6 text-base">
                 <Pause className="w-5 h-5" /> Pause
               </Button>
-              <Button onClick={handleFinish} size="lg" variant="destructive" className="gap-2 h-14 px-6 text-base">
-                <Square className="w-5 h-5" /> Finish
+              <Button onClick={toggleMute} size="lg" variant={muted ? "destructive" : "outline"} className="gap-2 h-14 px-6 text-base">
+                {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                {muted ? "Unmute" : "Mute"}
               </Button>
+              <button
+                type="button"
+                onPointerDown={beginHoldStop}
+                onPointerUp={cancelHoldStop}
+                onPointerLeave={cancelHoldStop}
+                onPointerCancel={cancelHoldStop}
+                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-md bg-destructive text-destructive-foreground shadow-sm font-medium overflow-hidden"
+              >
+                <Square className="w-5 h-5 relative z-10" /> <span className="relative z-10">Hold to Stop</span>
+                {stopProgress > 0 && (
+                  <span className="absolute inset-y-0 left-0 bg-black/25" style={{ width: `${stopProgress}%` }} />
+                )}
+              </button>
             </>
           )}
           {status === "paused" && (
@@ -920,9 +1155,19 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               <Button onClick={handleResume} size="lg" className="gap-2 h-14 px-6 text-base">
                 <Play className="w-5 h-5" /> Resume
               </Button>
-              <Button onClick={handleFinish} size="lg" variant="destructive" className="gap-2 h-14 px-6 text-base">
-                <Square className="w-5 h-5" /> Finish
-              </Button>
+              <button
+                type="button"
+                onPointerDown={beginHoldStop}
+                onPointerUp={cancelHoldStop}
+                onPointerLeave={cancelHoldStop}
+                onPointerCancel={cancelHoldStop}
+                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-md bg-destructive text-destructive-foreground shadow-sm font-medium overflow-hidden"
+              >
+                <Square className="w-5 h-5 relative z-10" /> <span className="relative z-10">Hold to Stop</span>
+                {stopProgress > 0 && (
+                  <span className="absolute inset-y-0 left-0 bg-black/25" style={{ width: `${stopProgress}%` }} />
+                )}
+              </button>
             </>
           )}
         </div>
@@ -932,7 +1177,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           <div className="space-y-3">
             <div className="flex justify-center">
               <Button
-                onClick={takeSnapshot}
+                onClick={beginSnapshot}
                 disabled={snapBusy}
                 size="lg"
                 aria-label="Take snapshot"
@@ -946,7 +1191,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               </Button>
             </div>
             <p className="text-[11px] text-center text-muted-foreground -mt-1">
-              Tap to capture a photo · {sessionPhotos.length} saved this walk
+              Tap to capture · {sessionPhotos.length} saved this walk · location auto-attached
             </p>
             <input
               ref={fileInputRef}
@@ -959,8 +1204,15 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
             {sessionPhotos.length > 0 && (
               <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                 {sessionPhotos.map((p) => (
-                  <div
+                  <button
+                    type="button"
                     key={p.id}
+                    onClick={() => p.signedUrl && setPhotoViewer({
+                      signedUrl: p.signedUrl,
+                      timestamp_seconds: p.timestamp_seconds,
+                      hasLocation: p.hasLocation,
+                      created_at: p.created_at,
+                    })}
                     className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden border border-border bg-muted"
                   >
                     {p.signedUrl ? (
@@ -974,10 +1226,11 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                         <ImageIcon className="w-5 h-5 text-muted-foreground" />
                       </div>
                     )}
-                    <span className="absolute bottom-0 right-0 bg-black/60 text-white text-[9px] font-mono px-1 rounded-tl">
-                      {formatDuration(p.timestamp_seconds)}
+                    <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-mono px-1 flex items-center justify-between">
+                      <span>{formatDuration(p.timestamp_seconds)}</span>
+                      {p.hasLocation && <MapPin className="w-2.5 h-2.5" />}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -1349,9 +1602,46 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         </DialogContent>
       </Dialog>
 
+      {/* Snapshot annotation editor */}
+      <PhotoAnnotator
+        open={!!annotator}
+        imageBlob={annotator?.blob ?? null}
+        onCancel={() => persistAnnotatedSnapshot([], 0, 0)}
+        onSave={(shapes, w, h) => persistAnnotatedSnapshot(shapes, w, h)}
+        saving={snapBusy}
+      />
+
+      {/* Snapshot full view */}
+      <Dialog open={!!photoViewer} onOpenChange={(o) => { if (!o) setPhotoViewer(null); }}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4">
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <span>Snapshot</span>
+              <span className="font-mono text-xs text-muted-foreground">
+                {photoViewer && formatDuration(photoViewer.timestamp_seconds)}
+              </span>
+              {photoViewer?.hasLocation && (
+                <span className="flex items-center gap-1 text-xs text-primary">
+                  <MapPin className="w-3.5 h-3.5" /> Geotagged
+                </span>
+              )}
+              {photoViewer && (
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {new Date(photoViewer.created_at).toLocaleString("en-GB")}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {photoViewer && (
+            <img src={photoViewer.signedUrl} alt="Snapshot" className="w-full h-auto max-h-[70vh] object-contain bg-black" />
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
+
 
 /* -------------------------- Analysis Viewer -------------------------- */
 
