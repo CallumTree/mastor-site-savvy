@@ -927,7 +927,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               {/* Snapshot bottom left */}
               <button
                 type="button"
-                onClick={takeSnapshot}
+                onClick={beginSnapshot}
                 disabled={snapBusy}
                 aria-label="Take snapshot"
                 className="h-14 w-14 rounded-full bg-[#D4AF37] text-primary shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
@@ -1070,7 +1070,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           <div className="space-y-3">
             <div className="flex justify-center">
               <Button
-                onClick={takeSnapshot}
+                onClick={beginSnapshot}
                 disabled={snapBusy}
                 size="lg"
                 aria-label="Take snapshot"
