@@ -611,9 +611,10 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     secondsRef.current = 0;
     transcriptTimelineRef.current = [];
     setSessionPhotos([]);
+    setMuted(false);
     setMicDenied(false);
     if (selectedMode === "video") {
-      const ok = await startVideoRecorder();
+      const ok = await startVideoRecorder(dualCamera);
       if (!ok) return;
     }
     // Create a draft site_walks row so photos can reference it immediately.
