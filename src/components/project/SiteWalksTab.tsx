@@ -1095,22 +1095,34 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
         <div className="flex flex-wrap gap-2 justify-center">
           {status === "idle" && (
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto justify-center">
-              <Button
-                onClick={() => handleStart("audio")}
-                size="lg"
-                className="gap-2 h-14 px-6 text-base"
-              >
-                <Mic className="w-5 h-5" /> Audio Site Walk
-              </Button>
-              <Button
-                onClick={() => handleStart("video")}
-                size="lg"
-                variant="secondary"
-                className="gap-2 h-14 px-6 text-base"
-              >
-                <Video className="w-5 h-5" /> Video Site Diary
-              </Button>
+            <div className="flex flex-col gap-3 w-full sm:w-auto items-center">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  onClick={() => handleStart("audio")}
+                  size="lg"
+                  className="gap-2 h-14 px-6 text-base"
+                >
+                  <Mic className="w-5 h-5" /> Audio Site Walk
+                </Button>
+                <Button
+                  onClick={() => handleStart("video")}
+                  size="lg"
+                  variant="secondary"
+                  className="gap-2 h-14 px-6 text-base"
+                >
+                  <Video className="w-5 h-5" /> Video Site Diary
+                </Button>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={dualCamera}
+                  onChange={(e) => setDualCamera(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <Users className="w-3.5 h-3.5" />
+                Dual camera (back + front PiP) for video diary
+              </label>
             </div>
           )}
 
@@ -1119,9 +1131,23 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               <Button onClick={handlePause} size="lg" variant="secondary" className="gap-2 h-14 px-6 text-base">
                 <Pause className="w-5 h-5" /> Pause
               </Button>
-              <Button onClick={handleFinish} size="lg" variant="destructive" className="gap-2 h-14 px-6 text-base">
-                <Square className="w-5 h-5" /> Finish
+              <Button onClick={toggleMute} size="lg" variant={muted ? "destructive" : "outline"} className="gap-2 h-14 px-6 text-base">
+                {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                {muted ? "Unmute" : "Mute"}
               </Button>
+              <button
+                type="button"
+                onPointerDown={beginHoldStop}
+                onPointerUp={cancelHoldStop}
+                onPointerLeave={cancelHoldStop}
+                onPointerCancel={cancelHoldStop}
+                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-md bg-destructive text-destructive-foreground shadow-sm font-medium overflow-hidden"
+              >
+                <Square className="w-5 h-5 relative z-10" /> <span className="relative z-10">Hold to Stop</span>
+                {stopProgress > 0 && (
+                  <span className="absolute inset-y-0 left-0 bg-black/25" style={{ width: `${stopProgress}%` }} />
+                )}
+              </button>
             </>
           )}
           {status === "paused" && (
@@ -1129,9 +1155,19 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               <Button onClick={handleResume} size="lg" className="gap-2 h-14 px-6 text-base">
                 <Play className="w-5 h-5" /> Resume
               </Button>
-              <Button onClick={handleFinish} size="lg" variant="destructive" className="gap-2 h-14 px-6 text-base">
-                <Square className="w-5 h-5" /> Finish
-              </Button>
+              <button
+                type="button"
+                onPointerDown={beginHoldStop}
+                onPointerUp={cancelHoldStop}
+                onPointerLeave={cancelHoldStop}
+                onPointerCancel={cancelHoldStop}
+                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-md bg-destructive text-destructive-foreground shadow-sm font-medium overflow-hidden"
+              >
+                <Square className="w-5 h-5 relative z-10" /> <span className="relative z-10">Hold to Stop</span>
+                {stopProgress > 0 && (
+                  <span className="absolute inset-y-0 left-0 bg-black/25" style={{ width: `${stopProgress}%` }} />
+                )}
+              </button>
             </>
           )}
         </div>
@@ -1155,7 +1191,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               </Button>
             </div>
             <p className="text-[11px] text-center text-muted-foreground -mt-1">
-              Tap to capture a photo · {sessionPhotos.length} saved this walk
+              Tap to capture · {sessionPhotos.length} saved this walk · location auto-attached
             </p>
             <input
               ref={fileInputRef}
@@ -1168,8 +1204,15 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
             {sessionPhotos.length > 0 && (
               <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                 {sessionPhotos.map((p) => (
-                  <div
+                  <button
+                    type="button"
                     key={p.id}
+                    onClick={() => p.signedUrl && setPhotoViewer({
+                      signedUrl: p.signedUrl,
+                      timestamp_seconds: p.timestamp_seconds,
+                      hasLocation: p.hasLocation,
+                      created_at: p.created_at,
+                    })}
                     className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden border border-border bg-muted"
                   >
                     {p.signedUrl ? (
@@ -1183,10 +1226,11 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                         <ImageIcon className="w-5 h-5 text-muted-foreground" />
                       </div>
                     )}
-                    <span className="absolute bottom-0 right-0 bg-black/60 text-white text-[9px] font-mono px-1 rounded-tl">
-                      {formatDuration(p.timestamp_seconds)}
+                    <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-mono px-1 flex items-center justify-between">
+                      <span>{formatDuration(p.timestamp_seconds)}</span>
+                      {p.hasLocation && <MapPin className="w-2.5 h-2.5" />}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
