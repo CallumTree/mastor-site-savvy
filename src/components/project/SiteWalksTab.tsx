@@ -30,14 +30,23 @@ import {
   FileVideo,
   Camera,
   ImageIcon,
+  Volume2,
+  VolumeX,
+  MapPin,
+  Users,
 } from "lucide-react";
 import {
   SITE_WALK_PHOTO_BUCKET,
   captureVideoFrame,
+  captureDualCameraFrame,
   signManyPhotoUrls,
   transcriptContextAt,
+  getDeviceLocation,
+  flattenAnnotations,
+  type AnnotationShape,
   type SiteWalkPhoto,
 } from "@/lib/site-walk-photos";
+import { PhotoAnnotator } from "./PhotoAnnotator";
 
 
 type RecordingMode = "audio" | "video";
