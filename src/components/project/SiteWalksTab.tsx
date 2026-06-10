@@ -1602,9 +1602,46 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         </DialogContent>
       </Dialog>
 
+      {/* Snapshot annotation editor */}
+      <PhotoAnnotator
+        open={!!annotator}
+        imageBlob={annotator?.blob ?? null}
+        onCancel={() => persistAnnotatedSnapshot([], 0, 0)}
+        onSave={(shapes, w, h) => persistAnnotatedSnapshot(shapes, w, h)}
+        saving={snapBusy}
+      />
+
+      {/* Snapshot full view */}
+      <Dialog open={!!photoViewer} onOpenChange={(o) => { if (!o) setPhotoViewer(null); }}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4">
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <span>Snapshot</span>
+              <span className="font-mono text-xs text-muted-foreground">
+                {photoViewer && formatDuration(photoViewer.timestamp_seconds)}
+              </span>
+              {photoViewer?.hasLocation && (
+                <span className="flex items-center gap-1 text-xs text-primary">
+                  <MapPin className="w-3.5 h-3.5" /> Geotagged
+                </span>
+              )}
+              {photoViewer && (
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {new Date(photoViewer.created_at).toLocaleString("en-GB")}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {photoViewer && (
+            <img src={photoViewer.signedUrl} alt="Snapshot" className="w-full h-auto max-h-[70vh] object-contain bg-black" />
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
+
 
 /* -------------------------- Analysis Viewer -------------------------- */
 
