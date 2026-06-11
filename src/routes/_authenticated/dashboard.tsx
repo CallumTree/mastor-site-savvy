@@ -65,15 +65,15 @@ function Dashboard() {
     <main className="max-w-5xl mx-auto px-4 py-6 pb-20">
       <section className="mb-6">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Site Overview</p>
-        <h1 className="text-3xl font-bold text-primary mt-1">Good day</h1>
+        <h1 className="font-display text-4xl text-primary mt-2">Good day</h1>
       </section>
 
       {/* Quick Check */}
       <section className="mb-8">
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="border border-border border-l-[2px] border-l-primary bg-card shadow-sm overflow-hidden">
           <div className="bg-primary text-primary-foreground px-4 py-3 flex items-center gap-2">
             <ClipboardCheck className="w-4 h-4 text-gold" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider">Quick Check</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">Quick Check</h2>
           </div>
           <div className="grid grid-cols-3 divide-x divide-border">
             <Stat icon={<HardHat className="w-4 h-4" />} label="Active Sites" value={projects.filter(p => p.status === "On Site").length} />
@@ -85,10 +85,10 @@ function Dashboard() {
 
       {/* AI Activity */}
       <section className="mb-8">
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="border border-border border-l-[2px] border-l-primary bg-card shadow-sm overflow-hidden">
           <div className="bg-primary text-primary-foreground px-4 py-3 flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-gold" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider">AI Activity</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">AI Activity</h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-border">
             <Stat icon={<Inbox className="w-4 h-4" />} label="Awaiting Review" value={ai.awaiting} />
@@ -104,10 +104,10 @@ function Dashboard() {
       {/* Projects header */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-primary">Projects</h2>
+          <h2 className="font-display text-2xl text-primary">Projects</h2>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Button size="sm">
                 <Plus className="w-4 h-4 mr-1" /> New Project
               </Button>
             </DialogTrigger>
@@ -116,11 +116,15 @@ function Dashboard() {
         </div>
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading projects…</p>
+          <LoadingDot label="Loading projects" />
         ) : projects.length === 0 ? (
-          <div className="border border-dashed border-border rounded-lg p-10 text-center">
-            <p className="text-sm text-muted-foreground">No projects yet. Tap <strong>New Project</strong> to begin.</p>
-          </div>
+          <EmptyState
+            icon={FolderPlus}
+            title="No projects yet"
+            description="Create your first project to start tracking site activity, valuations and AI findings."
+            actionLabel="New Project"
+            onAction={() => setOpen(true)}
+          />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {projects.map(p => (
@@ -128,15 +132,15 @@ function Dashboard() {
                 key={p.id}
                 to="/projects/$id"
                 params={{ id: p.id }}
-                className="group block rounded-lg border border-border bg-card hover:border-gold transition overflow-hidden"
+                className="group block border border-border border-l-[2px] border-l-primary bg-card shadow-sm hover:border-l-gold transition overflow-hidden"
               >
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-primary truncate">{p.name}</h3>
+                      <h3 className="font-display text-lg text-primary truncate">{p.name}</h3>
                       <p className="text-xs text-muted-foreground mt-0.5">{p.client ?? "—"}</p>
                     </div>
-                    <span className="shrink-0 text-[10px] uppercase tracking-wider bg-accent text-accent-foreground px-2 py-0.5 rounded">
+                    <span className="shrink-0 text-[10px] uppercase tracking-[0.2em] bg-accent text-accent-foreground px-3 py-1 rounded-full font-semibold">
                       {p.status}
                     </span>
                   </div>
@@ -147,16 +151,16 @@ function Dashboard() {
                   )}
                   <div className="mt-4">
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">Progress</span>
+                      <span className="uppercase tracking-[0.2em] text-muted-foreground">Progress</span>
                       <span className="font-medium text-primary">{p.progress}%</span>
                     </div>
-                    <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-secondary overflow-hidden">
                       <div className="h-full bg-gold" style={{ width: `${p.progress}%` }} />
                     </div>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-border flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">Contract</span>
-                    <span className="text-sm font-semibold text-primary">
+                  <div className="mt-4 pt-3 border-t border-border flex justify-between items-end">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Contract</span>
+                    <span className="font-display text-primary leading-none" style={{ fontSize: "2.5rem" }}>
                       {p.contract_value ? GBP.format(Number(p.contract_value)) : "—"}
                     </span>
                   </div>
