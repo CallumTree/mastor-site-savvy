@@ -177,9 +177,9 @@ function Dashboard() {
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
     <div className="p-4 text-center">
-      <div className="flex justify-center text-primary mb-1.5">{icon}</div>
-      <div className="text-2xl font-bold text-primary">{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">{label}</div>
+      <div className="flex justify-center text-gold mb-1.5">{icon}</div>
+      <div className="font-display text-primary leading-none" style={{ fontSize: "2.5rem" }}>{value}</div>
+      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-2">{label}</div>
     </div>
   );
 }
