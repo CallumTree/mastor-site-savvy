@@ -8,9 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, HardHat, ClipboardCheck, AlertTriangle, MapPin, Sparkles, Inbox, CheckCircle2, FileEdit, Package, ShieldAlert } from "lucide-react";
+import { Plus, HardHat, ClipboardCheck, AlertTriangle, MapPin, Sparkles, Inbox, CheckCircle2, FileEdit, Package, ShieldAlert, FolderPlus } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
+import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingDot } from "@/components/ui/loading-dot";
+import { DisplayMetric } from "@/components/ui/display-metric";
 
 
 type Project = {
