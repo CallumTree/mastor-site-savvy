@@ -52,7 +52,7 @@ function AuthedLayout() {
           </Link>
           <div className="flex items-center gap-3">
             {companyName && (
-              <span className="text-xs uppercase tracking-wider opacity-80 hidden sm:inline">
+              <span className="text-xs uppercase tracking-[0.2em] opacity-80 hidden sm:inline">
                 {companyName}
               </span>
             )}
