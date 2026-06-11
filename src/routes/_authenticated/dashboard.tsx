@@ -64,7 +64,7 @@ function Dashboard() {
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 pb-20">
       <section className="mb-6">
-        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Site Overview</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Site Overview</p>
         <h1 className="text-3xl font-bold text-primary mt-1">Good day</h1>
       </section>
 
