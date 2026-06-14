@@ -42,13 +42,13 @@ function AuthedLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 bg-primary text-primary-foreground border-b border-primary/20">
+      <header className="sticky top-0 z-30 bg-[#0A0A0A] text-white border-b border-[#0A0A0A]">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded bg-gold/95">
-              <span className="font-display font-bold text-primary">M</span>
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded bg-[#D4AF37]">
+              <span className="font-display font-bold text-[#0A0A0A]">M</span>
             </span>
-            <span className="font-display text-lg font-semibold tracking-wide">Mastor</span>
+            <span className="font-display text-lg font-semibold tracking-wide text-white">Mastor</span>
           </Link>
           <div className="flex items-center gap-3">
             {companyName && (
@@ -60,7 +60,7 @@ function AuthedLayout() {
               size="sm"
               variant="ghost"
               onClick={handleSignOut}
-              className="text-primary-foreground hover:bg-primary-foreground/10"
+              className="text-white hover:bg-white/10"
             >
               <LogOut className="w-4 h-4" />
               <span className="sr-only">Sign out</span>
