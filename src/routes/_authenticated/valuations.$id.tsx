@@ -491,7 +491,7 @@ function ValuationPage() {
         <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
           Line Items ({items.length})
         </h2>
-        <div className="rounded-md border border-border overflow-hidden">
+        <div className="hidden md:block rounded-md border border-border overflow-hidden">
           <table className="w-full text-xs">
             <thead className="bg-secondary/40 text-muted-foreground">
               <tr>
@@ -553,7 +553,7 @@ function ValuationPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          className="h-11 w-11 p-0 text-destructive hover:text-destructive"
                           onClick={() => openRemove(it)}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -578,6 +578,90 @@ function ValuationPage() {
             )}
           </table>
         </div>
+
+        {/* Mobile card stack */}
+        <div className="md:hidden space-y-2">
+          {items.length === 0 ? (
+            <div className="rounded-md border border-border p-4 text-center text-xs text-muted-foreground">
+              No line items.
+            </div>
+          ) : (
+            <>
+              {items.map((it) => (
+                <div key={it.id} className="rounded-md border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-primary truncate">
+                        {it.work_package_name ?? "—"}
+                      </div>
+                      {it.description && (
+                        <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                          {it.description}
+                        </div>
+                      )}
+                    </div>
+                    {canRemove && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-11 w-11 p-0 text-destructive hover:text-destructive shrink-0"
+                        onClick={() => openRemove(it)}
+                        aria-label="Remove item"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Unit Rate</div>
+                      {isApproved ? (
+                        <div className="text-xs tabular-nums mt-1">
+                          {it.unit_rate != null ? GBP.format(Number(it.unit_rate)) : "—"}
+                        </div>
+                      ) : (
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          className="h-11 text-xs mt-1"
+                          value={it.unit_rate ?? ""}
+                          onChange={(e) => updateItem(it.id, "unit_rate", e.target.value)}
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Quantity</div>
+                      {isApproved ? (
+                        <div className="text-xs tabular-nums mt-1">
+                          {it.claimed_qty != null ? String(it.claimed_qty) : "—"}
+                        </div>
+                      ) : (
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          className="h-11 text-xs mt-1"
+                          value={it.claimed_qty ?? ""}
+                          onChange={(e) => updateItem(it.id, "claimed_qty", e.target.value)}
+                        />
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Value</div>
+                      <div className="text-sm font-semibold text-primary tabular-nums mt-1">
+                        {it.claimed_value != null ? GBP.format(Number(it.claimed_value)) : "—"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="rounded-md border border-border bg-secondary/30 p-3 flex justify-between items-center">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</span>
+                <span className="text-sm font-semibold text-primary tabular-nums">{GBP.format(thisClaim)}</span>
+              </div>
+            </>
+          )}
+        </div>
+
       </section>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
