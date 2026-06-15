@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
 import { ClipboardCheck, FileCheck, X, CircleDollarSign } from "lucide-react";
+import { LoadingDot } from "@/components/ui/loading-dot";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type ClaimOpportunity = {
   id: string;
