@@ -90,7 +90,7 @@ function ProjectDetail() {
   }, [id]);
 
   if (loading) {
-    return <main className="max-w-5xl mx-auto px-4 py-8 text-sm text-muted-foreground">Loading…</main>;
+    return <main className="max-w-5xl mx-auto px-4 py-8"><LoadingDot label="Loading" /></main>;
   }
 
   if (!project) {
