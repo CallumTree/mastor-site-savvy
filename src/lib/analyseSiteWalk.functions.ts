@@ -28,6 +28,8 @@ Also produce:
 - A flat list of all potential variations mentioned
 - A flat list of all health and safety flags across all rooms
 
+Where progress mentioned matches a contract item, include the contract item code in the progress item as contract_item_ref. This helps map completed work directly to the schedule of rates.
+
 Rules:
 - Use plain British English
 - Never invent items not mentioned in the transcript
@@ -40,7 +42,7 @@ Return this exact structure:
   "rooms": [
     {
       "room": "string",
-      "progress": [{ "text": "string", "completion_percent": 0 }],
+      "progress": [{ "text": "string", "completion_percent": 0, "contract_item_ref": "string (optional, omit if no match)" }],
       "next_tasks": ["string"],
       "materials_needed": ["string"],
       "health_and_safety": ["string"],
@@ -120,6 +122,31 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
       };
     }
 
+    // Fetch contract items (BoQ) to help the model map progress to rates.
+    const { data: ciRows } = await supabaseAdmin
+      .from("contract_items")
+      .select("code, description, total_qty, unit, unit_rate")
+      .eq("project_id", data.projectId);
+    const contractItems = (ciRows ?? []) as Array<{
+      code: string | null;
+      description: string | null;
+      total_qty: number | null;
+      unit: string | null;
+      unit_rate: number | null;
+    }>;
+    let userMessage = `Transcript:\n\n${data.transcript}`;
+    if (contractItems.length > 0) {
+      const lines = contractItems.map((c) => {
+        const code = c.code ?? "—";
+        const desc = c.description ?? "";
+        const qty = c.total_qty ?? "";
+        const unit = c.unit ?? "";
+        const rate = c.unit_rate != null ? Number(c.unit_rate).toFixed(2) : "";
+        return `[${code}] ${desc} — ${qty} ${unit} @ £${rate}`.trim();
+      });
+      userMessage += `\n\nCONTRACT ITEMS (BoQ):\n${lines.join("\n")}`;
+    }
+
     // Call Anthropic
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -133,7 +160,7 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
         max_tokens: 8000,
         system: SYSTEM_PROMPT,
         messages: [
-          { role: "user", content: `Transcript:\n\n${data.transcript}` },
+          { role: "user", content: userMessage },
         ],
       }),
     });
