@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { analyseSiteWalk } from "@/lib/analyseSiteWalk.functions";
+import { matchFindingToContractItem } from "@/lib/matchFinding.functions";
 import { Button } from "@/components/ui/button";
 import { LoadingDot } from "@/components/ui/loading-dot";
 import { Input } from "@/components/ui/input";
@@ -1689,6 +1690,7 @@ function AnalysisViewer({
   walkTitle: string;
 }) {
   const a = row.analysis_json ?? ({} as Analysis);
+  const matchFn = useServerFn(matchFindingToContractItem);
   const [approvedKeys, setApprovedKeys] = useState<Set<string>>(new Set());
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
@@ -1751,43 +1753,49 @@ function AnalysisViewer({
       setBusyKey(null);
       return showError("Site Walks", fErr ?? new Error("Failed to save finding"));
     }
-    // Try to match a contract item by token overlap on description.
+    // Ask Anthropic (via server fn) to pick the best matching contract item.
     let unitRate: number | null = null;
     let quantity: number | null = null;
     let claimedValue: number | null = null;
     const { data: contractItems } = await supabase
       .from("contract_items")
-      .select("unit_rate, total_qty, description")
+      .select("id, unit_rate, total_qty, description, unit")
       .eq("project_id", projectId);
-    const tokenize = (s: string) =>
-      (s || "")
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, " ")
-        .split(/\s+/)
-        .filter((w) => w.length > 2);
-    const findingTokens = new Set(tokenize(`${text} ${roomName}`));
-    let best: { score: number; rate: number | null; qty: number | null } | null = null;
-    for (const ci of (contractItems ?? []) as Array<{
+    const items = (contractItems ?? []) as Array<{
+      id: string;
       unit_rate: number | null;
       total_qty: number | null;
       description: string | null;
-    }>) {
-      const descTokens = tokenize(ci.description ?? "");
-      let score = 0;
-      for (const w of descTokens) if (findingTokens.has(w)) score++;
-      if (score >= 2 && (!best || score > best.score)) {
-        best = {
-          score,
-          rate: ci.unit_rate != null ? Number(ci.unit_rate) : null,
-          qty: ci.total_qty != null ? Number(ci.total_qty) : null,
-        };
+      unit: string | null;
+    }>;
+    if (items.length > 0) {
+      try {
+        const res = await matchFn({
+          data: {
+            finding_text: text,
+            room_name: roomName ?? "",
+            contract_items: items.map((c) => ({
+              id: c.id,
+              description: c.description,
+              unit_rate: c.unit_rate != null ? Number(c.unit_rate) : null,
+              total_qty: c.total_qty != null ? Number(c.total_qty) : null,
+              unit: c.unit,
+            })),
+          },
+        });
+        if (res.ok && res.result?.matched && res.result.contract_item_id) {
+          const matched = items.find((c) => c.id === res.result.contract_item_id);
+          if (matched) {
+            unitRate = matched.unit_rate != null ? Number(matched.unit_rate) : null;
+            quantity = matched.total_qty != null ? Number(matched.total_qty) : null;
+            if (unitRate != null && quantity != null) claimedValue = unitRate * quantity;
+          }
+        }
+      } catch (e) {
+        console.error("[approveProgress] match call failed", e);
       }
     }
-    if (best) {
-      unitRate = best.rate;
-      quantity = best.qty;
-      if (unitRate != null && quantity != null) claimedValue = unitRate * quantity;
-    }
+
 
     const { error: cErr } = await supabase.from("claim_opportunities").insert({
       project_id: projectId,
