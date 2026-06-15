@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
 
 import { ValuationsTab } from "@/components/project/ValuationsTab";
+import { LoadingDot } from "@/components/ui/loading-dot";
+import { DisplayMetric } from "@/components/ui/display-metric";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
