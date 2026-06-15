@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ChevronLeft, MapPin, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { ScopeTab } from "@/components/project/ScopeTab";
+
 import { ValuationsTab } from "@/components/project/ValuationsTab";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
@@ -156,7 +156,6 @@ function ProjectDetail() {
           <Section title="Work Packages">
             <WorkPackagesTab projectId={project.id} />
           </Section>
-          <ScopeTab projectId={project.id} />
           <Section title="Project Documents">
             <ProjectDocumentsTab projectId={project.id} />
           </Section>
