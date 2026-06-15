@@ -87,6 +87,7 @@ export type Database = {
           claim_description: string | null
           claim_title: string | null
           claimed_value: number | null
+          completion_percent: number | null
           confidence_score: string | null
           contract_value: number | null
           created_at: string
@@ -109,6 +110,7 @@ export type Database = {
           claim_description?: string | null
           claim_title?: string | null
           claimed_value?: number | null
+          completion_percent?: number | null
           confidence_score?: string | null
           contract_value?: number | null
           created_at?: string
@@ -131,6 +133,7 @@ export type Database = {
           claim_description?: string | null
           claim_title?: string | null
           claimed_value?: number | null
+          completion_percent?: number | null
           confidence_score?: string | null
           contract_value?: number | null
           created_at?: string

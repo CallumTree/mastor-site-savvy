@@ -1,0 +1,1 @@
+ALTER TABLE public.claim_opportunities ADD COLUMN IF NOT EXISTS completion_percent numeric;

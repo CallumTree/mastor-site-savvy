@@ -66,9 +66,11 @@ type SiteWalk = {
 
 
 
+type ProgressItem = { text: string; completion_percent: number };
+
 type RoomAnalysis = {
   room: string;
-  progress: string[];
+  progress: Array<ProgressItem | string>;
   next_tasks: string[];
   materials_needed: string[];
   health_and_safety: string[];
@@ -1731,7 +1733,11 @@ function AnalysisViewer({
     );
   };
 
-  const approveProgress = async (roomName: string, text: string) => {
+  const approveProgress = async (
+    roomName: string,
+    text: string,
+    completionPercent: number,
+  ) => {
     const key = `${roomName}::${text}`;
     setBusyKey(key);
     // Create approved_finding and a linked claim_opportunity (Ready To Claim)
@@ -1788,7 +1794,10 @@ function AnalysisViewer({
           if (matched) {
             unitRate = matched.unit_rate != null ? Number(matched.unit_rate) : null;
             quantity = matched.total_qty != null ? Number(matched.total_qty) : null;
-            if (unitRate != null && quantity != null) claimedValue = unitRate * quantity;
+            if (unitRate != null && quantity != null) {
+              const pct = Math.max(0, Math.min(100, Number(completionPercent) || 0));
+              claimedValue = unitRate * quantity * (pct / 100);
+            }
           }
         }
       } catch (e) {
@@ -1806,6 +1815,7 @@ function AnalysisViewer({
       unit_rate: unitRate,
       quantity,
       claimed_value: claimedValue,
+      completion_percent: completionPercent,
     });
 
     setBusyKey(null);
@@ -1963,10 +1973,15 @@ function RoomCard({
   room: RoomAnalysis;
   approvedKeys: Set<string>;
   busyKey: string | null;
-  onApprove: (roomName: string, text: string) => void;
+  onApprove: (roomName: string, text: string, completionPercent: number) => void;
   photos?: Array<{ id: string; signedUrl: string | null; timestamp_seconds: number }>;
 }) {
-  const progressItems = room.progress ?? [];
+  const rawProgress = room.progress ?? [];
+  const progressItems: ProgressItem[] = rawProgress.map((p) =>
+    typeof p === "string"
+      ? { text: p, completion_percent: 100 }
+      : { text: String(p?.text ?? ""), completion_percent: Number(p?.completion_percent ?? 100) },
+  );
   const sections: Array<{ label: string; items: string[]; tone?: string }> = [
     { label: "Next Tasks", items: room.next_tasks ?? [] },
     { label: "Materials Needed", items: room.materials_needed ?? [] },
@@ -1988,21 +2003,36 @@ function RoomCard({
           </div>
           <ul className="space-y-1.5">
             {progressItems.map((item, i) => {
-              const key = `${room.room}::${item}`;
+              const key = `${room.room}::${item.text}`;
               const approved = approvedKeys.has(key);
               const busy = busyKey === key;
+              const pct = Math.max(0, Math.min(100, Math.round(item.completion_percent)));
+              const pctTone =
+                pct >= 90
+                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  : pct >= 50
+                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                    : "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300";
               return (
                 <li
                   key={`prog-${i}`}
                   className="flex items-start justify-between gap-2 rounded-md border border-border bg-card p-2 text-xs"
                 >
-                  <span className="flex-1 text-foreground">{item}</span>
+                  <div className="flex-1 flex items-start gap-2">
+                    <span
+                      className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium tabular-nums ${pctTone}`}
+                      title="Estimated completion"
+                    >
+                      {pct}%
+                    </span>
+                    <span className="flex-1 text-foreground">{item.text}</span>
+                  </div>
                   <Button
                     size="sm"
                     variant={approved ? "secondary" : "outline"}
                     className="gap-1 h-6 text-[10px] shrink-0"
                     disabled={approved || busy}
-                    onClick={() => onApprove(room.room, item)}
+                    onClick={() => onApprove(room.room, item.text, pct)}
                   >
                     {busy ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
