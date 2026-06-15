@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Upload, FileText, Trash2, Sparkles, Eye, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { parseBoQ } from "@/lib/parseDocument.functions";
+import { LoadingDot } from "@/components/ui/loading-dot";
 
 type Doc = {
   id: string;
