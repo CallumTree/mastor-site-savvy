@@ -705,6 +705,7 @@ export type Database = {
           scope_element_id: string | null
           status: string
           supplier: string | null
+          unit: string | null
           updated_at: string
         }
         Insert: {
@@ -718,6 +719,7 @@ export type Database = {
           scope_element_id?: string | null
           status?: string
           supplier?: string | null
+          unit?: string | null
           updated_at?: string
         }
         Update: {
@@ -731,6 +733,7 @@ export type Database = {
           scope_element_id?: string | null
           status?: string
           supplier?: string | null
+          unit?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1164,7 +1167,9 @@ export type Database = {
           source_reference: string | null
           status: string
           title: string
+          total_cost: number | null
           unit: string | null
+          unit_rate: number | null
         }
         Insert: {
           claimed_in_valuation?: Json | null
@@ -1181,7 +1186,9 @@ export type Database = {
           source_reference?: string | null
           status?: string
           title: string
+          total_cost?: number | null
           unit?: string | null
+          unit_rate?: number | null
         }
         Update: {
           claimed_in_valuation?: Json | null
@@ -1198,7 +1205,9 @@ export type Database = {
           source_reference?: string | null
           status?: string
           title?: string
+          total_cost?: number | null
           unit?: string | null
+          unit_rate?: number | null
         }
         Relationships: [
           {
