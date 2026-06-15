@@ -231,6 +231,15 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
   );
 }
 
+function HealthPill({ icon, label, classes }: { icon: React.ReactNode; label: string; classes: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold ${classes}`}>
+      {icon}
+      {label}
+    </span>
+  );
+}
+
 function NewProjectDialog({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState("");
   const [client, setClient] = useState("");
