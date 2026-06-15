@@ -164,9 +164,6 @@ function ProjectDetail() {
         <TabsContent value="site-walks" className="mt-4 space-y-8">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Understand Progress</p>
           <SiteWalksTab projectId={project.id} />
-          <Section title="Review Queue">
-            <ReviewQueueTab projectId={project.id} />
-          </Section>
         </TabsContent>
 
         <TabsContent value="procurement" className="mt-4 space-y-8">
