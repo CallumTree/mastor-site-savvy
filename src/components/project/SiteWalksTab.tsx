@@ -214,6 +214,29 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     secondsRef.current = seconds;
   }, [seconds]);
 
+  // Auto-save transcript every 30s while recording or paused
+  useEffect(() => {
+    if (status !== "recording" && status !== "paused") return;
+    const interval = setInterval(async () => {
+      const walkId = currentWalkIdRef.current;
+      if (!walkId) return;
+      const { error } = await supabase
+        .from("site_walks")
+        .update({ transcript: transcriptRef.current })
+        .eq("id", walkId);
+      if (!error) setSavedAt(Date.now());
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [status]);
+
+  // Fade out "Saved ✓" after 2 seconds
+  useEffect(() => {
+    if (savedAt == null) return;
+    const t = setTimeout(() => setSavedAt(null), 2000);
+    return () => clearTimeout(t);
+  }, [savedAt]);
+
+
   const loadAll = async () => {
     setLoading(true);
     const [{ data: walkData, error: we }, { data: anData, error: ae }] = await Promise.all([
