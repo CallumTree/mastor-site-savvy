@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, HardHat, ClipboardCheck, AlertTriangle, MapPin, Sparkles, Inbox, CheckCircle2, FileEdit, Package, ShieldAlert, FolderPlus } from "lucide-react";
+import { Plus, HardHat, ClipboardCheck, AlertTriangle, MapPin, Sparkles, Inbox, CheckCircle2, FileEdit, Package, ShieldAlert, FolderPlus, Footprints, TriangleAlert, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -26,6 +26,12 @@ type Project = {
   progress: number;
 };
 
+type ProjectHealth = {
+  daysSinceWalk: number | null;
+  draftVariations: number;
+  staleProcurement: number;
+};
+
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Mastor" }] }),
   component: Dashboard,
@@ -35,6 +41,7 @@ const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP",
 
 function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [healthMap, setHealthMap] = useState<Record<string, ProjectHealth>>({});
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [ai, setAi] = useState({ awaiting: 0, approvedWeek: 0, variations: 0, procurement: 0, risks: 0 });
@@ -42,12 +49,17 @@ function Dashboard() {
   const load = async () => {
     setLoading(true);
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const [{ data, error }, { data: findings }] = await Promise.all([
+    const [{ data, error }, { data: findings }, { data: walks }, { data: variationsData }, { data: procurementData }] = await Promise.all([
       supabase.from("projects").select("*").order("created_at", { ascending: false }),
       (supabase as any).from("approved_findings").select("finding_type, status, approved_at"),
+      supabase.from("site_walks").select("project_id, created_at").order("created_at", { ascending: false }),
+      supabase.from("variations").select("project_id, status, created_at"),
+      supabase.from("procurement_items").select("project_id, status, created_at"),
     ]);
     if (error) showError("Dashboard", error);
-    setProjects((data ?? []) as Project[]);
+    const projList = (data ?? []) as Project[];
+    setProjects(projList);
+
     const f = (findings ?? []) as { finding_type: string; status: string; approved_at: string | null }[];
     setAi({
       awaiting: f.filter((x) => x.status === "Awaiting Review").length,
@@ -56,6 +68,26 @@ function Dashboard() {
       procurement: f.filter((x) => x.finding_type === "procurement").length,
       risks: f.filter((x) => x.finding_type === "risk").length,
     });
+
+    // Build health map per project
+    const hm: Record<string, ProjectHealth> = {};
+    for (const p of projList) {
+      const walksForProject = ((walks ?? []) as { project_id: string; created_at: string }[])
+        .filter((w) => w.project_id === p.id);
+      const mostRecentWalk = walksForProject[0];
+      const daysSinceWalk = mostRecentWalk
+        ? Math.floor((Date.now() - new Date(mostRecentWalk.created_at).getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+
+      const draftVars = ((variationsData ?? []) as { project_id: string; status: string }[])
+        .filter((v) => v.project_id === p.id && v.status === "Draft").length;
+
+      const staleProc = ((procurementData ?? []) as { project_id: string; status: string; created_at: string }[])
+        .filter((pi) => pi.project_id === p.id && pi.status === "Required" && pi.created_at < weekAgo).length;
+
+      hm[p.id] = { daysSinceWalk, draftVariations: draftVars, staleProcurement: staleProc };
+    }
+    setHealthMap(hm);
     setLoading(false);
   };
 
@@ -158,6 +190,21 @@ function Dashboard() {
                       <div className="h-full bg-gold" style={{ width: `${p.progress}%` }} />
                     </div>
                   </div>
+                  {(() => {
+                    const h = healthMap[p.id];
+                    if (!h) return null;
+                    const walkColor = h.daysSinceWalk === null || h.daysSinceWalk > 7 ? "bg-red-100 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200";
+                    const walkLabel = h.daysSinceWalk === null ? "No walk" : `${h.daysSinceWalk}d`;
+                    const varColor = h.draftVariations > 0 ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-green-100 text-green-700 border-green-200";
+                    const procColor = h.staleProcurement > 0 ? "bg-red-100 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200";
+                    return (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <HealthPill icon={<Footprints className="w-3 h-3" />} label={walkLabel} classes={walkColor} />
+                        <HealthPill icon={<TriangleAlert className="w-3 h-3" />} label={`${h.draftVariations} draft`} classes={varColor} />
+                        <HealthPill icon={<ShoppingCart className="w-3 h-3" />} label={`${h.staleProcurement} req`} classes={procColor} />
+                      </div>
+                    );
+                  })()}
                   <div className="mt-4 pt-3 border-t border-border flex justify-between items-end">
                     <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Contract</span>
                     <span className="font-display text-primary leading-none" style={{ fontSize: "2.5rem" }}>
@@ -181,6 +228,15 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
       <div className="font-display text-primary leading-none" style={{ fontSize: "2.5rem" }}>{value}</div>
       <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-2">{label}</div>
     </div>
+  );
+}
+
+function HealthPill({ icon, label, classes }: { icon: React.ReactNode; label: string; classes: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold ${classes}`}>
+      {icon}
+      {label}
+    </span>
   );
 }
 
