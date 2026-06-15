@@ -145,7 +145,7 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
   };
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return <LoadingDot label="Loading" />;
   }
 
   return (
