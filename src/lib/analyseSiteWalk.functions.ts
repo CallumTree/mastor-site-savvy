@@ -16,7 +16,7 @@ Your job is to structure it into a clear site diary document organised by room o
 
 For each room or area mentioned extract:
 - Room or area name
-- Progress: what has been completed
+- Progress: what has been completed. For each progress item, estimate completion_percent (an integer 0-100) based on how complete the work sounds. "Complete" or "finished" = 100. "Nearly done" / "snagging" = 90. "Half done" = 50. "Started" / "just begun" = 20. If unclear, make a reasonable estimate.
 - Next tasks: what still needs doing
 - Materials needed: anything mentioned as required
 - Health and safety flags: any hazards, risks or safety issues mentioned
@@ -40,7 +40,7 @@ Return this exact structure:
   "rooms": [
     {
       "room": "string",
-      "progress": ["string"],
+      "progress": [{ "text": "string", "completion_percent": 0 }],
       "next_tasks": ["string"],
       "materials_needed": ["string"],
       "health_and_safety": ["string"],
