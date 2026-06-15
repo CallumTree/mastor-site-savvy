@@ -408,15 +408,9 @@ function ClaimProgressTable({
           );
         })}
 
-        <div className="rounded border border-border p-3 text-xs space-y-1">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">This draft value</span>
-            <span className="font-semibold text-primary">{GBP.format(totals.thisDraftValue)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Cumulative claimed</span>
-            <span className="font-semibold text-primary">{GBP.format(totals.cumulativeValue)}</span>
-          </div>
+        <div className="rounded border border-border bg-card p-4 grid grid-cols-2 gap-4">
+          <DisplayMetric label="This Draft" value={GBP.format(totals.thisDraftValue)} />
+          <DisplayMetric label="Cumulative" value={GBP.format(totals.cumulativeValue)} />
         </div>
       </div>
     </div>
