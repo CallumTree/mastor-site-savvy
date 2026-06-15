@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Package, Loader2 } from "lucide-react";
+import { LoadingDot } from "@/components/ui/loading-dot";
 
 type WorkPackage = {
   id: string;
