@@ -1690,9 +1690,11 @@ function AnalysisViewer({
   const a = row.analysis_json ?? ({} as Analysis);
   const [approvedKeys, setApprovedKeys] = useState<Set<string>>(new Set());
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
   const [walkPhotos, setWalkPhotos] = useState<
     Array<{ id: string; signedUrl: string | null; transcript_context: string | null; timestamp_seconds: number }>
   >([]);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -1785,7 +1787,48 @@ function AnalysisViewer({
         </Section>
       )}
 
+      {walkPhotos.length > 0 && (
+        <Section title="Photo Timeline">
+          <div className="-mx-1 overflow-x-auto">
+            <div className="flex gap-2 px-1 pb-2">
+              {walkPhotos.map((p) => {
+                const mm = Math.floor((p.timestamp_seconds ?? 0) / 60);
+                const ss = Math.floor((p.timestamp_seconds ?? 0) % 60);
+                const ts = `${mm}:${ss.toString().padStart(2, "0")}`;
+                const snippet = (p.transcript_context ?? "")
+                  .trim()
+                  .split(/\s+/)
+                  .filter(Boolean)
+                  .slice(0, 8)
+                  .join(" ");
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => p.signedUrl && setLightboxPhoto(p.signedUrl)}
+                    className="shrink-0 w-36 rounded-md border border-border bg-background overflow-hidden text-left hover:border-primary/50 transition-colors"
+                  >
+                    {p.signedUrl ? (
+                      <img src={p.signedUrl} alt="" className="w-full h-24 object-cover" />
+                    ) : (
+                      <div className="w-full h-24 bg-muted" />
+                    )}
+                    <div className="p-1.5">
+                      <div className="text-[10px] font-mono text-muted-foreground">{ts}</div>
+                      {snippet && (
+                        <div className="text-[11px] leading-snug line-clamp-2 mt-0.5">{snippet}</div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </Section>
+      )}
+
       <Section title="Rooms & Areas — Approve Progress to Claim" empty={rooms.length === 0}>
+
         <div className="space-y-3">
           {rooms.map((r, i) => (
             <RoomCard
@@ -1846,8 +1889,17 @@ function AnalysisViewer({
           ))}
         </ul>
       </Section>
+
+      <Dialog open={!!lightboxPhoto} onOpenChange={(o) => !o && setLightboxPhoto(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black border-0">
+          {lightboxPhoto && (
+            <img src={lightboxPhoto} alt="" className="w-full h-full object-contain max-h-[95vh]" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
+
 }
 
 function RoomCard({
