@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { analyseSiteWalk } from "@/lib/analyseSiteWalk.functions";
 import { Button } from "@/components/ui/button";
+import { LoadingDot } from "@/components/ui/loading-dot";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
