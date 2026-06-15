@@ -66,9 +66,11 @@ type SiteWalk = {
 
 
 
+type ProgressItem = { text: string; completion_percent: number };
+
 type RoomAnalysis = {
   room: string;
-  progress: string[];
+  progress: Array<ProgressItem | string>;
   next_tasks: string[];
   materials_needed: string[];
   health_and_safety: string[];
