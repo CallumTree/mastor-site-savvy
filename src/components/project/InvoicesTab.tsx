@@ -3,7 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { FileText } from "lucide-react";
+import { FileText, Receipt } from "lucide-react";
+import { LoadingDot } from "@/components/ui/loading-dot";
+import { EmptyState } from "@/components/ui/empty-state";
+import { DisplayMetric } from "@/components/ui/display-metric";
 
 type Invoice = {
   id: string;
