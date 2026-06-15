@@ -147,7 +147,7 @@ export function WorkPackagesTab({ projectId }: { projectId: string }) {
     setDetailLoading(null);
   };
 
-  if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (loading) return <LoadingDot label="Loading" />;
 
   if (packages.length === 0) {
     return (
