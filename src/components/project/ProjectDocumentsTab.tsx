@@ -176,6 +176,30 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         const { error: insErr } = await (supabase as any).from("scope_elements").insert(rows);
         if (insErr) throw insErr;
       }
+
+      // Mirror to contract_items so claim/valuation pricing has real £ figures.
+      const ciRows = items
+        .filter((item) => item.description)
+        .map((item) => ({
+          project_id: projectId,
+          code: item.code || null,
+          description: item.description,
+          total_qty: item.quantity ?? null,
+          unit: item.unit || null,
+          unit_rate: item.rate ?? null,
+        }));
+      const codes = ciRows.map((r) => r.code).filter(Boolean) as string[];
+      if (codes.length) {
+        await (supabase as any)
+          .from("contract_items")
+          .delete()
+          .eq("project_id", projectId)
+          .in("code", codes);
+      }
+      if (ciRows.length) {
+        const { error: ciErr } = await (supabase as any).from("contract_items").insert(ciRows);
+        if (ciErr) throw ciErr;
+      }
       await (supabase as any)
         .from("project_documents")
         .update({ parsed_at: new Date().toISOString() })
