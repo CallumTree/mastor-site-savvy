@@ -5,8 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { Plus, Trash2, Save, X, ChevronDown, ChevronRight, Archive, HelpCircle } from "lucide-react";
+import { Plus, Trash2, Save, X, ChevronDown, ChevronRight, Archive, HelpCircle, PackageSearch } from "lucide-react";
 import { classifyProcurement, PHASES, phaseName, UNMATCHED_PHASE_ORDER, type MinimalScopeElement } from "@/lib/procurement-phase";
+import { LoadingDot } from "@/components/ui/loading-dot";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type ProcurementItem = {
   id: string;
