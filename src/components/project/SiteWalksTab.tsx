@@ -1750,13 +1750,55 @@ function AnalysisViewer({
       setBusyKey(null);
       return showError("Site Walks", fErr ?? new Error("Failed to save finding"));
     }
+    // Try to match a contract item by token overlap on description.
+    let unitRate: number | null = null;
+    let quantity: number | null = null;
+    let claimedValue: number | null = null;
+    const { data: contractItems } = await supabase
+      .from("contract_items")
+      .select("unit_rate, total_qty, description")
+      .eq("project_id", projectId);
+    const tokenize = (s: string) =>
+      (s || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length > 2);
+    const findingTokens = new Set(tokenize(`${text} ${roomName}`));
+    let best: { score: number; rate: number | null; qty: number | null } | null = null;
+    for (const ci of (contractItems ?? []) as Array<{
+      unit_rate: number | null;
+      total_qty: number | null;
+      description: string | null;
+    }>) {
+      const descTokens = tokenize(ci.description ?? "");
+      let score = 0;
+      for (const w of descTokens) if (findingTokens.has(w)) score++;
+      if (score >= 2 && (!best || score > best.score)) {
+        best = {
+          score,
+          rate: ci.unit_rate != null ? Number(ci.unit_rate) : null,
+          qty: ci.total_qty != null ? Number(ci.total_qty) : null,
+        };
+      }
+    }
+    if (best) {
+      unitRate = best.rate;
+      quantity = best.qty;
+      if (unitRate != null && quantity != null) claimedValue = unitRate * quantity;
+    }
+
     const { error: cErr } = await supabase.from("claim_opportunities").insert({
       project_id: projectId,
       work_package_name: roomName || "Site Walk Progress",
       finding_text: text,
       approved_finding_id: finding.id,
       status: "Pending Review",
+      unit_rate: unitRate,
+      quantity,
+      claimed_value: claimedValue,
     });
+
     setBusyKey(null);
     if (cErr) return showError("Site Walks", cErr);
     setApprovedKeys((s) => new Set(s).add(key));
