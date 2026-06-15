@@ -245,7 +245,7 @@ function ClaimProgressTable({
   };
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading claim progress…</p>;
+    return <LoadingDot label="Loading claim progress" />;
   }
 
   if (items.length === 0) {
