@@ -58,7 +58,7 @@ export function ClaimOpportunitiesTab({ projectId }: { projectId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     const { data: cs, error: ce } = await supabase
-      .from("potential_claims")
+      .from("claim_opportunities")
       .select("*")
       .eq("project_id", projectId)
       .order("created_at", { ascending: false });
@@ -125,7 +125,7 @@ export function ClaimOpportunitiesTab({ projectId }: { projectId: string }) {
     const patch: any = { status };
     if (status === "Approved") patch.approved_at = new Date().toISOString();
     if (status === "Rejected") patch.rejected_at = new Date().toISOString();
-    const { error } = await supabase.from("potential_claims").update(patch).eq("id", id);
+    const { error } = await supabase.from("claim_opportunities").update(patch).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success(`Claim ${status.toLowerCase()}`);
     load();
@@ -133,7 +133,7 @@ export function ClaimOpportunitiesTab({ projectId }: { projectId: string }) {
 
   const markReadyToClaim = async (c: Claim) => {
     const { error } = await supabase
-      .from("potential_claims")
+      .from("claim_opportunities")
       .update({ status: "Ready To Claim", ready_to_claim_at: new Date().toISOString() })
       .eq("id", c.id);
     if (error) return toast.error(error.message);
@@ -145,7 +145,7 @@ export function ClaimOpportunitiesTab({ projectId }: { projectId: string }) {
     const e = editing[id];
     if (!e) return;
     const { error } = await supabase
-      .from("potential_claims")
+      .from("claim_opportunities")
       .update({
         claim_title: e.claim_title,
         claim_description: e.claim_description,
