@@ -1889,8 +1889,17 @@ function AnalysisViewer({
           ))}
         </ul>
       </Section>
+
+      <Dialog open={!!lightboxPhoto} onOpenChange={(o) => !o && setLightboxPhoto(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black border-0">
+          {lightboxPhoto && (
+            <img src={lightboxPhoto} alt="" className="w-full h-full object-contain max-h-[95vh]" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
+
 }
 
 function RoomCard({
