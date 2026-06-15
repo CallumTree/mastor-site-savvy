@@ -122,6 +122,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [walks, setWalks] = useState<SiteWalk[]>([]);
   const [loading, setLoading] = useState(true);
   const [micDenied, setMicDenied] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
 
   const [customOpen, setCustomOpen] = useState(false);
   const [customName, setCustomName] = useState("");
