@@ -64,7 +64,7 @@ function ProjectDetail() {
         supabase.from("projects").select("*").eq("id", id).maybeSingle(),
         supabase.from("variations").select("status").eq("project_id", id),
         (supabase as any).from("procurement_items").select("status, estimated_cost").eq("project_id", id),
-        (supabase as any).from("potential_claims").select("status, contract_value").eq("project_id", id),
+        (supabase as any).from("claim_opportunities").select("status, contract_value").eq("project_id", id),
       ]);
       if (pe) showError("Project", pe);
       setProject((p as Project) ?? null);
