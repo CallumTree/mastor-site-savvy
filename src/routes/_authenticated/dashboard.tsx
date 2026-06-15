@@ -190,6 +190,21 @@ function Dashboard() {
                       <div className="h-full bg-gold" style={{ width: `${p.progress}%` }} />
                     </div>
                   </div>
+                  {(() => {
+                    const h = healthMap[p.id];
+                    if (!h) return null;
+                    const walkColor = h.daysSinceWalk === null || h.daysSinceWalk > 7 ? "bg-red-100 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200";
+                    const walkLabel = h.daysSinceWalk === null ? "No walk" : `${h.daysSinceWalk}d`;
+                    const varColor = h.draftVariations > 0 ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-green-100 text-green-700 border-green-200";
+                    const procColor = h.staleProcurement > 0 ? "bg-red-100 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200";
+                    return (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <HealthPill icon={<Footprints className="w-3 h-3" />} label={walkLabel} classes={walkColor} />
+                        <HealthPill icon={<TriangleAlert className="w-3 h-3" />} label={`${h.draftVariations} draft`} classes={varColor} />
+                        <HealthPill icon={<ShoppingCart className="w-3 h-3" />} label={`${h.staleProcurement} req`} classes={procColor} />
+                      </div>
+                    );
+                  })()}
                   <div className="mt-4 pt-3 border-t border-border flex justify-between items-end">
                     <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Contract</span>
                     <span className="font-display text-primary leading-none" style={{ fontSize: "2.5rem" }}>
