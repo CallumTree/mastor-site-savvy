@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, HardHat, ClipboardCheck, AlertTriangle, MapPin, Sparkles, Inbox, CheckCircle2, FileEdit, Package, ShieldAlert, FolderPlus } from "lucide-react";
+import { Plus, HardHat, ClipboardCheck, AlertTriangle, MapPin, Sparkles, Inbox, CheckCircle2, FileEdit, Package, ShieldAlert, FolderPlus, Footprints, TriangleAlert, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -24,6 +24,12 @@ type Project = {
   contract_value: number | null;
   status: string;
   progress: number;
+};
+
+type ProjectHealth = {
+  daysSinceWalk: number | null;
+  draftVariations: number;
+  staleProcurement: number;
 };
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
