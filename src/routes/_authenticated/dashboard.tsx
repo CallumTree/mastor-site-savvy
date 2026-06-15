@@ -41,6 +41,7 @@ const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP",
 
 function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [healthMap, setHealthMap] = useState<Record<string, ProjectHealth>>({});
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [ai, setAi] = useState({ awaiting: 0, approvedWeek: 0, variations: 0, procurement: 0, risks: 0 });
@@ -48,12 +49,17 @@ function Dashboard() {
   const load = async () => {
     setLoading(true);
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const [{ data, error }, { data: findings }] = await Promise.all([
+    const [{ data, error }, { data: findings }, { data: walks }, { data: variationsData }, { data: procurementData }] = await Promise.all([
       supabase.from("projects").select("*").order("created_at", { ascending: false }),
       (supabase as any).from("approved_findings").select("finding_type, status, approved_at"),
+      supabase.from("site_walks").select("project_id, created_at").order("created_at", { ascending: false }),
+      supabase.from("variations").select("project_id, status, created_at"),
+      supabase.from("procurement_items").select("project_id, status, created_at"),
     ]);
     if (error) showError("Dashboard", error);
-    setProjects((data ?? []) as Project[]);
+    const projList = (data ?? []) as Project[];
+    setProjects(projList);
+
     const f = (findings ?? []) as { finding_type: string; status: string; approved_at: string | null }[];
     setAi({
       awaiting: f.filter((x) => x.status === "Awaiting Review").length,
@@ -62,6 +68,26 @@ function Dashboard() {
       procurement: f.filter((x) => x.finding_type === "procurement").length,
       risks: f.filter((x) => x.finding_type === "risk").length,
     });
+
+    // Build health map per project
+    const hm: Record<string, ProjectHealth> = {};
+    for (const p of projList) {
+      const walksForProject = ((walks ?? []) as { project_id: string; created_at: string }[])
+        .filter((w) => w.project_id === p.id);
+      const mostRecentWalk = walksForProject[0];
+      const daysSinceWalk = mostRecentWalk
+        ? Math.floor((Date.now() - new Date(mostRecentWalk.created_at).getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+
+      const draftVars = ((variationsData ?? []) as { project_id: string; status: string }[])
+        .filter((v) => v.project_id === p.id && v.status === "Draft").length;
+
+      const staleProc = ((procurementData ?? []) as { project_id: string; status: string; created_at: string }[])
+        .filter((pi) => pi.project_id === p.id && pi.status === "Required" && pi.created_at < weekAgo).length;
+
+      hm[p.id] = { daysSinceWalk, draftVariations: draftVars, staleProcurement: staleProc };
+    }
+    setHealthMap(hm);
     setLoading(false);
   };
 
