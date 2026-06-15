@@ -88,11 +88,15 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <LoadingDot label="Loading" />
       ) : vals.length === 0 ? (
-        <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
-          No valuations yet. Create your first draft.
-        </div>
+        <EmptyState
+          icon={Receipt}
+          title="No valuations yet"
+          description="Start a draft to begin claiming progress against your contract."
+          actionLabel="New draft"
+          onAction={createDraft}
+        />
       ) : (
         vals.map((v) => {
           const isOpen = expanded === v.id;
