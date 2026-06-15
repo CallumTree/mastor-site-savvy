@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { analyseSiteWalk } from "@/lib/analyseSiteWalk.functions";
 import { Button } from "@/components/ui/button";
+import { LoadingDot } from "@/components/ui/loading-dot";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -1356,7 +1357,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           Previous Site Walks
         </h3>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <LoadingDot label="Loading" />
         ) : walks.length === 0 ? (
           <div className="p-8 rounded-xl border border-dashed border-border text-center">
             <p className="text-sm font-medium text-foreground">No Site Walks Recorded Yet</p>

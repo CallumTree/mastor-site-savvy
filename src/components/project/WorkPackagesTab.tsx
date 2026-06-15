@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Package, Loader2 } from "lucide-react";
+import { LoadingDot } from "@/components/ui/loading-dot";
 
 type WorkPackage = {
   id: string;
@@ -146,7 +147,7 @@ export function WorkPackagesTab({ projectId }: { projectId: string }) {
     setDetailLoading(null);
   };
 
-  if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (loading) return <LoadingDot label="Loading" />;
 
   if (packages.length === 0) {
     return (

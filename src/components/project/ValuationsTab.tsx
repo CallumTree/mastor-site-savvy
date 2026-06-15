@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { ChevronDown, ChevronRight, Plus, Save } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Save, Receipt } from "lucide-react";
+import { LoadingDot } from "@/components/ui/loading-dot";
+import { EmptyState } from "@/components/ui/empty-state";
+import { DisplayMetric } from "@/components/ui/display-metric";
 
 type Valuation = {
   id: string;
@@ -85,11 +88,15 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <LoadingDot label="Loading" />
       ) : vals.length === 0 ? (
-        <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
-          No valuations yet. Create your first draft.
-        </div>
+        <EmptyState
+          icon={Receipt}
+          title="No valuations yet"
+          description="Start a draft to begin claiming progress against your contract."
+          actionLabel="New draft"
+          onAction={createDraft}
+        />
       ) : (
         vals.map((v) => {
           const isOpen = expanded === v.id;
@@ -238,7 +245,7 @@ function ClaimProgressTable({
   };
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading claim progress…</p>;
+    return <LoadingDot label="Loading claim progress" />;
   }
 
   if (items.length === 0) {
@@ -401,15 +408,9 @@ function ClaimProgressTable({
           );
         })}
 
-        <div className="rounded border border-border p-3 text-xs space-y-1">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">This draft value</span>
-            <span className="font-semibold text-primary">{GBP.format(totals.thisDraftValue)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Cumulative claimed</span>
-            <span className="font-semibold text-primary">{GBP.format(totals.cumulativeValue)}</span>
-          </div>
+        <div className="rounded border border-border bg-card p-4 grid grid-cols-2 gap-4">
+          <DisplayMetric label="This Draft" value={GBP.format(totals.thisDraftValue)} />
+          <DisplayMetric label="Cumulative" value={GBP.format(totals.cumulativeValue)} />
         </div>
       </div>
     </div>

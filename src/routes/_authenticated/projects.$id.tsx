@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
 
 import { ValuationsTab } from "@/components/project/ValuationsTab";
+import { LoadingDot } from "@/components/ui/loading-dot";
+import { DisplayMetric } from "@/components/ui/display-metric";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
@@ -88,7 +90,7 @@ function ProjectDetail() {
   }, [id]);
 
   if (loading) {
-    return <main className="max-w-5xl mx-auto px-4 py-8 text-sm text-muted-foreground">Loading…</main>;
+    return <main className="max-w-5xl mx-auto px-4 py-8"><LoadingDot label="Loading" /></main>;
   }
 
   if (!project) {
@@ -118,7 +120,7 @@ function ProjectDetail() {
           {project.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location}</span>}
         </div>
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
-          <Metric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} />
+          <DisplayMetric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} className="rounded-lg border border-border bg-card p-3" />
           <Metric label="Progress" value={`${project.progress ?? 0}%`} />
           <Metric label="Open Variations" value={String(stats.openVariations)} />
           <Metric label="Procurement Outstanding" value={String(stats.procurementOutstanding)} />

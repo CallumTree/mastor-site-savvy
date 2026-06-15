@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
 import { Check, Trash2, FileEdit, ClipboardCheck, FileDown, Loader2 } from "lucide-react";
+import { LoadingDot } from "@/components/ui/loading-dot";
+import { EmptyState } from "@/components/ui/empty-state";
 import jsPDF from "jspdf";
 import { getCurrentProfile, getLogoDataUrl } from "@/lib/profile";
 
@@ -326,12 +328,13 @@ export function VariationsTab({ projectId }: { projectId: string }) {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <LoadingDot label="Loading" />
       ) : items.length === 0 ? (
-        <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
-          <FileEdit className="w-5 h-5 mx-auto mb-2 opacity-50" />
-          No variations yet. They appear here automatically after analysing a site walk.
-        </div>
+        <EmptyState
+          icon={FileEdit}
+          title="No variations yet"
+          description="Variations are added automatically after you analyse a site walk and approve the findings."
+        />
       ) : (
         <div className="space-y-2">
           {items.map((v) => (

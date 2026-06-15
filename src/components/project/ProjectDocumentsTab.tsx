@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Upload, FileText, Trash2, Sparkles, Eye, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { parseBoQ } from "@/lib/parseDocument.functions";
+import { LoadingDot } from "@/components/ui/loading-dot";
 
 type Doc = {
   id: string;
@@ -240,7 +241,7 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <LoadingDot label="Loading" />
       ) : docs.length === 0 ? (
         <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
           No documents uploaded yet. Accepted formats: {ACCEPTED_LABEL}.

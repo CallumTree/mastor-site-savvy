@@ -3,7 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { FileText } from "lucide-react";
+import { FileText, Receipt } from "lucide-react";
+import { LoadingDot } from "@/components/ui/loading-dot";
+import { EmptyState } from "@/components/ui/empty-state";
+import { DisplayMetric } from "@/components/ui/display-metric";
 
 type Invoice = {
   id: string;
@@ -36,14 +39,16 @@ export function InvoicesTab({ projectId }: { projectId: string }) {
   }, [projectId]);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return <LoadingDot label="Loading" />;
   }
 
   if (invoices.length === 0) {
     return (
-      <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
-        No invoices yet. Finalise a valuation to generate an invoice.
-      </div>
+      <EmptyState
+        icon={Receipt}
+        title="No invoices yet"
+        description="Finalise a valuation to generate an invoice from the agreed claim."
+      />
     );
   }
 
@@ -52,20 +57,20 @@ export function InvoicesTab({ projectId }: { projectId: string }) {
       {invoices.map((inv) => (
         <div
           key={inv.id}
-          className="rounded-md bg-card border border-border p-3 flex items-center justify-between"
+          className="rounded-md bg-card border border-border p-4 flex items-center justify-between gap-4"
         >
-          <div className="flex items-center gap-3">
-            <FileText className="w-4 h-4 text-muted-foreground" />
-            <div>
-              <div className="text-sm font-semibold text-primary">{inv.invoice_number}</div>
+          <div className="flex items-center gap-3 min-w-0">
+            <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-primary truncate">{inv.invoice_number}</div>
               <div className="text-xs text-muted-foreground">
                 {new Date(inv.created_at).toLocaleDateString("en-GB")}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4 shrink-0">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{inv.status}</span>
-            <span className="text-sm font-medium">{GBP.format(Number(inv.total_amount))}</span>
+            <DisplayMetric value={GBP.format(Number(inv.total_amount))} className="items-end" />
             <Link
               to="/valuations/$id/invoice"
               params={{ id: inv.valuation_id }}
