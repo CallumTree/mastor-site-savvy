@@ -120,7 +120,7 @@ function ProjectDetail() {
           {project.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location}</span>}
         </div>
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
-          <Metric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} />
+          <DisplayMetric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} className="rounded-lg border border-border bg-card p-3" />
           <Metric label="Progress" value={`${project.progress ?? 0}%`} />
           <Metric label="Open Variations" value={String(stats.openVariations)} />
           <Metric label="Procurement Outstanding" value={String(stats.procurementOutstanding)} />
