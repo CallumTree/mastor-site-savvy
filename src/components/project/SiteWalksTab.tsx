@@ -1309,9 +1309,17 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         {/* Transcript */}
         {(isActive || transcript) && (
           <div className="space-y-2">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Transcript {isActive && "· editable · final results only"}
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Transcript {isActive && "· editable · final results only"}
+              </div>
+              {savedAt && (
+                <div className="text-[10px] uppercase tracking-wider text-green-600 transition-opacity duration-500">
+                  Saved ✓
+                </div>
+              )}
             </div>
+
             <Textarea
               ref={textareaRef}
               value={transcript}
