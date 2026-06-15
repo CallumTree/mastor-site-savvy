@@ -78,7 +78,7 @@ export const generatePotentialClaims = createServerFn({ method: "POST" })
         .eq("status", "Approved")
         .eq("finding_type", "progress"),
       supabase
-        .from("potential_claims")
+        .from("claim_opportunities")
         .select("scope_element_id, approved_finding_id")
         .eq("project_id", data.project_id),
     ]);
@@ -160,25 +160,32 @@ ${JSON.stringify(findings, null, 2)}`;
       return qty && rate ? qty * rate : null;
     };
 
+    const findingTextById = new Map((findings ?? []).map((f: any) => [f.id, f.finding_text as string]));
+
     const rows = parsed.claims
       .filter((c) => scopeIds.has(c.scope_element_id) && findingIds.has(c.approved_finding_id))
       .filter((c) => !existingKey.has(`${c.scope_element_id}::${c.approved_finding_id}`))
-      .map((c) => ({
-        project_id: data.project_id,
-        scope_element_id: c.scope_element_id,
-        approved_finding_id: c.approved_finding_id,
-        claim_title: c.claim_title,
-        claim_description: c.claim_description,
-        contract_value: estimateValue(c.claim_title),
-        confidence_score: c.confidence_score,
-        status: "Suggested",
-      }));
+      .map((c) => {
+        const value = estimateValue(c.claim_title);
+        return {
+          project_id: data.project_id,
+          scope_element_id: c.scope_element_id,
+          approved_finding_id: c.approved_finding_id,
+          claim_title: c.claim_title,
+          claim_description: c.claim_description,
+          finding_text: findingTextById.get(c.approved_finding_id) ?? c.claim_description,
+          contract_value: value,
+          claimed_value: value,
+          confidence_score: c.confidence_score,
+          status: "Suggested",
+        };
+      });
 
     if (rows.length === 0) {
       return { ok: true as const, inserted: 0, skipped_existing: parsed.claims.length };
     }
 
-    const { error: ie } = await supabase.from("potential_claims").insert(rows);
+    const { error: ie } = await supabase.from("claim_opportunities").insert(rows as any);
     if (ie) return { ok: false as const, error: ie.message };
 
     return { ok: true as const, inserted: rows.length, skipped_existing: parsed.claims.length - rows.length };

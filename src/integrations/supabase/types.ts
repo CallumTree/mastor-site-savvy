@@ -82,49 +82,70 @@ export type Database = {
       }
       claim_opportunities: {
         Row: {
+          approved_at: string | null
           approved_finding_id: string | null
+          claim_description: string | null
+          claim_title: string | null
           claimed_value: number | null
+          confidence_score: string | null
+          contract_value: number | null
           created_at: string
-          finding_text: string
+          finding_text: string | null
           id: string
           project_id: string
           quantity: number | null
+          ready_to_claim_at: string | null
+          rejected_at: string | null
           scope_element_id: string | null
           status: string
           unit_rate: number | null
           updated_at: string
           work_package_id: string | null
-          work_package_name: string
+          work_package_name: string | null
         }
         Insert: {
+          approved_at?: string | null
           approved_finding_id?: string | null
+          claim_description?: string | null
+          claim_title?: string | null
           claimed_value?: number | null
+          confidence_score?: string | null
+          contract_value?: number | null
           created_at?: string
-          finding_text: string
+          finding_text?: string | null
           id?: string
           project_id: string
           quantity?: number | null
+          ready_to_claim_at?: string | null
+          rejected_at?: string | null
           scope_element_id?: string | null
           status?: string
           unit_rate?: number | null
           updated_at?: string
           work_package_id?: string | null
-          work_package_name: string
+          work_package_name?: string | null
         }
         Update: {
+          approved_at?: string | null
           approved_finding_id?: string | null
+          claim_description?: string | null
+          claim_title?: string | null
           claimed_value?: number | null
+          confidence_score?: string | null
+          contract_value?: number | null
           created_at?: string
-          finding_text?: string
+          finding_text?: string | null
           id?: string
           project_id?: string
           quantity?: number | null
+          ready_to_claim_at?: string | null
+          rejected_at?: string | null
           scope_element_id?: string | null
           status?: string
           unit_rate?: number | null
           updated_at?: string
           work_package_id?: string | null
-          work_package_name?: string
+          work_package_name?: string | null
         }
         Relationships: [
           {
