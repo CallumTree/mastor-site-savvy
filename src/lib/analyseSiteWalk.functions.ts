@@ -28,6 +28,8 @@ Also produce:
 - A flat list of all potential variations mentioned
 - A flat list of all health and safety flags across all rooms
 
+Where progress mentioned matches a contract item, include the contract item code in the progress item as contract_item_ref. This helps map completed work directly to the schedule of rates.
+
 Rules:
 - Use plain British English
 - Never invent items not mentioned in the transcript
@@ -40,7 +42,7 @@ Return this exact structure:
   "rooms": [
     {
       "room": "string",
-      "progress": [{ "text": "string", "completion_percent": 0 }],
+      "progress": [{ "text": "string", "completion_percent": 0, "contract_item_ref": "string (optional, omit if no match)" }],
       "next_tasks": ["string"],
       "materials_needed": ["string"],
       "health_and_safety": ["string"],
