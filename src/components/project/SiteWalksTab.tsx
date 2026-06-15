@@ -122,6 +122,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const [walks, setWalks] = useState<SiteWalk[]>([]);
   const [loading, setLoading] = useState(true);
   const [micDenied, setMicDenied] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
 
   const [customOpen, setCustomOpen] = useState(false);
   const [customName, setCustomName] = useState("");
@@ -211,6 +213,29 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   useEffect(() => {
     secondsRef.current = seconds;
   }, [seconds]);
+
+  // Auto-save transcript every 30s while recording or paused
+  useEffect(() => {
+    if (status !== "recording" && status !== "paused") return;
+    const interval = setInterval(async () => {
+      const walkId = currentWalkIdRef.current;
+      if (!walkId) return;
+      const { error } = await supabase
+        .from("site_walks")
+        .update({ transcript: transcriptRef.current })
+        .eq("id", walkId);
+      if (!error) setSavedAt(Date.now());
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [status]);
+
+  // Fade out "Saved ✓" after 2 seconds
+  useEffect(() => {
+    if (savedAt == null) return;
+    const t = setTimeout(() => setSavedAt(null), 2000);
+    return () => clearTimeout(t);
+  }, [savedAt]);
+
 
   const loadAll = async () => {
     setLoading(true);
@@ -1284,9 +1309,17 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         {/* Transcript */}
         {(isActive || transcript) && (
           <div className="space-y-2">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Transcript {isActive && "· editable · final results only"}
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Transcript {isActive && "· editable · final results only"}
+              </div>
+              {savedAt && (
+                <div className="text-[10px] uppercase tracking-wider text-green-600 transition-opacity duration-500">
+                  Saved ✓
+                </div>
+              )}
             </div>
+
             <Textarea
               ref={textareaRef}
               value={transcript}
