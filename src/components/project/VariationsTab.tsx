@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
 import { Check, Trash2, FileEdit, ClipboardCheck, FileDown, Loader2 } from "lucide-react";
+import { LoadingDot } from "@/components/ui/loading-dot";
+import { EmptyState } from "@/components/ui/empty-state";
 import jsPDF from "jspdf";
 import { getCurrentProfile, getLogoDataUrl } from "@/lib/profile";
 
