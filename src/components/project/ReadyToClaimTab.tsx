@@ -213,9 +213,11 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
         </p>
 
         {approved.length === 0 ? (
-          <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
-            No approved claims yet. Approve items above to populate this list.
-          </div>
+          <EmptyState
+            icon={FileCheck}
+            title="No approved claims"
+            description="Approve items above to add them to your next valuation."
+          />
         ) : (
           <div className="space-y-3">
             {approved.map((c) => (
