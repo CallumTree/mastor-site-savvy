@@ -1733,7 +1733,11 @@ function AnalysisViewer({
     );
   };
 
-  const approveProgress = async (roomName: string, text: string) => {
+  const approveProgress = async (
+    roomName: string,
+    text: string,
+    completionPercent: number,
+  ) => {
     const key = `${roomName}::${text}`;
     setBusyKey(key);
     // Create approved_finding and a linked claim_opportunity (Ready To Claim)
@@ -1790,7 +1794,10 @@ function AnalysisViewer({
           if (matched) {
             unitRate = matched.unit_rate != null ? Number(matched.unit_rate) : null;
             quantity = matched.total_qty != null ? Number(matched.total_qty) : null;
-            if (unitRate != null && quantity != null) claimedValue = unitRate * quantity;
+            if (unitRate != null && quantity != null) {
+              const pct = Math.max(0, Math.min(100, Number(completionPercent) || 0));
+              claimedValue = unitRate * quantity * (pct / 100);
+            }
           }
         }
       } catch (e) {
@@ -1808,6 +1815,7 @@ function AnalysisViewer({
       unit_rate: unitRate,
       quantity,
       claimed_value: claimedValue,
+      completion_percent: completionPercent,
     });
 
     setBusyKey(null);
