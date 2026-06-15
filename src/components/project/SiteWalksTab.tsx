@@ -1690,6 +1690,7 @@ function AnalysisViewer({
   walkTitle: string;
 }) {
   const a = row.analysis_json ?? ({} as Analysis);
+  const matchFn = useServerFn(matchFindingToContractItem);
   const [approvedKeys, setApprovedKeys] = useState<Set<string>>(new Set());
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
