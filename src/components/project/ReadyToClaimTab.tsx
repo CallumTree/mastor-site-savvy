@@ -161,10 +161,11 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
         </p>
 
         {pending.length === 0 ? (
-          <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
-            <ClipboardCheck className="w-5 h-5 mx-auto mb-2 opacity-50" />
-            No claim opportunities awaiting review.
-          </div>
+          <EmptyState
+            icon={ClipboardCheck}
+            title="Nothing to review"
+            description="New claim opportunities will appear here after you analyse a site walk."
+          />
         ) : (
           <div className="space-y-3">
             {pending.map((c) => (
