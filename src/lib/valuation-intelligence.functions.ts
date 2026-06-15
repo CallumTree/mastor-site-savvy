@@ -78,7 +78,7 @@ export const generatePotentialClaims = createServerFn({ method: "POST" })
         .eq("status", "Approved")
         .eq("finding_type", "progress"),
       supabase
-        .from("potential_claims")
+        .from("claim_opportunities")
         .select("scope_element_id, approved_finding_id")
         .eq("project_id", data.project_id),
     ]);
