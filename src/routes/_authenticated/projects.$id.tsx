@@ -8,7 +8,7 @@ import { showError } from "@/lib/toast-error";
 
 import { ValuationsTab } from "@/components/project/ValuationsTab";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
-import { ReviewQueueTab } from "@/components/project/ReviewQueueTab";
+
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
 import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
 import { WorkPackagesTab } from "@/components/project/WorkPackagesTab";
