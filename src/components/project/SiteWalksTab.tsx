@@ -1690,9 +1690,11 @@ function AnalysisViewer({
   const a = row.analysis_json ?? ({} as Analysis);
   const [approvedKeys, setApprovedKeys] = useState<Set<string>>(new Set());
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
   const [walkPhotos, setWalkPhotos] = useState<
     Array<{ id: string; signedUrl: string | null; transcript_context: string | null; timestamp_seconds: number }>
   >([]);
+
 
   useEffect(() => {
     let cancelled = false;
