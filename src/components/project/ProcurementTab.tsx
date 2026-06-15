@@ -197,11 +197,15 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
       )}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <LoadingDot label="Loading" />
       ) : activeItems.length === 0 ? (
-        <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
-          No active procurement items.
-        </div>
+        <EmptyState
+          icon={PackageSearch}
+          title="No active procurement items"
+          description="Add materials, plant, or labour you still need to source."
+          actionLabel="Add item"
+          onAction={() => setEditing({ status: "Required" })}
+        />
       ) : (
         <PhaseGroupedList
           items={activeItems}
