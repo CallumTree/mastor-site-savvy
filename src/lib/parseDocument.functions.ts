@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const inputSchema = z.object({
   documentText: z.string().min(1).max(500_000),
@@ -44,6 +45,7 @@ Return this exact structure:
 `;
 
 export const parseBoQ = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data }) => {
     const apiKey = process.env.ANTHROPIC_API_KEY;
