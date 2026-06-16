@@ -92,7 +92,12 @@ export const parseBoQ = createServerFn({ method: "POST" })
     if (!text) return { ok: false as const, error: "Anthropic returned no content." };
 
     try {
-      return { ok: true as const, parsed: JSON.parse(text) };
+      const cleaned = text
+        .trim()
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/, "")
+        .replace(/```\s*$/, "");
+      return { ok: true as const, parsed: JSON.parse(cleaned) };
     } catch (e) {
       console.error("JSON parse failed", e);
       return { ok: false as const, error: "Anthropic returned invalid JSON." };
