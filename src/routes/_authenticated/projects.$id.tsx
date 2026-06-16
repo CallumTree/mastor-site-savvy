@@ -130,25 +130,25 @@ function ProjectDetail() {
 
       <Tabs defaultValue="scope-documents">
         <TabsList className="w-full flex flex-nowrap gap-2 overflow-x-auto bg-transparent p-0 h-auto scrollbar-hide">
-          <TabsTrigger value="scope-documents" className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 min-h-11 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+          <TabsTrigger value="scope-documents" className="px-4 py-2 whitespace-nowrap">
             Scope & Documents
           </TabsTrigger>
-          <TabsTrigger value="site-walks" className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 min-h-11 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+          <TabsTrigger value="site-walks" className="px-4 py-2 whitespace-nowrap">
             Site Walks
           </TabsTrigger>
-          <TabsTrigger value="procurement" className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 min-h-11 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+          <TabsTrigger value="procurement" className="px-4 py-2 whitespace-nowrap">
             Procurement
           </TabsTrigger>
-          <TabsTrigger value="variations" className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 min-h-11 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+          <TabsTrigger value="variations" className="px-4 py-2 whitespace-nowrap">
             Variations
           </TabsTrigger>
-          <TabsTrigger value="ready-to-claim" className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 min-h-11 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+          <TabsTrigger value="ready-to-claim" className="px-4 py-2 whitespace-nowrap">
             Ready To Claim
           </TabsTrigger>
-          <TabsTrigger value="valuations" className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 min-h-11 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+          <TabsTrigger value="valuations" className="px-4 py-2 whitespace-nowrap">
             Valuations
           </TabsTrigger>
-          <TabsTrigger value="invoices" className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 min-h-11 text-xs font-medium border border-border bg-card text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary hover:bg-muted/50">
+          <TabsTrigger value="invoices" className="px-4 py-2 whitespace-nowrap">
             Invoices
           </TabsTrigger>
         </TabsList>
