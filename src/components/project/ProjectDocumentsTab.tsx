@@ -16,6 +16,8 @@ type Doc = {
   size_bytes: number | null;
   parsed_at: string | null;
   uploaded_at: string;
+  parse_status?: "idle" | "queued" | "running" | "succeeded" | "failed" | null;
+  last_parse_job_id?: string | null;
 };
 
 type ScopeStatus = "Not Started" | "In Progress" | "Claimed" | "Disputed" | "Invoiced";
