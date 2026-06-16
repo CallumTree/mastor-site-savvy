@@ -64,7 +64,7 @@ const REJECTION_REASONS = [
   "Other",
 ] as const;
 
-const BRG: [number, number, number] = [0, 66, 37]; // British Racing Green
+const BRG: [number, number, number] = [10, 10, 10]; // Black header
 const GOLD: [number, number, number] = [191, 161, 74]; // Muted Gold
 
 function ValuationPage() {
