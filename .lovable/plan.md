@@ -1,8 +1,26 @@
-Update the Anthropic model identifier in all three AI-calling server functions to resolve the 404 `not_found_error` for the retired model.
+## Status check
 
-Changes:
-- `src/lib/parseDocument.functions.ts` line 70: `"claude-sonnet-4-20250514"` → `"claude-sonnet-4-6"`
-- `src/lib/analyseSiteWalk.functions.ts` line 159: `"claude-sonnet-4-20250514"` → `"claude-sonnet-4-6"`
-- `src/lib/matchFinding.functions.ts` line 57: `"claude-sonnet-4-20250514"` → `"claude-sonnet-4-6"`
+All three files already use `model: "claude-sonnet-4-6"` — no model changes needed:
+- `src/lib/parseDocument.functions.ts:70` ✓
+- `src/lib/analyseSiteWalk.functions.ts:159` ✓
+- `src/lib/matchFinding.functions.ts:57` ✓
 
-No other request parameters (max_tokens, system prompt, messages shape, headers) are changed.
+## Change
+
+In `src/lib/parseDocument.functions.ts` (lines 94–99), strip markdown code fences before `JSON.parse`, mirroring the cleanup in `analyseSiteWalk.functions.ts`:
+
+```ts
+try {
+  const cleaned = text
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/, "")
+    .replace(/```\s*$/, "");
+  return { ok: true as const, parsed: JSON.parse(cleaned) };
+} catch (e) {
+  console.error("JSON parse failed", e);
+  return { ok: false as const, error: "Anthropic returned invalid JSON." };
+}
+```
+
+No other changes.
