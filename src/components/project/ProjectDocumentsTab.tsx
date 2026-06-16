@@ -860,9 +860,9 @@ async function extractText(buf: ArrayBuffer, ext: string): Promise<string> {
   }
   if (e === "pdf") {
     const pdfjs: any = await import("pdfjs-dist/build/pdf.mjs");
-    // Disable worker to avoid bundling issues — runs on main thread for moderate-sized docs.
-    pdfjs.GlobalWorkerOptions.workerSrc = "";
-    const loadingTask = pdfjs.getDocument({ data: buf, disableWorker: true, isEvalSupported: false });
+    const workerUrl = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
+    pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+    const loadingTask = pdfjs.getDocument({ data: buf, isEvalSupported: false });
     const pdf = await loadingTask.promise;
     const out: string[] = [];
     const maxPages = Math.min(pdf.numPages, 100);
