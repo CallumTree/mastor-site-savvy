@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Upload, FileText, Trash2, Sparkles, Eye, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { parseBoQ } from "@/lib/parseDocument.functions";
+import { startParseJob, getParseJob } from "@/lib/parseDocument.functions";
 import { LoadingDot } from "@/components/ui/loading-dot";
 
 type Doc = {
@@ -16,6 +16,8 @@ type Doc = {
   size_bytes: number | null;
   parsed_at: string | null;
   uploaded_at: string;
+  parse_status?: "idle" | "queued" | "running" | "succeeded" | "failed" | null;
+  last_parse_job_id?: string | null;
 };
 
 type ScopeStatus = "Not Started" | "In Progress" | "Claimed" | "Disputed" | "Invoiced";
@@ -64,7 +66,8 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
   const [parsingId, setParsingId] = useState<string | null>(null);
   const [filterDocId, setFilterDocId] = useState<string | "all">("all");
   const fileRef = useRef<HTMLInputElement>(null);
-  const parseFn = useServerFn(parseBoQ);
+  const startFn = useServerFn(startParseJob);
+  const getFn = useServerFn(getParseJob);
 
   const load = async () => {
     setLoading(true);
@@ -82,6 +85,36 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
   useEffect(() => {
     load();
   }, [projectId]);
+
+  // Resume polling for any in-flight parse jobs after page load / navigation.
+  useEffect(() => {
+    const active = docs.filter((d) => (d.parse_status === "queued" || d.parse_status === "running") && d.last_parse_job_id);
+    if (active.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const deadline = Date.now() + 5 * 60 * 1000;
+      while (!cancelled && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 4000));
+        if (cancelled) return;
+        let stillActive = false;
+        for (const d of active) {
+          const poll: any = await getFn({ data: { jobId: d.last_parse_job_id as string } });
+          if (poll?.ok && (poll.job.status === "queued" || poll.job.status === "running")) {
+            stillActive = true;
+          }
+        }
+        if (!stillActive) {
+          load();
+          return;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docs.map((d) => `${d.id}:${d.parse_status}`).join(",")]);
+
 
   const onPickFile = () => fileRef.current?.click();
 
@@ -152,14 +185,40 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         return;
       }
 
-      console.log("[onParse] calling parseFn...");
-      const result: any = await parseFn({ data: { documentText: text } });
-      console.log("[onParse] parseFn returned in", Date.now() - startedAt, "ms, ok:", result?.ok);
-      if (!result?.ok) {
-        console.error("[onParse] parse error:", result?.error);
-        toast.error(result?.error ? `Parse failed: ${result.error}` : "Parse failed");
+      console.log("[onParse] enqueuing parse job...");
+      const start: any = await startFn({ data: { documentId: doc.id, documentText: text } });
+      if (!start?.ok) {
+        toast.error(start?.error ? `Parse failed: ${start.error}` : "Parse failed to enqueue");
         return;
       }
+      const jobId = start.jobId as string;
+      console.log("[onParse] job enqueued", jobId, "— polling...");
+
+      // Poll every 4s until terminal.
+      const deadline = Date.now() + 5 * 60 * 1000; // 5 min cap
+      let job: any = null;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 4000));
+        const poll: any = await getFn({ data: { jobId } });
+        if (!poll?.ok) {
+          toast.error(poll?.error || "Could not read job status");
+          return;
+        }
+        job = poll.job;
+        console.log("[onParse] poll status:", job.status);
+        if (job.status === "succeeded" || job.status === "failed") break;
+      }
+      if (!job || (job.status !== "succeeded" && job.status !== "failed")) {
+        toast.error("Parse is taking longer than expected. It will continue in the background — refresh later.");
+        return;
+      }
+      if (job.status === "failed") {
+        toast.error(job.error ? `Parse failed: ${job.error}` : "Parse failed");
+        return;
+      }
+      console.log("[onParse] succeeded in", Date.now() - startedAt, "ms");
+      const result = { parsed: job.result };
+
 
 
       const items: any[] = result.parsed?.items ?? [];

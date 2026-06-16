@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as ApiPublicInngestRouteImport } from './routes/api/public/inngest'
 import { Route as AuthenticatedValuationsIdRouteImport } from './routes/_authenticated/valuations.$id'
 import { Route as AuthenticatedProjectsIdRouteImport } from './routes/_authenticated/projects.$id'
 import { Route as AuthenticatedValuationsIdInvoiceRouteImport } from './routes/_authenticated/valuations.$id.invoice'
@@ -35,6 +36,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const ApiPublicInngestRoute = ApiPublicInngestRouteImport.update({
+  id: '/api/public/inngest',
+  path: '/api/public/inngest',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedValuationsIdRoute =
   AuthenticatedValuationsIdRouteImport.update({
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/projects/$id': typeof AuthenticatedProjectsIdRoute
   '/valuations/$id': typeof AuthenticatedValuationsIdRouteWithChildren
+  '/api/public/inngest': typeof ApiPublicInngestRoute
   '/valuations/$id/invoice': typeof AuthenticatedValuationsIdInvoiceRoute
 }
 export interface FileRoutesByTo {
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/projects/$id': typeof AuthenticatedProjectsIdRoute
   '/valuations/$id': typeof AuthenticatedValuationsIdRouteWithChildren
+  '/api/public/inngest': typeof ApiPublicInngestRoute
   '/valuations/$id/invoice': typeof AuthenticatedValuationsIdInvoiceRoute
 }
 export interface FileRoutesById {
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/projects/$id': typeof AuthenticatedProjectsIdRoute
   '/_authenticated/valuations/$id': typeof AuthenticatedValuationsIdRouteWithChildren
+  '/api/public/inngest': typeof ApiPublicInngestRoute
   '/_authenticated/valuations/$id/invoice': typeof AuthenticatedValuationsIdInvoiceRoute
 }
 export interface FileRouteTypes {
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/projects/$id'
     | '/valuations/$id'
+    | '/api/public/inngest'
     | '/valuations/$id/invoice'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/projects/$id'
     | '/valuations/$id'
+    | '/api/public/inngest'
     | '/valuations/$id/invoice'
   id:
     | '__root__'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/projects/$id'
     | '/_authenticated/valuations/$id'
+    | '/api/public/inngest'
     | '/_authenticated/valuations/$id/invoice'
   fileRoutesById: FileRoutesById
 }
@@ -112,6 +124,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicInngestRoute: typeof ApiPublicInngestRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -143,6 +156,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/public/inngest': {
+      id: '/api/public/inngest'
+      path: '/api/public/inngest'
+      fullPath: '/api/public/inngest'
+      preLoaderRoute: typeof ApiPublicInngestRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/valuations/$id': {
       id: '/_authenticated/valuations/$id'
@@ -203,6 +223,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicInngestRoute: ApiPublicInngestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

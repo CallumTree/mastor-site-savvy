@@ -623,6 +623,75 @@ export type Database = {
           },
         ]
       }
+      parse_jobs: {
+        Row: {
+          completion_tokens: number | null
+          created_at: string
+          document_id: string | null
+          document_text: string | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          project_id: string
+          prompt_tokens: number | null
+          result: Json | null
+          started_at: string | null
+          status: string
+          stop_reason: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completion_tokens?: number | null
+          created_at?: string
+          document_id?: string | null
+          document_text?: string | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          project_id: string
+          prompt_tokens?: number | null
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+          stop_reason?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completion_tokens?: number | null
+          created_at?: string
+          document_id?: string | null
+          document_text?: string | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          project_id?: string
+          prompt_tokens?: number | null
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+          stop_reason?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parse_jobs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "project_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parse_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       potential_claims: {
         Row: {
           approved_at: string | null
@@ -1004,6 +1073,8 @@ export type Database = {
           file_path: string
           file_type: string
           id: string
+          last_parse_job_id: string | null
+          parse_status: string
           parsed_at: string | null
           project_id: string
           size_bytes: number | null
@@ -1015,6 +1086,8 @@ export type Database = {
           file_path: string
           file_type: string
           id?: string
+          last_parse_job_id?: string | null
+          parse_status?: string
           parsed_at?: string | null
           project_id: string
           size_bytes?: number | null
@@ -1026,12 +1099,21 @@ export type Database = {
           file_path?: string
           file_type?: string
           id?: string
+          last_parse_job_id?: string | null
+          parse_status?: string
           parsed_at?: string | null
           project_id?: string
           size_bytes?: number | null
           uploaded_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_documents_last_parse_job_id_fkey"
+            columns: ["last_parse_job_id"]
+            isOneToOne: false
+            referencedRelation: "parse_jobs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_documents_project_id_fkey"
             columns: ["project_id"]
