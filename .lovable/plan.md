@@ -1,91 +1,153 @@
-
-## Problem
-
-`parseBoQ` runs the Anthropic call inline inside a `createServerFn` request. The serverless gateway kills the request at ~45–50s, but Anthropic responses for 50+ line-item documents take 45s–2.5min. The client sees `result.ok === undefined` (504) and the parsed data is lost even though Anthropic eventually finishes.
-
-Fix: turn parsing into a fire-and-forget background job. The "Parse Scope" button enqueues a job, returns immediately, and the UI polls a status row until it's `succeeded` or `failed`.
-
-## Architecture
-
-Use **Inngest** (available as a Lovable connector) as the durable executor. Inngest functions are not bound by the server-function gateway timeout and retry on failure.
-
-Flow:
+I can’t access the Inngest dashboard’s internal raw step trace directly from here, but I pulled the raw runtime/database signals available to this environment.
 
 ```text
-[Client]               [Server fn]         [DB]                  [Inngest]
- click Parse  ───►  startParseJob ──insert─► parse_jobs(queued)
-                        │
-                        └──send event "boq/parse.requested" ──► schedules
-                                                                    │
-                                                                    ▼
-                                                              [Inngest fn]
-                                                              calls Anthropic (long)
- poll getParseJob every 4s ◄────reads──── parse_jobs ◄──updates── (running → succeeded)
- status=succeeded ──► load result, write scope_elements (existing path)
+Server logs: search=a219fe32 deployment=published
+
+Server logs:
+
+
+Sandbox dev-server log:
+[stdout] [startParseJob] enqueued job a219fe32-fdbf-4571-9e67-9ead9241ed84
 ```
 
-## Setup step (before code)
+```text
+Server logs: search=parse-boq-job deployment=published
 
-Link the **Inngest** connector to this project. That provisions `LOVABLE_API_KEY`, `INNGEST_API_KEY`, `INNGEST_SIGNING_KEY` as server env vars. Once linked, after deploying the `/api/inngest` route, the user has to visit that URL once (or click "Sync" in the Inngest dashboard) so Inngest discovers `parseBoQJob`.
+Server logs:
 
-## Database changes (one migration)
+Worker logs (last hour, ClickHouse):
+[2026-06-16T15:15:28.109Z] [request] POST https://mastor-site-savvy.lovable.app/api/public/inngest?fnId=mastor-app-parse-boq-job&stepId=step → 206
+```
 
-New table `public.parse_jobs`:
-- `id uuid pk`
-- `project_id uuid` FK projects, cascade
-- `document_id uuid` FK project_documents, cascade
-- `user_id uuid` (owner, for RLS)
-- `status text` — `queued | running | succeeded | failed` (default `queued`)
-- `document_text text` — extracted text the worker will send to Anthropic
-- `error text` nullable
-- `result jsonb` nullable — parsed `{ contract_reference, items, ... }`
-- `stop_reason text`, `prompt_tokens int`, `completion_tokens int` nullable (diagnostics)
-- `started_at`, `finished_at` timestamptz nullable
-- `created_at`, `updated_at` timestamptz default now()
+```text
+Server logs: search=Anthropic deployment=published
 
-Standard order: CREATE TABLE → GRANT SELECT/INSERT/UPDATE/DELETE TO authenticated + GRANT ALL TO service_role → ENABLE ROW LEVEL SECURITY → policies using existing `user_owns_project(project_id)` helper for all operations by the owner. Add `updated_at` trigger using existing `update_updated_at_column()`.
+Server logs:
 
-Add to `public.project_documents`:
-- `parse_status text` (`idle | queued | running | succeeded | failed`, default `idle`)
-- `last_parse_job_id uuid` nullable, FK `parse_jobs(id)` on delete set null
+Worker logs (last hour, ClickHouse):
+[2026-06-16T15:17:34.938Z] [error] [parseBoQJob] Anthropic 524: error code: 524
+[2026-06-16T15:17:34.938Z] [log] [parseBoQJob] Anthropic responded in 125037 ms status 524
+[2026-06-16T15:15:29.901Z] [log] [parseBoQJob] fetch -> Anthropic at 2026-06-16T15:15:29.901Z docText: 15102
 
-(Decision on the open question from last round: **Option A** — store `document_text` on the job row. Simplest path; jobs can be pruned later.)
+Sandbox dev-server log:
+[stdout] [parseBoQ] fetch -> Anthropic at 2026-06-16T14:42:36.031Z
+[stdout] [parseBoQ] Anthropic responded in 147305 ms with status 200
+```
 
-## File changes
+```text
+Server logs: search=anthropic deployment=published
 
-1. **`src/lib/parseDocument.functions.ts`** — replace `parseBoQ` with:
-   - `startParseJob({ documentId, documentText })` — auth-required. Inserts a `parse_jobs` row (status `queued`, with `document_text`), updates `project_documents.parse_status='queued'` + `last_parse_job_id`, POSTs `boq/parse.requested` event with `{ jobId }` to `https://connector-gateway.lovable.dev/inngest/e/` using `LOVABLE_API_KEY` + `INNGEST_API_KEY` headers. Returns `{ ok: true, jobId }` immediately.
-   - `getParseJob({ jobId })` — auth-required. Returns `{ status, error, result, started_at, finished_at }`. RLS restricts to owner.
+Server logs:
 
-2. **New `src/routes/api/inngest.ts`** — `createFileRoute('/api/inngest')` exporting the Inngest `serve` handler (GET/POST/PUT) from `inngest/edge`. `INNGEST_SIGNING_KEY` handles request verification automatically.
 
-3. **New `src/lib/parseBoQJob.server.ts`** — Inngest function:
-   - trigger: event `boq/parse.requested`
-   - load `parse_jobs` row via `supabaseAdmin`
-   - mark `running`, set `started_at`
-   - call Anthropic with the existing SYSTEM_PROMPT + `document_text` from the job (existing prompt/model/max_tokens unchanged)
-   - success: write `result`, `succeeded`, `finished_at`, token usage; update `project_documents.parse_status='succeeded'` and `parsed_at`
-   - failure / non-2xx / JSON parse error: write `error`, `failed`, `finished_at`; update the document row
-   - leans on Inngest's built-in retry for transient Anthropic 5xx
+Sandbox dev-server log:
+[stdout] [parseBoQ] anthropic-version: 2023-06-01
+```
 
-4. **`src/components/project/ProjectDocumentsTab.tsx`** — `onParse` becomes:
-   - extract text (unchanged)
-   - call `startParseJob` → get `jobId`
-   - poll `getParseJob` every 4s
-   - on `succeeded`: run the existing scope-element + contract-items insert logic against `job.result`, toast success
-   - on `failed`: toast `job.error`
-   - on mount, resume polling for any document with `parse_status` in (`queued`, `running`) so navigating away doesn't lose progress
+```text
+Server logs: search=parse deployment=published
 
-5. **`src/lib/parseDocument.client.ts`** (DOCX/PDF extraction) — unchanged.
+Server logs:
 
-## Auth & security
+Worker logs (last hour, ClickHouse):
+[2026-06-16T15:17:34.938Z] [error] [parseBoQJob] Anthropic 524: error code: 524
+[2026-06-16T15:17:34.938Z] [log] [parseBoQJob] Anthropic responded in 125037 ms status 524
+[2026-06-16T15:15:29.901Z] [log] [parseBoQJob] fetch -> Anthropic at 2026-06-16T15:15:29.901Z docText: 15102
+[2026-06-16T15:15:28.109Z] [request] POST https://mastor-site-savvy.lovable.app/api/public/inngest?fnId=mastor-app-parse-boq-job&stepId=step → 206
 
-- `startParseJob` and `getParseJob` use `requireSupabaseAuth`; RLS on `parse_jobs` scopes to owner.
-- Inngest function runs server-side using `supabaseAdmin` — only ever acts on a specific `jobId` that an authorized user already created, and only writes back to that row.
-- `/api/inngest` (not `/api/public/`) is authenticated by Inngest's signing-key check inside the SDK.
+Sandbox dev-server log:
+[stdout] [parseBoQ] anthropic-version: 2023-06-01
+[stdout] [parseBoQ] x-api-key present: true length: 108
+[stdout] [parseBoQ] max_tokens: 16000
+[stdout] [parseBoQ] fetch -> Anthropic at 2026-06-16T14:42:36.031Z
+[stdout] [parseBoQ] Anthropic responded in 147305 ms with status 200
+[stdout] [parseBoQ] stop_reason: end_turn usage: {"input_tokens":5511,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"output_tokens":8986,"service_tier":"standard","inference_geo":"global"}
+[stdout] [parseBoQ] text length: 26319
+[stdout] [parseBoQ] text head (200): ```json
+[stdout] [parseBoQ] text tail (200): w Blockwork And Head Of Doorway",
+```
 
-## Out of scope
+```text
+Server logs: search=524 deployment=all
 
-- No changes to the prompt, model, `max_tokens`, or JSON contract returned to the UI.
-- No changes to `scope_elements` schema or the scope-element insert path.
-- Existing `[parseBoQ]` diagnostic logging moves into the Inngest function so the same lines still appear, just in background-job logs.
+Server logs:
+
+Worker logs (last hour, ClickHouse):
+[2026-06-16T15:17:34.938Z] [error] [parseBoQJob] Anthropic 524: error code: 524
+[2026-06-16T15:17:34.938Z] [log] [parseBoQJob] Anthropic responded in 125037 ms status 524
+```
+
+```text
+Server logs: search=fetch -> Anthropic deployment=all
+
+Server logs:
+
+Worker logs (last hour, ClickHouse):
+[2026-06-16T15:15:29.901Z] [log] [parseBoQJob] fetch -> Anthropic at 2026-06-16T15:15:29.901Z docText: 15102
+
+Sandbox dev-server log:
+[stdout] [parseBoQ] fetch -> Anthropic at 2026-06-16T14:42:36.031Z
+```
+
+```text
+Database row: public.parse_jobs where id = 'a219fe32-fdbf-4571-9e67-9ead9241ed84'
+
+[
+  map[
+    completion_tokens:<nil>
+    created_at:2026-06-16 15:15:25.634153+00
+    error:Anthropic 524: error code: 524
+    finished_at:2026-06-16 15:17:34.938+00
+    id:a219fe32-fdbf-4571-9e67-9ead9241ed84
+    prompt_tokens:<nil>
+    result:<nil>
+    started_at:2026-06-16 15:15:29.227+00
+    status:failed
+    stop_reason:<nil>
+    updated_at:2026-06-16 15:17:35.228927+00
+  ]
+]
+```
+
+```text
+Database rows: latest public.parse_jobs order by created_at desc limit 10
+
+[
+  map[
+    completion_tokens:<nil>
+    created_at:2026-06-16 15:15:25.634153+00
+    error:Anthropic 524: error code: 524
+    finished_at:2026-06-16 15:17:34.938+00
+    id:a219fe32-fdbf-4571-9e67-9ead9241ed84
+    prompt_tokens:<nil>
+    started_at:2026-06-16 15:15:29.227+00
+    status:failed
+    stop_reason:<nil>
+    updated_at:2026-06-16 15:17:35.228927+00
+  ]
+]
+```
+
+```text
+Configured secret names
+
+Found 4 secret(s):
+
+- ANTHROPIC_API_KEY
+- INNGEST_API_KEY (managed by connector - can only be edited via Connectors)
+- INNGEST_SIGNING_KEY (managed by connector - can only be edited via Connectors)
+- LOVABLE_API_KEY (managed; to rotate, use lovable_api_key--rotate_lovable_api_key not secrets tools)
+```
+
+```text
+Inngest connector connection
+
+- Callum's Inngest (connection_id: std_01kv8f5m03fzbbjmxs9gsenx2d, connector_id: inngest, uses connector gateway: true), is linked to project: yes, has access: yes, linkable: yes
+```
+
+Next debugging plan if you approve implementation:
+
+1. Add persistent structured logging for each parse step into the existing parse job record or a new job-events table.
+2. Log Anthropic request start, model, docText length, timeout, response status, response body snippet, elapsed time, parsed JSON length, and caught error stack.
+3. Surface those logs in the UI so you can inspect raw background-function output without needing the Inngest dashboard.
+4. Then rerun Parse Scope and compare the full per-step trace.
