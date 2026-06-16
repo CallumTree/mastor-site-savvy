@@ -153,14 +153,40 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         return;
       }
 
-      console.log("[onParse] calling parseFn...");
-      const result: any = await parseFn({ data: { documentText: text } });
-      console.log("[onParse] parseFn returned in", Date.now() - startedAt, "ms, ok:", result?.ok);
-      if (!result?.ok) {
-        console.error("[onParse] parse error:", result?.error);
-        toast.error(result?.error ? `Parse failed: ${result.error}` : "Parse failed");
+      console.log("[onParse] enqueuing parse job...");
+      const start: any = await startFn({ data: { documentId: doc.id, documentText: text } });
+      if (!start?.ok) {
+        toast.error(start?.error ? `Parse failed: ${start.error}` : "Parse failed to enqueue");
         return;
       }
+      const jobId = start.jobId as string;
+      console.log("[onParse] job enqueued", jobId, "— polling...");
+
+      // Poll every 4s until terminal.
+      const deadline = Date.now() + 5 * 60 * 1000; // 5 min cap
+      let job: any = null;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 4000));
+        const poll: any = await getFn({ data: { jobId } });
+        if (!poll?.ok) {
+          toast.error(poll?.error || "Could not read job status");
+          return;
+        }
+        job = poll.job;
+        console.log("[onParse] poll status:", job.status);
+        if (job.status === "succeeded" || job.status === "failed") break;
+      }
+      if (!job || (job.status !== "succeeded" && job.status !== "failed")) {
+        toast.error("Parse is taking longer than expected. It will continue in the background — refresh later.");
+        return;
+      }
+      if (job.status === "failed") {
+        toast.error(job.error ? `Parse failed: ${job.error}` : "Parse failed");
+        return;
+      }
+      console.log("[onParse] succeeded in", Date.now() - startedAt, "ms");
+      const result = { parsed: job.result };
+
 
 
       const items: any[] = result.parsed?.items ?? [];
