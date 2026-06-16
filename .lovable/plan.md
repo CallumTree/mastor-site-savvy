@@ -1,26 +1,26 @@
+## Problem
 
-## Where the key goes
+`ProjectDocumentsTab.tsx` extracts text from PDFs using `pdfjs-dist`. It sets `GlobalWorkerOptions.workerSrc = ""` and passes `disableWorker: true`, but in current pdfjs-dist builds the `workerSrc` getter throws `No "GlobalWorkerOptions.workerSrc" specified` before `disableWorker` is honored — which is exactly the runtime error showing in the console.
 
-The `ANTHROPIC_API_KEY` is now stored as a server-side secret in Lovable Cloud. It is automatically available as `process.env.ANTHROPIC_API_KEY` to any server-side code. It must NEVER be referenced from browser code (components, hooks) — that would bundle it into the client and leak it.
+## Fix
 
-## Steps
+In `src/components/project/ProjectDocumentsTab.tsx` (lines 861–866), import the worker as a Vite asset URL and assign it to `GlobalWorkerOptions.workerSrc` instead of `""`:
 
-1. **Create `src/lib/parseDocument.functions.ts`** — a TanStack `createServerFn` that:
-   - Reads `process.env.ANTHROPIC_API_KEY` inside the handler
-   - Takes `{ documentText, projectId, documentId }` as validated input
-   - Calls `https://api.anthropic.com/v1/messages` with the proper headers (`x-api-key`, `anthropic-version: 2023-06-01`, `content-type`) — these are missing from the current `lib/parseDocument.js` and would 401
-   - Uses the same system prompt and JSON output contract you put in `lib/parseDocument.js`
-   - Inserts the parsed rows into `scope_elements` via the authenticated Supabase client (using `requireSupabaseAuth` middleware so RLS applies as the user)
-   - Returns `{ ok: true, parsed }` or `{ ok: false, error }`
+```ts
+if (e === "pdf") {
+  const pdfjs: any = await import("pdfjs-dist/build/pdf.mjs");
+  const workerUrl = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
+  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+  const loadingTask = pdfjs.getDocument({ data: buf, isEvalSupported: false });
+  // ...rest unchanged
+}
+```
 
-2. **Update `src/components/project/ProjectDocumentsTab.tsx`** — replace whatever currently calls the old parser (or the browser-side `lib/parseDocument.js`) with `useServerFn(parseBoQ)` and call it after the upload completes. Show toast on error.
+Also add `declare module "pdfjs-dist/build/pdf.worker.mjs?url";` to `src/types/document-parsers.d.ts` so the `?url` import typechecks.
 
-3. **Keep or remove `lib/parseDocument.js`** — the new server function is the single source of truth. I'll delete `lib/parseDocument.js` so it can't accidentally be imported from the browser (where it would leak the key and CORS-fail anyway). If you want to keep it as reference, say so and I'll leave it.
+This lets Vite bundle the worker, gives `workerSrc` a valid URL, and runs PDF parsing in a real worker (faster and avoids main-thread eval restrictions).
 
-## Technical notes
+## Files
 
-- Anthropic's API rejects browser `fetch` calls without `anthropic-dangerous-direct-browser-access: true` AND would expose the key — running server-side fixes both.
-- The handler will read the key per-request (not at module scope) so it works correctly on Cloudflare Workers.
-- Errors from Anthropic (401/429/5xx) are caught and returned as `{ ok: false, error }` so the UI can show a clean message.
-
-Approve and I'll implement.
+- `src/components/project/ProjectDocumentsTab.tsx` — replace the 5-line PDF branch
+- `src/types/document-parsers.d.ts` — add one `declare module` line
