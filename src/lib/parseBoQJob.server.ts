@@ -143,7 +143,7 @@ export const parseBoQJob = inngest.createFunction(
       return { status: res.status, ok: true, text: accumulatedText, stopReason, usage, errorBody: "" };
     };
 
-    let response: { status: number; ok: boolean; text: string; stopReason: string | undefined; usage: any; errorBody: string };
+    let response: { status: number; ok: boolean; text: string; stopReason?: string; usage: any; errorBody: string };
     try {
       response = await step.run("anthropic-call", callAnthropic);
     } catch (e: any) {
