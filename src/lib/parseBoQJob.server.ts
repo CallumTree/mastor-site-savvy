@@ -85,21 +85,65 @@ export const parseBoQJob = inngest.createFunction(
           "content-type": "application/json",
           "x-api-key": apiKey,
           "anthropic-version": "2023-06-01",
+          "accept": "text/event-stream",
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
           max_tokens: 16000,
+          stream: true,
           system: SYSTEM_PROMPT,
           messages: [
             { role: "user", content: `Parse every line item from this document:\n\n${job.document_text}` },
           ],
         }),
       });
-      const text = await res.text();
-      return { status: res.status, ok: res.ok, body: text };
+
+      if (!res.ok || !res.body) {
+        const errBody = await res.text().catch(() => "");
+        return { status: res.status, ok: false, text: "", stopReason: undefined as string | undefined, usage: {} as any, errorBody: errBody };
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let accumulatedText = "";
+      let stopReason: string | undefined;
+      let usage: any = {};
+
+      // SSE parser: lines starting with "data: " carry JSON events.
+      // event types we care about: content_block_delta (text_delta), message_delta (stop_reason, usage), message_start (usage.input_tokens)
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let nlIdx: number;
+        while ((nlIdx = buffer.indexOf("\n")) !== -1) {
+          const line = buffer.slice(0, nlIdx).replace(/\r$/, "");
+          buffer = buffer.slice(nlIdx + 1);
+          if (!line.startsWith("data:")) continue;
+          const data = line.slice(5).trim();
+          if (!data || data === "[DONE]") continue;
+          try {
+            const evt = JSON.parse(data);
+            if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
+              accumulatedText += evt.delta.text ?? "";
+            } else if (evt.type === "message_delta") {
+              if (evt.delta?.stop_reason) stopReason = evt.delta.stop_reason;
+              if (evt.usage) usage = { ...usage, ...evt.usage };
+            } else if (evt.type === "message_start" && evt.message?.usage) {
+              usage = { ...usage, ...evt.message.usage };
+            }
+          } catch {
+            // ignore malformed SSE chunks
+          }
+        }
+      }
+
+      return { status: res.status, ok: true, text: accumulatedText, stopReason, usage, errorBody: "" };
     };
 
-    let response: { status: number; ok: boolean; body: string };
+    let response: { status: number; ok: boolean; text: string; stopReason?: string; usage: any; errorBody: string };
     try {
       response = await step.run("anthropic-call", callAnthropic);
     } catch (e: any) {
@@ -113,29 +157,22 @@ export const parseBoQJob = inngest.createFunction(
     console.log("[parseBoQJob] Anthropic responded in", elapsed, "ms status", response.status);
 
     if (!response.ok) {
-      const msg = `Anthropic ${response.status}: ${response.body.slice(0, 500)}`;
+      const msg = `Anthropic ${response.status}: ${response.errorBody.slice(0, 500)}`;
       console.error("[parseBoQJob]", msg);
       await failJob(jobId, job.document_id, msg);
       return { ok: false };
     }
 
-    let parsedBody: any;
-    try {
-      parsedBody = JSON.parse(response.body);
-    } catch (e: any) {
-      await failJob(jobId, job.document_id, `Bad Anthropic envelope: ${e?.message}`);
-      return { ok: false };
-    }
-
-    const text: string | undefined = parsedBody?.content?.[0]?.text;
-    const stopReason: string | undefined = parsedBody?.stop_reason;
-    const usage = parsedBody?.usage ?? {};
+    const text = response.text;
+    const stopReason = response.stopReason;
+    const usage = response.usage ?? {};
     console.log("[parseBoQJob] stop_reason:", stopReason, "usage:", JSON.stringify(usage), "text len:", text?.length ?? 0);
 
     if (!text) {
       await failJob(jobId, job.document_id, "Anthropic returned no content.");
       return { ok: false };
     }
+
 
     let result: any;
     try {
