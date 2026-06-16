@@ -41,8 +41,7 @@ Return this exact structure:
 `;
 
 export const parseBoQJob = inngest.createFunction(
-  { id: "parse-boq-job", retries: 1 },
-  { event: "boq/parse.requested" },
+  { id: "parse-boq-job", retries: 1, triggers: [{ event: "boq/parse.requested" }] },
   async ({ event, step }) => {
     const jobId = (event.data as { jobId?: string })?.jobId;
     if (!jobId) throw new Error("Missing jobId in event data");
