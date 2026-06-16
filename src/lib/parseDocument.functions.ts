@@ -59,25 +59,38 @@ export const parseBoQ = createServerFn({ method: "POST" })
     console.log("[parseBoQ] x-api-key present:", Boolean(apiKey), "length:", apiKey.length);
     console.log("[parseBoQ] max_tokens: 16000");
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 16000,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: "user",
-            content: `Parse every line item from this document:\n\n${data.documentText}`,
-          },
-        ],
-      }),
-    });
+    const startedAt = Date.now();
+    console.log("[parseBoQ] fetch -> Anthropic at", new Date(startedAt).toISOString());
+
+    let res: Response;
+    try {
+      res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 16000,
+          system: SYSTEM_PROMPT,
+          messages: [
+            {
+              role: "user",
+              content: `Parse every line item from this document:\n\n${data.documentText}`,
+            },
+          ],
+        }),
+      });
+    } catch (e: any) {
+      const elapsed = Date.now() - startedAt;
+      console.error("[parseBoQ] fetch threw after", elapsed, "ms:", e?.name, e?.message);
+      return { ok: false as const, error: `Network error calling Anthropic after ${elapsed}ms: ${e?.message || e}` };
+    }
+
+    const elapsed = Date.now() - startedAt;
+    console.log("[parseBoQ] Anthropic responded in", elapsed, "ms with status", res.status);
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
@@ -86,10 +99,20 @@ export const parseBoQ = createServerFn({ method: "POST" })
       return { ok: false as const, error: `Anthropic ${res.status}: ${body.slice(0, 500)}` };
     }
 
-
     const body = await res.json();
     const text: string | undefined = body?.content?.[0]?.text;
+    console.log("[parseBoQ] stop_reason:", body?.stop_reason, "usage:", JSON.stringify(body?.usage));
+    console.log("[parseBoQ] text length:", text?.length ?? 0);
+    if (text) {
+      console.log("[parseBoQ] text head (200):", text.slice(0, 200));
+      console.log("[parseBoQ] text tail (200):", text.slice(-200));
+    }
+
     if (!text) return { ok: false as const, error: "Anthropic returned no content." };
+
+    if (body?.stop_reason === "max_tokens") {
+      console.warn("[parseBoQ] response truncated by max_tokens — JSON will likely be invalid");
+    }
 
     try {
       const cleaned = text
@@ -98,8 +121,13 @@ export const parseBoQ = createServerFn({ method: "POST" })
         .replace(/^```\s*/, "")
         .replace(/```\s*$/, "");
       return { ok: true as const, parsed: JSON.parse(cleaned) };
-    } catch (e) {
-      console.error("JSON parse failed", e);
-      return { ok: false as const, error: "Anthropic returned invalid JSON." };
+    } catch (e: any) {
+      console.error("[parseBoQ] JSON parse failed:", e?.message);
+      console.error("[parseBoQ] cleaned text (first 1000):", text.slice(0, 1000));
+      return {
+        ok: false as const,
+        error: `Anthropic returned invalid JSON${body?.stop_reason === "max_tokens" ? " (response was truncated by max_tokens)" : ""}: ${e?.message || ""}`,
+      };
     }
   });
+

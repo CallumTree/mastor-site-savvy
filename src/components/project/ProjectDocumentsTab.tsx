@@ -136,6 +136,8 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
 
   const onParse = async (doc: Doc) => {
     setParsingId(doc.id);
+    const startedAt = Date.now();
+    console.log("[onParse] start", doc.file_name);
     try {
       const { data: signed, error: signErr } = await supabase.storage
         .from("project-documents")
@@ -144,16 +146,21 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
       const resp = await fetch(signed.signedUrl);
       const buf = await resp.arrayBuffer();
       const text = await extractText(buf, doc.file_type);
+      console.log("[onParse] extracted text length:", text.length);
       if (!text.trim()) {
         toast.error("Could not extract any text from this document.");
         return;
       }
 
+      console.log("[onParse] calling parseFn...");
       const result: any = await parseFn({ data: { documentText: text } });
+      console.log("[onParse] parseFn returned in", Date.now() - startedAt, "ms, ok:", result?.ok);
       if (!result?.ok) {
-        toast.error(result?.error || "Parse failed");
+        console.error("[onParse] parse error:", result?.error);
+        toast.error(result?.error ? `Parse failed: ${result.error}` : "Parse failed");
         return;
       }
+
 
       const items: any[] = result.parsed?.items ?? [];
       const rows = items.map((item) => ({
