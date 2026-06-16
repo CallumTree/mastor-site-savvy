@@ -86,6 +86,36 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
     load();
   }, [projectId]);
 
+  // Resume polling for any in-flight parse jobs after page load / navigation.
+  useEffect(() => {
+    const active = docs.filter((d) => (d.parse_status === "queued" || d.parse_status === "running") && d.last_parse_job_id);
+    if (active.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const deadline = Date.now() + 5 * 60 * 1000;
+      while (!cancelled && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 4000));
+        if (cancelled) return;
+        let stillActive = false;
+        for (const d of active) {
+          const poll: any = await getFn({ data: { jobId: d.last_parse_job_id as string } });
+          if (poll?.ok && (poll.job.status === "queued" || poll.job.status === "running")) {
+            stillActive = true;
+          }
+        }
+        if (!stillActive) {
+          load();
+          return;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docs.map((d) => `${d.id}:${d.parse_status}`).join(",")]);
+
+
   const onPickFile = () => fileRef.current?.click();
 
   const onUpload = async (file: File) => {
