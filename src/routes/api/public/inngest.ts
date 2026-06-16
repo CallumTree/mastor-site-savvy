@@ -4,7 +4,7 @@ import { inngest, parseBoQJob } from "@/lib/parseBoQJob.server";
 
 const handler = serve({ client: inngest, functions: [parseBoQJob] });
 
-export const Route = createFileRoute("/api/inngest")({
+export const Route = createFileRoute("/api/public/inngest")({
   server: {
     handlers: {
       GET: async ({ request }) => handler(request),
