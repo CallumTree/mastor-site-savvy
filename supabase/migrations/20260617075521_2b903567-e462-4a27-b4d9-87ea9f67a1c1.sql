@@ -1,0 +1,1 @@
+ALTER TABLE public.parse_jobs ADD COLUMN IF NOT EXISTS anthropic_batch_id text;
