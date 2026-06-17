@@ -98,34 +98,34 @@ export const parseBoQJob = inngest.createFunction(
     } else {
       try {
         batchId = await step.run("submit-batch", async () => {
-        const res = await fetch("https://api.anthropic.com/v1/messages/batches", {
-          method: "POST",
-          headers: ANTHROPIC_HEADERS(apiKey),
-          body: JSON.stringify({
-            requests: [
-              {
-                custom_id: jobId,
-                params: {
-                  model: "claude-sonnet-4-6",
-                  max_tokens: 16000,
-                  system: SYSTEM_PROMPT,
-                  messages: [
-                    {
-                      role: "user",
-                      content: `Parse every line item from this document:\n\n${job.document_text}`,
-                    },
-                  ],
+          const res = await fetch("https://api.anthropic.com/v1/messages/batches", {
+            method: "POST",
+            headers: ANTHROPIC_HEADERS(apiKey),
+            body: JSON.stringify({
+              requests: [
+                {
+                  custom_id: jobId,
+                  params: {
+                    model: "claude-sonnet-4-6",
+                    max_tokens: 16000,
+                    system: SYSTEM_PROMPT,
+                    messages: [
+                      {
+                        role: "user",
+                        content: `Parse every line item from this document:\n\n${job.document_text}`,
+                      },
+                    ],
+                  },
                 },
-              },
-            ],
-          }),
-        });
-        if (!res.ok) {
-          const body = await res.text().catch(() => "");
-          throw new Error(`Anthropic batch submit ${res.status}: ${body.slice(0, 500)}`);
-        }
-        const data = (await res.json()) as { id: string };
-        return data.id;
+              ],
+            }),
+          });
+          if (!res.ok) {
+            const body = await res.text().catch(() => "");
+            throw new Error(`Anthropic batch submit ${res.status}: ${body.slice(0, 500)}`);
+          }
+          const data = (await res.json()) as { id: string };
+          return data.id;
         });
       } catch (e: any) {
         const msg = `Failed to submit Anthropic batch: ${e?.message || e}`;
@@ -137,8 +137,13 @@ export const parseBoQJob = inngest.createFunction(
       console.log(`[parseBoQJob] ${PARSER_VERSION} submitted batch`, batchId, "for job", jobId);
       await supabaseAdmin
         .from("parse_jobs")
-        .update({ anthropic_batch_id: batchId })
+        .update({ anthropic_batch_id: batchId, error: null })
         .eq("id", jobId);
+    }
+
+    if (!batchId) {
+      await failJob(jobId, job.document_id, "Anthropic batch was not created.");
+      return { ok: false };
     }
 
     // 2) Poll batch status
