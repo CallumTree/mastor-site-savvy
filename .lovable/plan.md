@@ -1,75 +1,38 @@
-## Goal
+## Problem found
 
-Eliminate the Cloudflare 524 timeout permanently by removing the long-running Anthropic call from inside the Inngest function. Instead, submit the work to Anthropic's **Message Batches API**, which returns a `batch_id` instantly, then poll its status from short-lived Inngest steps separated by `step.sleep`. No single Worker request ever stays open more than a few seconds.
+The latest failed parse job (`f4fb2aa7-3bc3-4a2b-87f0-e74a44850235`) still ran the old direct Anthropic request:
 
-## What changes
+- `anthropic_batch_id` is still empty
+- logs show `fetch -> Anthropic` and `Anthropic responded in 125038 ms status 524`
+- no `submitted batch` log appeared
 
-Only `src/lib/parseBoQJob.server.ts`. Everything else (UI flow, `startParseJob`, `parse_jobs` schema, `project_documents` updates, polling on the client) stays as-is.
+So the batch implementation is in the codebase, but the live Inngest run is still executing the previously deployed/synced handler. That is why it burned another API call and failed the same way.
 
-## New flow inside `parseBoQJob`
+## Plan
 
-1. Load `parse_jobs` row, mark `running`, mark document `running` (unchanged).
-2. **`step.run("submit-batch")`** — POST to `https://api.anthropic.com/v1/messages/batches` with one request in the array:
-   - `custom_id`: the `jobId`
-   - `params`: same model (`claude-sonnet-4-6`), same system prompt, same `max_tokens: 16000`, same single user message (`Parse every line item…` + `document_text`). No `stream`.
-   - Returns `{ id: "msgbatch_…", processing_status }`. Persist `batch_id` to `parse_jobs` (new column — see Schema below) and return it.
-3. **Polling loop** (up to ~30 min, configurable cap):
-   - `await step.sleep("wait", "15s")`
-   - `const status = await step.run("poll-N", () => GET /v1/messages/batches/{id})`
-     - Each iteration is a fresh Inngest step → fresh Worker invocation → no long-held connection.
-   - Break when `processing_status === "ended"`.
-   - If cap hit without ending, fail the job with a clear message.
-4. **`step.run("fetch-results")`** — GET the `results_url` from the batch object (JSONL stream). Read it fully (small payload, one line for our one request). Extract the single result:
-   - `result.type === "succeeded"` → `message.content[0].text` is the JSON string.
-   - `result.type === "errored" | "canceled" | "expired"` → fail job with that reason.
-5. **Parse + persist** (unchanged): strip ```` ```json ```` fences, `JSON.parse`, write `result`, `stop_reason`, `prompt_tokens` (from `message.usage.input_tokens`), `completion_tokens` (from `output_tokens`), `status: succeeded`, `finished_at`. Update `project_documents.parse_status = 'succeeded'` + `parsed_at`.
+1. **Add a hard safety guard in `parseBoQJob.server.ts`**
+   - Remove/replace any remaining direct `/v1/messages` path if present in the built source.
+   - Add startup logs that clearly identify the batch parser version.
+   - Before any expensive request, mark the job with `status: running` and write a small diagnostic field/log so we can prove the new code is executing.
 
-All Supabase reads/writes continue to use `supabaseAdmin` (already in place).
+2. **Make batch submission idempotent**
+   - If a job already has `anthropic_batch_id`, do not submit another Anthropic batch.
+   - Resume polling the existing batch instead.
+   - This prevents repeated button clicks/retries from creating duplicate paid Anthropic work.
 
-## Schema change
+3. **Fix live Inngest sync/deployment mismatch**
+   - Re-sync the `/api/public/inngest` serve endpoint after the code changes.
+   - Verify the sync response and published worker logs show the new batch handler, not the old direct call.
 
-Add one nullable column for traceability and to support resume if a run is retried:
+4. **Add better failure visibility to the UI polling data**
+   - Include `anthropic_batch_id`, token counts, and `stop_reason` in `getParseJob` so the UI/debug logs can distinguish: queued, running old code, batch submitted, batch polling, failed, or succeeded.
 
-```sql
-ALTER TABLE public.parse_jobs ADD COLUMN IF NOT EXISTS anthropic_batch_id text;
-```
+5. **Validate without burning another full parse unnecessarily**
+   - First query the failed job and logs to confirm old-code failure.
+   - Then create/trigger only one new parse attempt.
+   - Confirm within seconds that `anthropic_batch_id` is populated.
+   - If it is not populated, stop immediately and debug sync/deployment instead of waiting 2 minutes or sending more Anthropic calls.
 
-No new grants/policies needed (table already has them).
+## Expected result
 
-## Implementation loop shape
-
-Inngest doesn't have a native "poll until done" primitive in our SDK version, so we implement a bounded `for` loop in the function body. Because every iteration's `step.sleep` and `step.run` are durably memoized, this is safe across retries and is the documented Inngest pattern for polling.
-
-```text
-const MAX_POLLS = 120          // 120 × 15s = 30 min cap
-for (let i = 0; i < MAX_POLLS; i++) {
-  await step.sleep(`wait-${i}`, "15s")
-  const s = await step.run(`poll-${i}`, fetchBatchStatus)
-  if (s.processing_status === "ended") { ended = s; break }
-}
-if (!ended) failJob("Anthropic batch did not complete within 30 minutes")
-```
-
-## Headers / endpoints
-
-- `POST https://api.anthropic.com/v1/messages/batches`
-- `GET  https://api.anthropic.com/v1/messages/batches/{id}`
-- `GET  {results_url}` (signed, same `x-api-key`)
-- Headers: `x-api-key: $ANTHROPIC_API_KEY`, `anthropic-version: 2023-06-01`, `content-type: application/json`.
-
-## Out of scope
-
-- No UI changes. The existing client poller on `parse_jobs.status` keeps working; users just see "running" until the batch ends (typically a few minutes, occasionally longer — Anthropic guarantees within 24h).
-- No change to `startParseJob`, Inngest event name, or routing.
-- No removal of streaming code from other files (none exist).
-
-## Verification
-
-1. Migration applied; `parse_jobs.anthropic_batch_id` column exists.
-2. Build clean (no TS errors on new request/response shapes).
-3. Re-sync Inngest (`PUT /api/public/inngest`).
-4. Trigger Parse Scope on the existing document; watch:
-   - `parse_jobs.anthropic_batch_id` populated within ~2s of clicking.
-   - `status` stays `running` while polls happen, then flips to `succeeded` with populated `result`, `prompt_tokens`, `completion_tokens`.
-   - No 524 in worker logs; instead many short successful invocations.
-5. If batch errors, `parse_jobs.error` contains the Anthropic batch-result error message.
+The next parse should show `anthropic_batch_id` quickly and then sit in `running` while Inngest polls the batch. It should no longer make a 125-second direct Anthropic request or hit a 524 timeout.
