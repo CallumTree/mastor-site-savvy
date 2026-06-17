@@ -28,6 +28,23 @@ export const startParseJob = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Document not found." };
     }
 
+    const { data: activeJob } = await supabase
+      .from("parse_jobs")
+      .select("id, status")
+      .eq("document_id", doc.id)
+      .in("status", ["queued", "running"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (activeJob?.id) {
+      console.log("[startParseJob] reusing active job", activeJob.id, activeJob.status);
+      await supabase
+        .from("project_documents")
+        .update({ parse_status: activeJob.status, last_parse_job_id: activeJob.id })
+        .eq("id", doc.id);
+      return { ok: true as const, jobId: activeJob.id };
+    }
+
     const { data: job, error: insErr } = await supabase
       .from("parse_jobs")
       .insert({
@@ -102,7 +119,9 @@ export const getParseJob = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.supabase
       .from("parse_jobs")
-      .select("id, status, error, result, started_at, finished_at")
+      .select(
+        "id, status, error, result, anthropic_batch_id, stop_reason, prompt_tokens, completion_tokens, started_at, finished_at",
+      )
       .eq("id", data.jobId)
       .single();
     if (error || !row) {
