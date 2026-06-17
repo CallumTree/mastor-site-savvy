@@ -625,6 +625,7 @@ export type Database = {
       }
       parse_jobs: {
         Row: {
+          anthropic_batch_id: string | null
           completion_tokens: number | null
           created_at: string
           document_id: string | null
@@ -642,6 +643,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          anthropic_batch_id?: string | null
           completion_tokens?: number | null
           created_at?: string
           document_id?: string | null
@@ -659,6 +661,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          anthropic_batch_id?: string | null
           completion_tokens?: number | null
           created_at?: string
           document_id?: string | null
