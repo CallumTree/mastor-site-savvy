@@ -40,6 +40,14 @@ Return this exact structure:
 }
 `;
 
+const ANTHROPIC_HEADERS = (apiKey: string) => ({
+  "content-type": "application/json",
+  "x-api-key": apiKey,
+  "anthropic-version": "2023-06-01",
+});
+
+const MAX_POLLS = 120; // 120 * 15s = 30 min
+
 export const parseBoQJob = inngest.createFunction(
   { id: "parse-boq-job", retries: 1, triggers: [{ event: "boq/parse.requested" }] },
   async ({ event, step }) => {
@@ -75,104 +83,162 @@ export const parseBoQJob = inngest.createFunction(
       return { ok: false };
     }
 
-    const startedAt = Date.now();
-    console.log("[parseBoQJob] fetch -> Anthropic at", new Date(startedAt).toISOString(), "docText:", job.document_text.length);
-
-    const callAnthropic = async () => {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "accept": "text/event-stream",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 16000,
-          stream: true,
-          system: SYSTEM_PROMPT,
-          messages: [
-            { role: "user", content: `Parse every line item from this document:\n\n${job.document_text}` },
-          ],
-        }),
-      });
-
-      if (!res.ok || !res.body) {
-        const errBody = await res.text().catch(() => "");
-        return { status: res.status, ok: false, text: "", stopReason: undefined as string | undefined, usage: {} as any, errorBody: errBody };
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let accumulatedText = "";
-      let stopReason: string | undefined;
-      let usage: any = {};
-
-      // SSE parser: lines starting with "data: " carry JSON events.
-      // event types we care about: content_block_delta (text_delta), message_delta (stop_reason, usage), message_start (usage.input_tokens)
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let nlIdx: number;
-        while ((nlIdx = buffer.indexOf("\n")) !== -1) {
-          const line = buffer.slice(0, nlIdx).replace(/\r$/, "");
-          buffer = buffer.slice(nlIdx + 1);
-          if (!line.startsWith("data:")) continue;
-          const data = line.slice(5).trim();
-          if (!data || data === "[DONE]") continue;
-          try {
-            const evt = JSON.parse(data);
-            if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
-              accumulatedText += evt.delta.text ?? "";
-            } else if (evt.type === "message_delta") {
-              if (evt.delta?.stop_reason) stopReason = evt.delta.stop_reason;
-              if (evt.usage) usage = { ...usage, ...evt.usage };
-            } else if (evt.type === "message_start" && evt.message?.usage) {
-              usage = { ...usage, ...evt.message.usage };
-            }
-          } catch {
-            // ignore malformed SSE chunks
-          }
+    // 1) Submit batch
+    let batchId: string;
+    try {
+      batchId = await step.run("submit-batch", async () => {
+        const res = await fetch("https://api.anthropic.com/v1/messages/batches", {
+          method: "POST",
+          headers: ANTHROPIC_HEADERS(apiKey),
+          body: JSON.stringify({
+            requests: [
+              {
+                custom_id: jobId,
+                params: {
+                  model: "claude-sonnet-4-6",
+                  max_tokens: 16000,
+                  system: SYSTEM_PROMPT,
+                  messages: [
+                    {
+                      role: "user",
+                      content: `Parse every line item from this document:\n\n${job.document_text}`,
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          throw new Error(`Anthropic batch submit ${res.status}: ${body.slice(0, 500)}`);
         }
-      }
+        const data = (await res.json()) as { id: string };
+        return data.id;
+      });
+    } catch (e: any) {
+      const msg = `Failed to submit Anthropic batch: ${e?.message || e}`;
+      console.error("[parseBoQJob]", msg);
+      await failJob(jobId, job.document_id, msg);
+      return { ok: false };
+    }
 
-      return { status: res.status, ok: true, text: accumulatedText, stopReason, usage, errorBody: "" };
+    console.log("[parseBoQJob] submitted batch", batchId, "for job", jobId);
+    await supabaseAdmin
+      .from("parse_jobs")
+      .update({ anthropic_batch_id: batchId })
+      .eq("id", jobId);
+
+    // 2) Poll batch status
+    let ended:
+      | { id: string; processing_status: string; results_url: string | null }
+      | undefined;
+    for (let i = 0; i < MAX_POLLS; i++) {
+      await step.sleep(`wait-${i}`, "15s");
+      const status = await step.run(`poll-${i}`, async () => {
+        const res = await fetch(
+          `https://api.anthropic.com/v1/messages/batches/${batchId}`,
+          { method: "GET", headers: ANTHROPIC_HEADERS(apiKey) },
+        );
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          throw new Error(`Anthropic batch poll ${res.status}: ${body.slice(0, 300)}`);
+        }
+        return (await res.json()) as {
+          id: string;
+          processing_status: string;
+          results_url: string | null;
+        };
+      });
+      if (status.processing_status === "ended") {
+        ended = status;
+        break;
+      }
+    }
+
+    if (!ended) {
+      await failJob(
+        jobId,
+        job.document_id,
+        "Anthropic batch did not complete within 30 minutes.",
+      );
+      return { ok: false };
+    }
+
+    if (!ended.results_url) {
+      await failJob(jobId, job.document_id, "Anthropic batch ended without results_url.");
+      return { ok: false };
+    }
+
+    // 3) Fetch results JSONL
+    type BatchResult = {
+      custom_id: string;
+      result:
+        | {
+            type: "succeeded";
+            message: {
+              content: Array<{ type: string; text?: string }>;
+              stop_reason?: string;
+              usage?: { input_tokens?: number; output_tokens?: number };
+            };
+          }
+        | { type: "errored"; error: { type: string; message: string } }
+        | { type: "canceled" }
+        | { type: "expired" };
     };
 
-    let response: { status: number; ok: boolean; text: string; stopReason?: string; usage: any; errorBody: string };
+    let resultRow: BatchResult;
     try {
-      response = await step.run("anthropic-call", callAnthropic);
+      resultRow = await step.run("fetch-results", async () => {
+        const res = await fetch(ended!.results_url!, {
+          method: "GET",
+          headers: ANTHROPIC_HEADERS(apiKey),
+        });
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          throw new Error(`Anthropic batch results ${res.status}: ${body.slice(0, 300)}`);
+        }
+        const text = await res.text();
+        const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+        const match = lines
+          .map((l) => JSON.parse(l) as BatchResult)
+          .find((r) => r.custom_id === jobId);
+        if (!match) throw new Error("No matching custom_id in batch results JSONL.");
+        return match;
+      });
     } catch (e: any) {
-      const msg = `Network error calling Anthropic: ${e?.message || e}`;
+      const msg = `Failed to fetch Anthropic batch results: ${e?.message || e}`;
       console.error("[parseBoQJob]", msg);
       await failJob(jobId, job.document_id, msg);
       return { ok: false };
     }
 
-    const elapsed = Date.now() - startedAt;
-    console.log("[parseBoQJob] Anthropic responded in", elapsed, "ms status", response.status);
-
-    if (!response.ok) {
-      const msg = `Anthropic ${response.status}: ${response.errorBody.slice(0, 500)}`;
-      console.error("[parseBoQJob]", msg);
-      await failJob(jobId, job.document_id, msg);
+    if (resultRow.result.type !== "succeeded") {
+      const reason =
+        resultRow.result.type === "errored"
+          ? `${resultRow.result.error.type}: ${resultRow.result.error.message}`
+          : resultRow.result.type;
+      await failJob(jobId, job.document_id, `Anthropic batch result ${reason}`);
       return { ok: false };
     }
 
-    const text = response.text;
-    const stopReason = response.stopReason;
-    const usage = response.usage ?? {};
-    console.log("[parseBoQJob] stop_reason:", stopReason, "usage:", JSON.stringify(usage), "text len:", text?.length ?? 0);
+    const message = resultRow.result.message;
+    const text = message.content.find((c) => c.type === "text")?.text ?? "";
+    const stopReason = message.stop_reason;
+    const usage = message.usage ?? {};
+    console.log(
+      "[parseBoQJob] stop_reason:",
+      stopReason,
+      "usage:",
+      JSON.stringify(usage),
+      "text len:",
+      text.length,
+    );
 
     if (!text) {
       await failJob(jobId, job.document_id, "Anthropic returned no content.");
       return { ok: false };
     }
-
 
     let result: any;
     try {
@@ -183,7 +249,9 @@ export const parseBoQJob = inngest.createFunction(
         .replace(/```\s*$/, "");
       result = JSON.parse(cleaned);
     } catch (e: any) {
-      const msg = `Anthropic returned invalid JSON${stopReason === "max_tokens" ? " (truncated by max_tokens)" : ""}: ${e?.message || ""}`;
+      const msg = `Anthropic returned invalid JSON${
+        stopReason === "max_tokens" ? " (truncated by max_tokens)" : ""
+      }: ${e?.message || ""}`;
       console.error("[parseBoQJob]", msg);
       await supabaseAdmin
         .from("parse_jobs")
@@ -197,7 +265,10 @@ export const parseBoQJob = inngest.createFunction(
         })
         .eq("id", jobId);
       if (job.document_id) {
-        await supabaseAdmin.from("project_documents").update({ parse_status: "failed" }).eq("id", job.document_id);
+        await supabaseAdmin
+          .from("project_documents")
+          .update({ parse_status: "failed" })
+          .eq("id", job.document_id);
       }
       return { ok: false };
     }
@@ -233,6 +304,9 @@ async function failJob(jobId: string, documentId: string | null, error: string) 
     .update({ status: "failed", error, finished_at: new Date().toISOString() })
     .eq("id", jobId);
   if (documentId) {
-    await supabaseAdmin.from("project_documents").update({ parse_status: "failed" }).eq("id", documentId);
+    await supabaseAdmin
+      .from("project_documents")
+      .update({ parse_status: "failed" })
+      .eq("id", documentId);
   }
 }
