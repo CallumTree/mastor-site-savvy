@@ -9,6 +9,7 @@ import { LoadingDot } from "@/components/ui/loading-dot";
 import { EmptyState } from "@/components/ui/empty-state";
 import jsPDF from "jspdf";
 import { getCurrentProfile, getLogoDataUrl } from "@/lib/profile";
+import { getOrCreateOpenValuation, formatValuationNumber } from "@/lib/openValuation";
 
 type Variation = {
   id: string;
@@ -75,24 +76,36 @@ export function VariationsTab({ projectId }: { projectId: string }) {
 
   const approve = async (v: Variation) => {
     setBusyId(v.id);
-    const { error: cErr } = await supabase.from("claim_opportunities").insert({
-      project_id: projectId,
-      work_package_name: "Variation",
-      finding_text: v.description ?? "",
-      status: "Pending Review",
-    });
-    if (cErr) {
+    try {
+      const val = await getOrCreateOpenValuation(projectId);
+      const valNumber = formatValuationNumber(val.valuation_number);
+      const claimedValue =
+        v.qty != null && v.rate != null ? Number(v.qty) * Number(v.rate) : null;
+
+      const { error: viErr } = await supabase.from("valuation_items").insert({
+        valuation_id: val.id,
+        work_package_name: "Variation",
+        description: v.description ?? "",
+        status: "Draft",
+        unit_rate: v.rate,
+        claimed_qty: v.qty,
+        claimed_value: claimedValue,
+      });
+      if (viErr) throw viErr;
+
+      const { error: uErr } = await supabase
+        .from("variations")
+        .update({ status: "Approved" })
+        .eq("id", v.id);
+      if (uErr) throw uErr;
+
+      toast.success(`Variation added to Valuation ${valNumber}`);
+      load();
+    } catch (e: any) {
+      showError("Variations", e);
+    } finally {
       setBusyId(null);
-      return showError("Variations", cErr);
     }
-    const { error: uErr } = await supabase
-      .from("variations")
-      .update({ status: "Approved" })
-      .eq("id", v.id);
-    setBusyId(null);
-    if (uErr) return showError("Variations", uErr);
-    toast.success("Variation approved — moved to Ready To Claim");
-    load();
   };
 
   const reject = async (id: string) => {
@@ -365,13 +378,13 @@ export function VariationsTab({ projectId }: { projectId: string }) {
                       onClick={() => approve(v)}
                     >
                       <ClipboardCheck className="w-3 h-3" />
-                      {busyId === v.id ? "Approving…" : "Approve → Ready To Claim"}
+                      {busyId === v.id ? "Adding…" : "Approve → Add to Valuation"}
                     </Button>
                   </>
                 )}
                 {v.status === "Approved" && (
                   <span className="text-[11px] text-emerald-700 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> In Ready To Claim
+                    <Check className="w-3 h-3" /> In open valuation
                   </span>
                 )}
                 <Button size="sm" variant="ghost" className="h-7 text-[11px] text-destructive hover:text-destructive" onClick={() => remove(v.id)}>
