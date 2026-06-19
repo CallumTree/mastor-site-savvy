@@ -155,9 +155,6 @@ function ProjectDetail() {
           <TabsTrigger value="variations" className="px-4 py-2 whitespace-nowrap">
             Variations
           </TabsTrigger>
-          <TabsTrigger value="ready-to-claim" className="px-4 py-2 whitespace-nowrap">
-            Ready To Claim
-          </TabsTrigger>
           <TabsTrigger value="valuations" className="px-4 py-2 whitespace-nowrap">
             Valuations
           </TabsTrigger>
@@ -191,10 +188,6 @@ function ProjectDetail() {
           <VariationsTab projectId={project.id} />
         </TabsContent>
 
-        <TabsContent value="ready-to-claim" className="mt-4 space-y-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Recover Revenue</p>
-          <ReadyToClaimTab projectId={project.id} />
-        </TabsContent>
 
         <TabsContent value="valuations" className="mt-4 space-y-8">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Get Paid Faster</p>
@@ -222,7 +215,6 @@ const PRIMARY_NAV: Array<{ value: string; label: string; Icon: React.ComponentTy
   { value: "site-walks", label: "Site Diary", Icon: ClipboardList },
   { value: "valuations", label: "Valuations", Icon: Receipt },
   { value: "variations", label: "Variations", Icon: GitBranch },
-  { value: "ready-to-claim", label: "Claim", Icon: CheckCircle2 },
 ];
 
 const MORE_NAV: Array<{ value: string; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
