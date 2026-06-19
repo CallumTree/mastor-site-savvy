@@ -240,7 +240,7 @@ function ProjectBottomNav({
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Project sections"
     >
-      <ul className="grid grid-cols-6">
+      <ul className="grid grid-cols-5">
         {PRIMARY_NAV.map(({ value, label, Icon }) => {
           const isActive = active === value;
           return (
