@@ -144,7 +144,7 @@ function ProjectDetail() {
         </div>
       </header>
 
-      <Tabs defaultValue="scope-documents">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full flex flex-nowrap gap-2 overflow-x-auto bg-transparent p-0 h-auto scrollbar-hide">
           <TabsTrigger value="scope-documents" className="px-4 py-2 whitespace-nowrap">
             Scope & Documents
