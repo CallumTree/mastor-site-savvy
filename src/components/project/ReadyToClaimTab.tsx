@@ -157,14 +157,14 @@ export function ReadyToClaimTab({ projectId }: { projectId: string }) {
           Ready To Claim ({pending.length})
         </h3>
         <p className="text-xs text-muted-foreground">
-          Review claim opportunities generated from site walk analysis. Approve to move to the Approved Claims list.
+          Review claim opportunities generated from site diary analysis. Approve to move to the Approved Claims list.
         </p>
 
         {pending.length === 0 ? (
           <EmptyState
             icon={ClipboardCheck}
             title="Nothing to review"
-            description="New claim opportunities will appear here after you analyse a site walk."
+            description="New claim opportunities will appear here after you analyse a site diary entry."
           />
         ) : (
           <div className="space-y-3">
