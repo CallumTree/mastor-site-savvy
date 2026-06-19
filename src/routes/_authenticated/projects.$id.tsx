@@ -10,7 +10,7 @@ import {
   ClipboardList,
   Receipt,
   GitBranch,
-  CheckCircle2,
+  
   MoreHorizontal,
   ShoppingCart,
   FileSpreadsheet,
@@ -26,7 +26,7 @@ import { DisplayMetric } from "@/components/ui/display-metric";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
-import { ReadyToClaimTab } from "@/components/project/ReadyToClaimTab";
+
 import { WorkPackagesTab } from "@/components/project/WorkPackagesTab";
 import { InvoicesTab } from "@/components/project/InvoicesTab";
 import { VariationsTab } from "@/components/project/VariationsTab";
@@ -46,10 +46,6 @@ type HeaderStats = {
   openVariations: number;
   procurementOutstanding: number;
   potentialClaim: number;
-  approvedClaim: number;
-  readyToClaim: number;
-  includedInValuation: number;
-  paid: number;
 };
 
 export const Route = createFileRoute("/_authenticated/projects/$id")({
@@ -66,10 +62,6 @@ function ProjectDetail() {
     openVariations: 0,
     procurementOutstanding: 0,
     potentialClaim: 0,
-    approvedClaim: 0,
-    readyToClaim: 0,
-    includedInValuation: 0,
-    paid: 0,
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("scope-documents");
@@ -78,28 +70,33 @@ function ProjectDetail() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: p, error: pe }, { data: vars }, { data: procs }, { data: pcs }] = await Promise.all([
+      const [{ data: p, error: pe }, { data: vars }, { data: procs }, { data: openVals }] = await Promise.all([
         supabase.from("projects").select("*").eq("id", id).maybeSingle(),
         supabase.from("variations").select("status").eq("project_id", id),
         (supabase as any).from("procurement_items").select("status, estimated_cost").eq("project_id", id),
-        (supabase as any).from("claim_opportunities").select("status, contract_value").eq("project_id", id),
+        (supabase as any)
+          .from("valuations")
+          .select("id, valuation_number, created_at, valuation_items(claimed_value), invoices(id)")
+          .eq("project_id", id)
+          .order("created_at", { ascending: false }),
       ]);
       if (pe) showError("Project", pe);
       setProject((p as Project) ?? null);
       const openVariations = (vars ?? []).filter((v: any) => v.status !== "Approved" && v.status !== "Rejected").length;
       const procurementOutstanding = (procs ?? []).filter((x: any) => x.status === "Required" || x.status === "Quoted").length;
-      const sumBy = (status: string) =>
-        (pcs ?? [])
-          .filter((c: any) => c.status === status)
-          .reduce((s: number, c: any) => s + Number(c.contract_value ?? 0), 0);
+      const openVal = (openVals ?? []).find(
+        (v: any) => !v.invoices || v.invoices.length === 0,
+      );
+      const potentialClaim = openVal
+        ? (openVal.valuation_items ?? []).reduce(
+            (s: number, it: any) => s + Number(it.claimed_value ?? 0),
+            0,
+          )
+        : 0;
       setStats({
         openVariations,
         procurementOutstanding,
-        potentialClaim: sumBy("Suggested"),
-        approvedClaim: sumBy("Approved"),
-        readyToClaim: sumBy("Ready To Claim"),
-        includedInValuation: sumBy("Included In Valuation"),
-        paid: sumBy("Paid"),
+        potentialClaim,
       });
       setLoading(false);
     })();
@@ -158,9 +155,6 @@ function ProjectDetail() {
           <TabsTrigger value="variations" className="px-4 py-2 whitespace-nowrap">
             Variations
           </TabsTrigger>
-          <TabsTrigger value="ready-to-claim" className="px-4 py-2 whitespace-nowrap">
-            Ready To Claim
-          </TabsTrigger>
           <TabsTrigger value="valuations" className="px-4 py-2 whitespace-nowrap">
             Valuations
           </TabsTrigger>
@@ -194,10 +188,6 @@ function ProjectDetail() {
           <VariationsTab projectId={project.id} />
         </TabsContent>
 
-        <TabsContent value="ready-to-claim" className="mt-4 space-y-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Recover Revenue</p>
-          <ReadyToClaimTab projectId={project.id} />
-        </TabsContent>
 
         <TabsContent value="valuations" className="mt-4 space-y-8">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Get Paid Faster</p>
@@ -225,7 +215,6 @@ const PRIMARY_NAV: Array<{ value: string; label: string; Icon: React.ComponentTy
   { value: "site-walks", label: "Site Diary", Icon: ClipboardList },
   { value: "valuations", label: "Valuations", Icon: Receipt },
   { value: "variations", label: "Variations", Icon: GitBranch },
-  { value: "ready-to-claim", label: "Claim", Icon: CheckCircle2 },
 ];
 
 const MORE_NAV: Array<{ value: string; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
@@ -251,7 +240,7 @@ function ProjectBottomNav({
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Project sections"
     >
-      <ul className="grid grid-cols-6">
+      <ul className="grid grid-cols-5">
         {PRIMARY_NAV.map(({ value, label, Icon }) => {
           const isActive = active === value;
           return (
