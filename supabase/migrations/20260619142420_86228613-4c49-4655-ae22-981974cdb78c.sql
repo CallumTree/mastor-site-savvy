@@ -1,0 +1,1 @@
+ALTER TABLE public.scope_elements ADD COLUMN location text;

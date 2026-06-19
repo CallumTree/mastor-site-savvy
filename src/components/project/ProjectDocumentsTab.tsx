@@ -33,6 +33,7 @@ type ScopeElement = {
   unit: string | null;
   source_reference: string | null;
   confidence: "high" | "medium" | "low";
+  location?: string | null;
   status?: ScopeStatus | null;
   claimed_in_valuation?: { id?: string; number?: string } | null;
   invoiced_in?: { id?: string; number?: string } | null;
@@ -233,6 +234,7 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         unit_rate: item.rate,
         total_cost: item.cost,
         source_reference: item.code || null,
+        location: item.location || null,
         confidence: "high",
       }));
 
@@ -472,6 +474,7 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
                 Qty: {item.quantity} {item.unit || ""}
               </span>
             )}
+            {item.location && <span>{item.location}</span>}
             {item.source_reference && <span>Ref: {item.source_reference}</span>}
             {docName && <span>Doc: {docName}</span>}
           </div>
