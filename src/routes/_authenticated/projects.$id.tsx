@@ -2,7 +2,21 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ChevronLeft, MapPin, Building2 } from "lucide-react";
+import {
+  ChevronLeft,
+  MapPin,
+  Building2,
+  FileText,
+  ClipboardList,
+  Receipt,
+  GitBranch,
+  CheckCircle2,
+  MoreHorizontal,
+  ShoppingCart,
+  FileSpreadsheet,
+} from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
 
