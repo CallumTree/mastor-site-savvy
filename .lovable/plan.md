@@ -1,61 +1,49 @@
-# Auto-append approvals to the open valuation
+# Retire Ready To Claim — auto-post findings & variations to the open valuation
 
-## Concept
+## Behaviour change
 
-Each project has at most **one open valuation** at any time — a rolling Draft bucket that accumulates every approved claim opportunity and approved variation across many site diary entries, over days or weeks. It stays open until the user generates an invoice from it. Only after that does the next approval spawn a brand new Draft valuation.
+- Site diary findings (Progress items in `SiteWalksTab`) post **directly** to the project's open valuation as soon as analysis is approved — no Pending Review step, no Approve click in a separate tab.
+- Variations: the Approve button on the Variations tab already posts to the open valuation (just shipped). That stays.
+- The "Ready To Claim" tab disappears from both the top tab bar and the bottom nav.
+- The home-page "Recover Revenue" stat row gets reworked since `Ready To Claim` status no longer accumulates.
 
-## "Open" definition
+## Changes
 
-A valuation is **open** for the project iff:
-- `valuations.project_id = <project>`
-- AND no row exists in `invoices` where `invoices.valuation_id = valuations.id`
+### `SiteWalksTab.tsx` — `approveProgress`
+Replace the `claim_opportunities` insert (lines ~1809–1819) with a `valuation_items` insert against the open valuation, using the existing `getOrCreateOpenValuation` helper. The matched contract item logic above stays — it still produces `unit_rate`, `quantity`, `claimed_value`, which become the line item's fields. We still write the `approved_findings` row for audit trail. Toast becomes "Added to Valuation IV-XX". UI strings updated:
+- "Progress · approve to send to Ready To Claim" → "Progress · approve to add to current valuation"
+- "In Ready To Claim" → "Added to IV-XX" (or just a tick — we already track `approvedKeys`, no need to fetch the number per row; show a generic "Added")
+- "Added to the Variations tab as Draft (duplicates skipped). Approve there to send to Ready To Claim." → "Added to the Variations tab as Draft (duplicates skipped). Approve there to add to the current valuation."
 
-Status (`Draft` / `Approved` / `Sent`) is informational only — the authoritative signal is "has an invoice been generated from it". The existing `invoices` table already has `valuation_id`, so a `LEFT JOIN invoices ON invoices.valuation_id = valuations.id WHERE invoices.id IS NULL` (ordered by `created_at DESC`, limit 1) reliably finds it.
+### `projects.$id.tsx`
+- Remove the `ready-to-claim` `TabsTrigger` and its `TabsContent`.
+- Remove the `ReadyToClaimTab` import.
+- Bottom nav: drop the `Claim` entry from `PRIMARY_NAV`. That leaves 4 primary items (Scope, Site Diary, Valuations, Variations) plus More — total 5 buttons instead of 6, so change `grid-cols-6` to `grid-cols-5`.
+- Stats: `claim_opportunities` is no longer the source of truth. Replace the "Potential Claim / Approved Claim / Ready To Claim / Included In Valuation / Paid" derivations with values derived from `valuation_items` joined to `valuations` and `invoices`:
+  - **Potential Claim** = sum of `valuation_items.claimed_value` on the open valuation (Draft, no invoice)
+  - Drop `readyToClaim`, `approvedClaim` from the displayed metrics — they no longer have a clear meaning. The header currently only renders `Open Variations`, `Procurement Outstanding`, `Potential Claim`, so removing the unused fields from the `stats` object is enough; no visible metric changes besides the new derivation of `Potential Claim`.
 
-## Helper: `getOrCreateOpenValuation(projectId)`
+### `ReadyToClaimTab.tsx`
+- File stays on disk, unimported. (Per your "Leave the rows, just hide the tab" choice we don't need to delete it; deleting is fine too but isn't required. I'll delete it to keep the tree clean — the rows in `claim_opportunities` are untouched.)
 
-Shared client-side helper (e.g. `src/lib/openValuation.ts`):
+## Existing data
 
-1. Query the most recent valuation for the project that has no matching invoice row. Two-step is fine and keeps RLS simple:
-   - `select id, valuation_number from valuations where project_id = $p order by created_at desc`
-   - `select valuation_id from invoices where valuation_id in (...)` → build a Set
-   - pick the first valuation whose id is NOT in that set
-2. If found, return it.
-3. If none, compute `nextNum = max(valuation_number) + 1` for the project and `insert` a new `Draft` valuation with today's date, return it.
-
-Returns `{ id, valuation_number }`.
-
-## Wire-in points
-
-### 1. Approving a claim opportunity (`ReadyToClaimTab.tsx`)
-Currently `updateStatus(id, "Approved")` only flips status + sets scope_element to In Progress. Extend it to also:
-- call `getOrCreateOpenValuation(projectId)`
-- insert a `valuation_items` row mirroring the same shape as today's `generateValuation` (work_package_id/name, description = finding_text, unit_rate, claimed_qty, claimed_value, claim_opportunity_id, scope_element_id, status `Draft`)
-- update the linked `scope_element` with `claimed_in_valuation: { id, number: 'IV-XX' }` so the badge in the scope tab is accurate immediately
-- toast "Added to Valuation IV-XX"
-
-### 2. Approving a variation (`VariationsTab.tsx`)
-Same flow when a variation is approved: call the helper, insert a corresponding `valuation_items` row carrying the variation's value/description so it shows in the rolling valuation.
-
-### 3. Retire/repurpose `generateValuation` button
-With auto-append, the bulk "Generate Valuation" button on Ready To Claim becomes redundant. Replace it with a link to the current open valuation: "View open Valuation IV-XX →" (computed from the same helper, read-only — does not create one if none exists). Closing out happens via the existing invoice flow on the valuation page, which already creates an `invoices` row → next approval will then spawn a new draft.
-
-## Edge cases
-
-- **Race / double-click**: insert a unique partial index `unique (claim_opportunity_id) where claim_opportunity_id is not null` on `valuation_items` so a re-approval can't double-add (small migration). Same for `variation_id` if we add that column.
-- **Manually-deleted valuation_items**: harmless — approval already happened; user can re-add manually from the valuation page if needed. We don't re-derive on every change.
-- **Valuation marked `Approved` but not yet invoiced**: still considered open by our definition, so new approvals keep landing in it. This matches the user's stated rule: only invoicing closes it out.
-- **First-ever approval on a project**: no valuations exist, helper creates IV-01.
+Per your answer, `claim_opportunities` rows already in `Pending Review` stay in the database untouched. They simply have no UI surface anymore. No migration, no backfill.
 
 ## Out of scope
 
-- No change to the invoice generation flow itself.
-- No change to the valuation detail page beyond it naturally showing the growing line-item list.
-- No backfill of historical approvals.
+- No change to the `claim_opportunities` table schema.
+- No change to invoice flow.
+- No change to the open-valuation helper (`src/lib/openValuation.ts`).
+- No change to variation approval (already auto-posts).
 
 ## Files touched
 
-- new `src/lib/openValuation.ts`
-- `src/components/project/ReadyToClaimTab.tsx` — append-on-approve, replace bulk generate button with "View open valuation" link
-- `src/components/project/VariationsTab.tsx` — append-on-approve
-- one small migration for the uniqueness guard on `valuation_items`
+- `src/components/project/SiteWalksTab.tsx` — auto-post on approve, label updates
+- `src/routes/_authenticated/projects.$id.tsx` — remove tab + bottom-nav entry, rework stats query, grid-cols-5
+- `src/components/project/ReadyToClaimTab.tsx` — delete
+
+## Risks
+
+- The matched-contract-item logic (`matchFn`) is currently inside `approveProgress` and runs synchronously per click. Moving the destination from `claim_opportunities` to `valuation_items` doesn't change that latency — same single-tap UX, same Anthropic call.
+- If the same finding text is approved twice for the same room, we'll currently insert two `valuation_items` rows. The `claim_opportunity_id` unique index from last turn doesn't apply because we're not writing one. The in-memory `approvedKeys` set still prevents this within a session; cross-session duplicates remain possible but are unlikely (analyses aren't normally re-approved). I'd rather not add another unique index without a stable natural key — flag it and fix only if it actually hurts.
