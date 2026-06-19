@@ -378,13 +378,13 @@ export function VariationsTab({ projectId }: { projectId: string }) {
                       onClick={() => approve(v)}
                     >
                       <ClipboardCheck className="w-3 h-3" />
-                      {busyId === v.id ? "Approving…" : "Approve → Ready To Claim"}
+                      {busyId === v.id ? "Adding…" : "Approve → Add to Valuation"}
                     </Button>
                   </>
                 )}
                 {v.status === "Approved" && (
                   <span className="text-[11px] text-emerald-700 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> In Ready To Claim
+                    <Check className="w-3 h-3" /> In open valuation
                   </span>
                 )}
                 <Button size="sm" variant="ghost" className="h-7 text-[11px] text-destructive hover:text-destructive" onClick={() => remove(v.id)}>
