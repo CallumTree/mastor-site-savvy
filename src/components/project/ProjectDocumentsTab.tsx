@@ -233,8 +233,7 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         unit_rate: item.rate,
         total_cost: item.cost,
         source_reference: item.code || null,
-        location: item.location,
-        confidence: 1.0,
+        confidence: "high",
       }));
 
       // Replace previous parse for this document
