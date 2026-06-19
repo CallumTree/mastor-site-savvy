@@ -2,7 +2,21 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ChevronLeft, MapPin, Building2 } from "lucide-react";
+import {
+  ChevronLeft,
+  MapPin,
+  Building2,
+  FileText,
+  ClipboardList,
+  Receipt,
+  GitBranch,
+  CheckCircle2,
+  MoreHorizontal,
+  ShoppingCart,
+  FileSpreadsheet,
+} from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
 
@@ -58,6 +72,8 @@ function ProjectDetail() {
     paid: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("scope-documents");
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -113,7 +129,7 @@ function ProjectDetail() {
       </Link>
 
       <header className="mb-6">
-        <p className="text-xs uppercase tracking-[0.18em] text-gold-foreground/70">{project.status}</p>
+        <p className="text-xs uppercase tracking-[0.18em] text-gold/70">{project.status}</p>
         <h1 className="text-2xl font-bold text-primary mt-1">{project.name}</h1>
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
           {project.client && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{project.client}</span>}
@@ -128,7 +144,7 @@ function ProjectDetail() {
         </div>
       </header>
 
-      <Tabs defaultValue="scope-documents">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full flex flex-nowrap gap-2 overflow-x-auto bg-transparent p-0 h-auto scrollbar-hide">
           <TabsTrigger value="scope-documents" className="px-4 py-2 whitespace-nowrap">
             Scope & Documents
@@ -193,9 +209,118 @@ function ProjectDetail() {
           <InvoicesTab projectId={project.id} />
         </TabsContent>
       </Tabs>
+
+      <ProjectBottomNav
+        active={activeTab}
+        onSelect={setActiveTab}
+        moreOpen={moreOpen}
+        setMoreOpen={setMoreOpen}
+      />
     </main>
   );
 }
+
+const PRIMARY_NAV: Array<{ value: string; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
+  { value: "scope-documents", label: "Scope", Icon: FileText },
+  { value: "site-walks", label: "Site Diary", Icon: ClipboardList },
+  { value: "valuations", label: "Valuations", Icon: Receipt },
+  { value: "variations", label: "Variations", Icon: GitBranch },
+  { value: "ready-to-claim", label: "Claim", Icon: CheckCircle2 },
+];
+
+const MORE_NAV: Array<{ value: string; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
+  { value: "procurement", label: "Procurement", Icon: ShoppingCart },
+  { value: "invoices", label: "Invoices", Icon: FileSpreadsheet },
+];
+
+function ProjectBottomNav({
+  active,
+  onSelect,
+  moreOpen,
+  setMoreOpen,
+}: {
+  active: string;
+  onSelect: (v: string) => void;
+  moreOpen: boolean;
+  setMoreOpen: (v: boolean) => void;
+}) {
+  const moreActive = MORE_NAV.some((i) => i.value === active);
+  return (
+    <nav
+      className="fixed bottom-0 inset-x-0 z-30 bg-black border-t border-white/10"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      aria-label="Project sections"
+    >
+      <ul className="grid grid-cols-6">
+        {PRIMARY_NAV.map(({ value, label, Icon }) => {
+          const isActive = active === value;
+          return (
+            <li key={value}>
+              <button
+                type="button"
+                onClick={() => onSelect(value)}
+                className={cn(
+                  "w-full flex flex-col items-center justify-center gap-1 py-2 px-1 text-[10px] font-medium transition-colors",
+                  isActive ? "text-gold" : "text-white/60 hover:text-white",
+                )}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="truncate max-w-full">{label}</span>
+              </button>
+            </li>
+          );
+        })}
+        <li>
+          <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "w-full flex flex-col items-center justify-center gap-1 py-2 px-1 text-[10px] font-medium transition-colors",
+                  moreActive ? "text-gold" : "text-white/60 hover:text-white",
+                )}
+              >
+                <MoreHorizontal className="w-5 h-5" />
+                <span>More</span>
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="bg-black border-white/10 text-white">
+              <SheetHeader>
+                <SheetTitle className="text-white">More sections</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4 grid gap-2 pb-[env(safe-area-inset-bottom)]">
+                {MORE_NAV.map(({ value, label, Icon }) => {
+                  const isActive = active === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => {
+                        onSelect(value);
+                        setMoreOpen(false);
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-3 rounded-md border text-left transition-colors",
+                        isActive
+                          ? "border-gold/60 bg-gold/10 text-gold"
+                          : "border-white/10 text-white/80 hover:bg-white/5",
+                      )}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span className="text-sm font-medium">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </li>
+      </ul>
+    </nav>
+  );
+}
+
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
