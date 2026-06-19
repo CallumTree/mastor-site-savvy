@@ -1249,6 +1249,7 @@ export type Database = {
           element_type: string
           id: string
           invoiced_in: Json | null
+          location: string | null
           parent_id: string | null
           project_id: string
           quantity: number | null
@@ -1268,6 +1269,7 @@ export type Database = {
           element_type: string
           id?: string
           invoiced_in?: Json | null
+          location?: string | null
           parent_id?: string | null
           project_id: string
           quantity?: number | null
@@ -1287,6 +1289,7 @@ export type Database = {
           element_type?: string
           id?: string
           invoiced_in?: Json | null
+          location?: string | null
           parent_id?: string | null
           project_id?: string
           quantity?: number | null

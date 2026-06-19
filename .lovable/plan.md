@@ -1,14 +1,44 @@
-## Fix scope_elements insert mapping in ProjectDocumentsTab.tsx
+## Add `location` column to `scope_elements` and surface it in the UI
 
-### Problem
-The `onParse` function in `ProjectDocumentsTab.tsx` builds rows for `scope_elements` with two fields that don't match the table schema:
-1. `location: item.location` — the `scope_elements` table has no `location` column, causing `PGRST204`
-2. `confidence: 1.0` — the column expects `"high" | "medium" | "low"`, not a number
+### 1. Database migration
+Add a nullable `location` text column to `public.scope_elements`. No default, no backfill needed.
 
-### Changes
-In `src/components/project/ProjectDocumentsTab.tsx`, within the `rows` mapping (around line 225–238):
+```sql
+ALTER TABLE public.scope_elements ADD COLUMN location text;
+```
 
-1. **Remove** the line `location: item.location,`
-2. **Change** `confidence: 1.0,` to `confidence: "high",`
+### 2. `src/components/project/ProjectDocumentsTab.tsx`
 
-This aligns the frontend insert with the actual database schema and the existing `ScopeElement` type definition.
+**a. Type update (around line 25–39)** — add `location` to the `ScopeElement` type:
+```ts
+location?: string | null;
+```
+
+**b. Row mapping in `onParse` (around line 225–237)** — restore `location: item.location`:
+```ts
+const rows = items.map((item) => ({
+  project_id: projectId,
+  document_id: doc.id,
+  element_type: "claimable_element",
+  title: item.description,
+  description: item.comments || null,
+  quantity: item.quantity,
+  unit: item.unit || null,
+  unit_rate: item.rate,
+  total_cost: item.cost,
+  source_reference: item.code || null,
+  location: item.location || null,
+  confidence: "high",
+}));
+```
+
+**c. `ScopeElementRow` display (around line 469–477)** — render the location alongside Ref/Doc:
+```tsx
+{item.location && <span>{item.location}</span>}
+{item.source_reference && <span>Ref: {item.source_reference}</span>}
+{docName && <span>Doc: {docName}</span>}
+```
+
+### Out of scope
+- No changes to the parse server function or prompt — `item.location` is already present in the parsed result.
+- No backfill of existing rows; the College Park parse can be re-materialised separately if desired.
