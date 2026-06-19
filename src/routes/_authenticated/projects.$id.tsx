@@ -134,7 +134,7 @@ function ProjectDetail() {
             Scope & Documents
           </TabsTrigger>
           <TabsTrigger value="site-walks" className="px-4 py-2 whitespace-nowrap">
-            Site Walks
+            Site Diary
           </TabsTrigger>
           <TabsTrigger value="procurement" className="px-4 py-2 whitespace-nowrap">
             Procurement

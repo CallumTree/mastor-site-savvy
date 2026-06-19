@@ -232,7 +232,7 @@ export function VariationsTab({ projectId }: { projectId: string }) {
         doc.text(`Date identified: ${dateIdentified}`, margin, y);
         y += 5;
         doc.text(
-          `Source site walk: ${sourceWalk ? (sourceWalk.title ?? `Walk ${new Date(sourceWalk.created_at).toLocaleDateString("en-GB")}`) : "—"}`,
+          `Source site diary: ${sourceWalk ? (sourceWalk.title ?? `Entry ${new Date(sourceWalk.created_at).toLocaleDateString("en-GB")}`) : "—"}`,
           margin,
           y,
         );
@@ -333,7 +333,7 @@ export function VariationsTab({ projectId }: { projectId: string }) {
         <EmptyState
           icon={FileEdit}
           title="No variations yet"
-          description="Variations are added automatically after you analyse a site walk and approve the findings."
+          description="Variations are added automatically after you analyse a site diary entry and approve the findings."
         />
       ) : (
         <div className="space-y-2">
