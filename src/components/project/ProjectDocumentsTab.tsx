@@ -474,6 +474,7 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
                 Qty: {item.quantity} {item.unit || ""}
               </span>
             )}
+            {item.location && <span>{item.location}</span>}
             {item.source_reference && <span>Ref: {item.source_reference}</span>}
             {docName && <span>Doc: {docName}</span>}
           </div>
