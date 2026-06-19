@@ -1,44 +1,26 @@
-## Add `location` column to `scope_elements` and surface it in the UI
+## Re-materialise College Park scope_elements from stored parse result
 
-### 1. Database migration
-Add a nullable `location` text column to `public.scope_elements`. No default, no backfill needed.
+Job `04a8191f-...` is `succeeded` with 58 items in `parse_jobs.result->'items'`. Re-insert directly via SQL — no Anthropic call, no client code change.
 
-```sql
-ALTER TABLE public.scope_elements ADD COLUMN location text;
-```
+### Steps (single migration)
 
-### 2. `src/components/project/ProjectDocumentsTab.tsx`
-
-**a. Type update (around line 25–39)** — add `location` to the `ScopeElement` type:
-```ts
-location?: string | null;
-```
-
-**b. Row mapping in `onParse` (around line 225–237)** — restore `location: item.location`:
-```ts
-const rows = items.map((item) => ({
-  project_id: projectId,
-  document_id: doc.id,
-  element_type: "claimable_element",
-  title: item.description,
-  description: item.comments || null,
-  quantity: item.quantity,
-  unit: item.unit || null,
-  unit_rate: item.rate,
-  total_cost: item.cost,
-  source_reference: item.code || null,
-  location: item.location || null,
-  confidence: "high",
-}));
-```
-
-**c. `ScopeElementRow` display (around line 469–477)** — render the location alongside Ref/Doc:
-```tsx
-{item.location && <span>{item.location}</span>}
-{item.source_reference && <span>Ref: {item.source_reference}</span>}
-{docName && <span>Doc: {docName}</span>}
-```
+1. `DELETE FROM public.scope_elements WHERE document_id = 'dd429f2e-e589-44dd-812a-49a3fd854979';`
+2. `INSERT INTO public.scope_elements (project_id, document_id, element_type, title, description, quantity, unit, unit_rate, total_cost, source_reference, location, confidence)` selecting from `jsonb_array_elements(result->'items')` of that job, with the exact same field mapping the client uses (lines 226–239 of `ProjectDocumentsTab.tsx`):
+   - title ← `description`
+   - description ← `comments`
+   - quantity ← `quantity`, unit ← `unit`
+   - unit_rate ← `rate`, total_cost ← `cost`
+   - source_reference ← `code`
+   - location ← `location`
+   - element_type = `'claimable_element'`, confidence = `'high'`
+   - project_id / document_id from the parse_jobs row
 
 ### Out of scope
-- No changes to the parse server function or prompt — `item.location` is already present in the parsed result.
-- No backfill of existing rows; the College Park parse can be re-materialised separately if desired.
+
+- Not touching `contract_items` (request was scope_elements only).
+- Not calling the parse server function or Anthropic.
+- No code changes; the insert/display path is already correct.
+
+### Verification after run
+
+`SELECT count(*), count(location) FROM scope_elements WHERE document_id = 'dd429f2e-...';` — expect 58 rows with location populated for the items that have it in the stored parse result.
