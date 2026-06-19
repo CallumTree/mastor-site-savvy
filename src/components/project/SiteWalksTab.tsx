@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { analyseSiteWalk } from "@/lib/analyseSiteWalk.functions";
 import { matchFindingToContractItem } from "@/lib/matchFinding.functions";
+import { getOrCreateOpenValuation, formatValuationNumber } from "@/lib/openValuation";
 import { Button } from "@/components/ui/button";
 import { LoadingDot } from "@/components/ui/loading-dot";
 import { Input } from "@/components/ui/input";
@@ -1806,7 +1807,7 @@ function AnalysisViewer({
     }
 
 
-    let openVal: { id: string; valuation_number: number } | null = null;
+    let openVal: { id: string; valuation_number: number };
     try {
       openVal = await getOrCreateOpenValuation(projectId);
     } catch (e) {
