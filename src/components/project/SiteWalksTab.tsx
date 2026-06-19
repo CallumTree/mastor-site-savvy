@@ -256,8 +256,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         .eq("project_id", projectId)
         .order("created_at", { ascending: false }),
     ]);
-    if (we) showError("Site Walks", we);
-    if (ae) showError("Site Walks", ae);
+    if (we) showError("Site Diary", we);
+    if (ae) showError("Site Diary", ae);
     setWalks((walkData ?? []) as SiteWalk[]);
     setAnalyses((anData ?? []) as unknown as AnalysisRow[]);
     setLoading(false);
@@ -650,7 +650,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     const draftTitle =
       selectedMode === "video"
         ? `Site diary – ${new Date().toLocaleDateString("en-GB")}`
-        : `Site walk – ${new Date().toLocaleDateString("en-GB")}`;
+        : `Site diary – ${new Date().toLocaleDateString("en-GB")}`;
     const { data: draft, error: draftErr } = await supabase
       .from("site_walks")
       .insert({
@@ -665,7 +665,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       .single();
     if (draftErr || !draft) {
       if (selectedMode === "video") await stopVideoRecorder();
-      return showError("Site Walks", draftErr ?? new Error("Could not start walk"));
+      return showError("Site Diary", draftErr ?? new Error("Could not start walk"));
     }
     currentWalkIdRef.current = (draft as any).id as string;
     startTimer();
@@ -699,7 +699,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       return;
     }
     setStatus("finished");
-    setTitle(`Site walk – ${new Date().toLocaleDateString("en-GB")}`);
+    setTitle(`Site diary – ${new Date().toLocaleDateString("en-GB")}`);
     setSaveOpen(true);
   };
 
@@ -765,8 +765,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       } as any)
       .eq("id", walkId);
     setSaving(false);
-    if (error) return showError("Site Walks", error);
-    toast.success(mode === "video" ? "Site diary saved" : "Site walk saved");
+    if (error) return showError("Site Diary", error);
+    toast.success(mode === "video" ? "Site diary saved" : "Site diary saved");
     setSaveOpen(false);
     setVideoConfirmOpen(false);
     setStatus("idle");
@@ -846,16 +846,16 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
 
   const deleteWalk = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this Site Walk?")) return;
+    if (!confirm("Are you sure you want to delete this Site Diary entry?")) return;
     const { error } = await supabase.from("site_walks").delete().eq("id", id);
-    if (error) return showError("Site Walks", error);
+    if (error) return showError("Site Diary", error);
     toast.success("Deleted");
     loadAll();
   };
 
   const analyseWalk = async (walk: SiteWalk) => {
     if (!walk.transcript || !walk.transcript.trim()) {
-      toast.error("This site walk has no transcript to analyse.");
+      toast.error("This site diary entry has no transcript to analyse.");
       return;
     }
     setAnalysingId(walk.id);
@@ -882,7 +882,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       setViewingAnalysis(row);
     } catch (e: any) {
       console.error(e);
-      showError("Site Walks", e ?? new Error("Analysis failed"));
+      showError("Site Diary", e ?? new Error("Analysis failed"));
     } finally {
       setAnalysingId(null);
     }
@@ -891,7 +891,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const deleteAnalysis = async (id: string) => {
     if (!confirm("Delete this analysis?")) return;
     const { error } = await supabase.from("analysis_results").delete().eq("id", id);
-    if (error) return showError("Site Walks", error);
+    if (error) return showError("Site Diary", error);
     setAnalyses((prev) => prev.filter((a) => a.id !== id));
     if (viewingAnalysis?.id === id) setViewingAnalysis(null);
     toast.success("Analysis deleted");
@@ -1089,7 +1089,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         <div className="flex items-center justify-between gap-2">
           <div>
             <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-              Site Walk Recorder
+              Site Diary Recorder
             </h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               Walk the site. Speak naturally — your words appear below.
@@ -1131,7 +1131,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                   size="lg"
                   className="gap-2 h-14 px-6 text-base"
                 >
-                  <Mic className="w-5 h-5" /> Audio Site Walk
+                  <Mic className="w-5 h-5" /> Audio Site Diary
                 </Button>
                 <Button
                   onClick={() => handleStart("video")}
@@ -1357,15 +1357,15 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       {/* History */}
       <section className="space-y-3">
         <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          Previous Site Walks
+          Previous Site Diary Entries
         </h3>
         {loading ? (
           <LoadingDot label="Loading" />
         ) : walks.length === 0 ? (
           <div className="p-8 rounded-xl border border-dashed border-border text-center">
-            <p className="text-sm font-medium text-foreground">No Site Walks Recorded Yet</p>
+            <p className="text-sm font-medium text-foreground">No Site Diary Entries Yet</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Start your first site walk to begin building project records.
+              Start your first site diary entry to begin building project records.
             </p>
           </div>
         ) : (
@@ -1385,7 +1385,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                       ) : (
                         <Mic className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                       )}
-                      <span className="truncate">{w.title || "Untitled site walk"}</span>
+                      <span className="truncate">{w.title || "Untitled site diary"}</span>
                     </div>
 
                     <div className="text-[11px] text-muted-foreground mt-0.5">
@@ -1453,7 +1453,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium truncate">
-                      {walk?.title || "Site walk"}
+                      {walk?.title || "Site diary"}
                     </div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">
                       {new Date(a.created_at).toLocaleDateString("en-GB", {
@@ -1521,7 +1521,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       <Dialog open={saveOpen} onOpenChange={(o) => (!o ? handleCancelSave() : setSaveOpen(true))}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save Site Walk</DialogTitle>
+            <DialogTitle>Save Site Diary</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -1544,7 +1544,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={saving || !title.trim()}>
-              {saving ? "Saving…" : "Save site walk"}
+              {saving ? "Saving…" : "Save site diary"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1601,7 +1601,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{viewing?.title ?? "Site walk"}</DialogTitle>
+            <DialogTitle>{viewing?.title ?? "Site diary"}</DialogTitle>
           </DialogHeader>
           {viewing && (
             <div className="space-y-3">
@@ -1633,7 +1633,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
             <AnalysisViewer
               row={viewingAnalysis}
               projectId={projectId}
-              walkTitle={walkById.get(viewingAnalysis.site_walk_id)?.title ?? "Site walk"}
+              walkTitle={walkById.get(viewingAnalysis.site_walk_id)?.title ?? "Site diary"}
             />
           )}
         </DialogContent>
@@ -1757,7 +1757,7 @@ function AnalysisViewer({
       .single();
     if (fErr || !finding) {
       setBusyKey(null);
-      return showError("Site Walks", fErr ?? new Error("Failed to save finding"));
+      return showError("Site Diary", fErr ?? new Error("Failed to save finding"));
     }
     // Ask Anthropic (via server fn) to pick the best matching contract item.
     let unitRate: number | null = null;
@@ -1808,7 +1808,7 @@ function AnalysisViewer({
 
     const { error: cErr } = await supabase.from("claim_opportunities").insert({
       project_id: projectId,
-      work_package_name: roomName || "Site Walk Progress",
+      work_package_name: roomName || "Site Diary Progress",
       finding_text: text,
       approved_finding_id: finding.id,
       status: "Pending Review",
@@ -1819,7 +1819,7 @@ function AnalysisViewer({
     });
 
     setBusyKey(null);
-    if (cErr) return showError("Site Walks", cErr);
+    if (cErr) return showError("Site Diary", cErr);
     setApprovedKeys((s) => new Set(s).add(key));
     toast.success("Sent to Ready To Claim");
   };
