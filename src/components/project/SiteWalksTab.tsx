@@ -1806,22 +1806,28 @@ function AnalysisViewer({
     }
 
 
-    const { error: cErr } = await supabase.from("claim_opportunities").insert({
-      project_id: projectId,
+    let openVal: { id: string; valuation_number: number } | null = null;
+    try {
+      openVal = await getOrCreateOpenValuation(projectId);
+    } catch (e) {
+      setBusyKey(null);
+      return showError("Site Diary", e);
+    }
+
+    const { error: vErr } = await supabase.from("valuation_items").insert({
+      valuation_id: openVal.id,
       work_package_name: roomName || "Site Diary Progress",
-      finding_text: text,
-      approved_finding_id: finding.id,
-      status: "Pending Review",
+      description: text,
       unit_rate: unitRate,
-      quantity,
+      claimed_qty: quantity,
       claimed_value: claimedValue,
-      completion_percent: completionPercent,
+      status: "Draft",
     });
 
     setBusyKey(null);
-    if (cErr) return showError("Site Diary", cErr);
+    if (vErr) return showError("Site Diary", vErr);
     setApprovedKeys((s) => new Set(s).add(key));
-    toast.success("Sent to Ready To Claim");
+    toast.success(`Added to ${formatValuationNumber(openVal.valuation_number)}`);
   };
 
   const rooms = a.rooms ?? [];
@@ -1923,7 +1929,7 @@ function AnalysisViewer({
 
       <Section title="Potential Variations — Auto-added" empty={variations.length === 0}>
         <p className="text-[11px] text-muted-foreground -mt-1">
-          Added to the Variations tab as Draft (duplicates skipped). Approve there to send to Ready To Claim.
+          Added to the Variations tab as Draft (duplicates skipped). Approve there to add to the current valuation.
         </p>
         <ul className="space-y-1.5">
           {variations.map((item, i) => (
@@ -1999,7 +2005,7 @@ function RoomCard({
       {progressItems.length > 0 && (
         <div>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-            Progress · approve to send to Ready To Claim
+            Progress · approve to add to current valuation
           </div>
           <ul className="space-y-1.5">
             {progressItems.map((item, i) => {
@@ -2041,7 +2047,7 @@ function RoomCard({
                     ) : (
                       <Plus className="w-3 h-3" />
                     )}
-                    {approved ? "In Ready To Claim" : "Approve"}
+                    {approved ? "Added" : "Approve"}
                   </Button>
                 </li>
               );
