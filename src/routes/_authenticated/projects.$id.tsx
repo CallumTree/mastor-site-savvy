@@ -46,10 +46,6 @@ type HeaderStats = {
   openVariations: number;
   procurementOutstanding: number;
   potentialClaim: number;
-  approvedClaim: number;
-  readyToClaim: number;
-  includedInValuation: number;
-  paid: number;
 };
 
 export const Route = createFileRoute("/_authenticated/projects/$id")({
@@ -66,10 +62,6 @@ function ProjectDetail() {
     openVariations: 0,
     procurementOutstanding: 0,
     potentialClaim: 0,
-    approvedClaim: 0,
-    readyToClaim: 0,
-    includedInValuation: 0,
-    paid: 0,
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("scope-documents");
