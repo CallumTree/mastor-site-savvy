@@ -33,6 +33,7 @@ type ScopeElement = {
   unit: string | null;
   source_reference: string | null;
   confidence: "high" | "medium" | "low";
+  location?: string | null;
   status?: ScopeStatus | null;
   claimed_in_valuation?: { id?: string; number?: string } | null;
   invoiced_in?: { id?: string; number?: string } | null;
