@@ -10,7 +10,7 @@ import {
   ClipboardList,
   Receipt,
   GitBranch,
-  CheckCircle2,
+  
   MoreHorizontal,
   ShoppingCart,
   FileSpreadsheet,
