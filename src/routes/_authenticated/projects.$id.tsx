@@ -40,7 +40,9 @@ type Project = {
   contract_value: number | null;
   status: string;
   progress: number;
+  po_number: string | null;
 };
+
 
 type HeaderStats = {
   openVariations: number;
@@ -132,6 +134,11 @@ function ProjectDetail() {
           {project.client && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{project.client}</span>}
           {project.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location}</span>}
         </div>
+        <PoNumberField
+          projectId={project.id}
+          initial={project.po_number}
+          onSaved={(v) => setProject((p) => (p ? { ...p, po_number: v } : p))}
+        />
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
           <DisplayMetric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} className="rounded-lg border border-border bg-card p-3" />
           <Metric label="Progress" value={`${project.progress ?? 0}%`} />
@@ -140,6 +147,7 @@ function ProjectDetail() {
           <Metric label="Potential Claim" value={GBP.format(stats.potentialClaim)} />
         </div>
       </header>
+
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
 
@@ -299,6 +307,47 @@ function Metric({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+function PoNumberField({
+  projectId,
+  initial,
+  onSaved,
+}: {
+  projectId: string;
+  initial: string | null;
+  onSaved: (v: string | null) => void;
+}) {
+  const [value, setValue] = useState(initial ?? "");
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    const trimmed = value.trim() || null;
+    if (trimmed === (initial ?? null)) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("projects")
+      .update({ po_number: trimmed } as any)
+      .eq("id", projectId);
+    setSaving(false);
+    if (error) return showError("Project", error);
+    onSaved(trimmed);
+    toast.success("PO number saved");
+  };
+  return (
+    <div className="mt-3 flex items-center gap-2 text-xs">
+      <label className="text-muted-foreground uppercase tracking-wider">PO Number</label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={save}
+        disabled={saving}
+        placeholder="Optional — appears on invoices"
+        className="h-7 px-2 rounded border border-input bg-background text-xs flex-1 max-w-xs"
+      />
+    </div>
+  );
+}
+
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

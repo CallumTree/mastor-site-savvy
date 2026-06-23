@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.valuation_is_invoiced(uuid);

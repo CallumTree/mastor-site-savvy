@@ -31,6 +31,7 @@ type ScopeElement = {
   description: string | null;
   quantity: number | null;
   unit: string | null;
+  unit_rate?: number | null;
   source_reference: string | null;
   confidence: "high" | "medium" | "low";
   location?: string | null;
@@ -38,6 +39,7 @@ type ScopeElement = {
   claimed_in_valuation?: { id?: string; number?: string } | null;
   invoiced_in?: { id?: string; number?: string } | null;
 };
+
 
 const ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt";
 const SUPPORTED_EXTS = ["pdf", "doc", "docx", "xls", "xlsx", "csv", "txt"] as const;
@@ -429,6 +431,7 @@ function ParsedScopeView({
   );
 }
 
+
 function ScopeStatusBadge({ item }: { item: ScopeElement }) {
   const status = (item.status ?? "Not Started") as ScopeStatus;
   const styles: Record<ScopeStatus, string> = {
@@ -460,8 +463,126 @@ function ScopeStatusBadge({ item }: { item: ScopeElement }) {
 
 function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
   const docName = docs.find((d) => d.id === item.document_id)?.file_name;
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(item.title);
+  const [description, setDescription] = useState(item.description ?? "");
+  const [quantity, setQuantity] = useState<string>(item.quantity != null ? String(item.quantity) : "");
+  const [unit, setUnit] = useState(item.unit ?? "");
+  const [unitRate, setUnitRate] = useState<string>(item.unit_rate != null ? String(item.unit_rate) : "");
+  const [saving, setSaving] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+
+  if (deleted) return null;
+
+  const save = async () => {
+    setSaving(true);
+    const patch = {
+      title: title.trim() || item.title,
+      description: description.trim() || null,
+      quantity: quantity === "" ? null : Number(quantity),
+      unit: unit.trim() || null,
+      unit_rate: unitRate === "" ? null : Number(unitRate),
+    };
+    const total =
+      patch.quantity != null && patch.unit_rate != null ? patch.quantity * patch.unit_rate : null;
+    const { error } = await (supabase as any)
+      .from("scope_elements")
+      .update({ ...patch, total_cost: total })
+      .eq("id", item.id);
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    // Mutate in place so the parent list reflects the change without a full reload.
+    item.title = patch.title;
+    item.description = patch.description;
+    item.quantity = patch.quantity;
+    item.unit = patch.unit;
+    item.unit_rate = patch.unit_rate;
+    toast.success("Scope item updated");
+    setEditing(false);
+  };
+
+  const remove = async () => {
+    if (!confirm(`Delete "${item.title}"?`)) return;
+    // Refuse if referenced by an invoiced valuation_item.
+    const { data: refs } = await (supabase as any)
+      .from("valuation_items")
+      .select("valuation_id")
+      .eq("scope_element_id", item.id);
+    const valuationIds = Array.from(new Set(((refs ?? []) as any[]).map((r) => r.valuation_id).filter(Boolean)));
+    if (valuationIds.length > 0) {
+      const { data: invs } = await supabase
+        .from("invoices")
+        .select("valuation_id")
+        .in("valuation_id", valuationIds);
+      if ((invs ?? []).length > 0) {
+        toast.error("This scope item is on an invoiced valuation and cannot be deleted.");
+        return;
+      }
+      // Detach from any open (non-invoiced) valuation items first.
+      await (supabase as any)
+        .from("valuation_items")
+        .delete()
+        .eq("scope_element_id", item.id);
+    }
+    const { error } = await (supabase as any).from("scope_elements").delete().eq("id", item.id);
+    if (error) return toast.error(error.message);
+    setDeleted(true);
+    toast.success("Scope item deleted");
+  };
+
+  if (editing) {
+    return (
+      <div className="px-3 py-3 bg-muted/20 space-y-2">
+        <input
+          className="w-full h-8 px-2 text-sm rounded border border-input bg-background"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title"
+        />
+        <textarea
+          className="w-full px-2 py-1 text-xs rounded border border-input bg-background min-h-[50px]"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Description"
+        />
+        <div className="grid grid-cols-3 gap-2">
+          <input
+            type="number"
+            inputMode="decimal"
+            className="h-8 px-2 text-xs rounded border border-input bg-background"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            placeholder="Qty"
+          />
+          <input
+            className="h-8 px-2 text-xs rounded border border-input bg-background"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            placeholder="Unit"
+          />
+          <input
+            type="number"
+            inputMode="decimal"
+            className="h-8 px-2 text-xs rounded border border-input bg-background"
+            value={unitRate}
+            onChange={(e) => setUnitRate(e.target.value)}
+            placeholder="Rate"
+          />
+        </div>
+        <div className="flex justify-end gap-1">
+          <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => setEditing(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button size="sm" className="h-7 text-[11px]" onClick={save} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="px-3 py-2">
+    <div className="px-3 py-2 group">
       <div className="flex justify-between gap-3">
         <div className="min-w-0">
           <div className="text-sm text-foreground">{item.title}</div>
@@ -474,6 +595,7 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
                 Qty: {item.quantity} {item.unit || ""}
               </span>
             )}
+            {item.unit_rate != null && <span>Rate: £{Number(item.unit_rate).toLocaleString()}</span>}
             {item.location && <span>{item.location}</span>}
             {item.source_reference && <span>Ref: {item.source_reference}</span>}
             {docName && <span>Doc: {docName}</span>}
@@ -482,11 +604,20 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
         <div className="flex flex-col items-end gap-1 shrink-0">
           <ScopeStatusBadge item={item} />
           <ConfidenceBadge value={item.confidence} />
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditing(true)} title="Edit">
+              <FileText className="w-3 h-3" />
+            </Button>
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive hover:text-destructive" onClick={remove} title="Delete">
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
 
 function ConfidenceBadge({ value }: { value: "high" | "medium" | "low" }) {
   const styles: Record<string, string> = {

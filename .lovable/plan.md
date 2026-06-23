@@ -1,49 +1,71 @@
-# Retire Ready To Claim — auto-post findings & variations to the open valuation
+# Plan: Editable fields, invoice unwind, and lock-on-invoice
 
-## Behaviour change
+## 1. Locking rule — "has this valuation been invoiced?"
 
-- Site diary findings (Progress items in `SiteWalksTab`) post **directly** to the project's open valuation as soon as analysis is approved — no Pending Review step, no Approve click in a separate tab.
-- Variations: the Approve button on the Variations tab already posts to the open valuation (just shipped). That stays.
-- The "Ready To Claim" tab disappears from both the top tab bar and the bottom nav.
-- The home-page "Recover Revenue" stat row gets reworked since `Ready To Claim` status no longer accumulates.
+Single source of truth: a row in `invoices` whose `valuation_id` matches and whose `status <> 'void'` (deleted invoices are hard-deleted, see §7, so simple existence is enough).
 
-## Changes
+Implementation:
+- Add a helper SQL function `public.valuation_is_invoiced(_valuation_id uuid) returns boolean` (SECURITY DEFINER, `SELECT EXISTS(... FROM invoices WHERE valuation_id = _valuation_id)`).
+- Client side: each valuation/variation query joins/embeds `invoices(id)` and derives `isLocked = invoices.length > 0`. For variations, "locked" = the valuation containing it (via `valuation_items.scope_element_id`/variation linkage) has been invoiced. Concretely a variation is locked when **any** `valuation_items` row references it AND that valuation has an invoice. Until then, fully editable.
+- Server-side guards in the edit/delete server functions re-check the same condition before mutating, so a stale client can't bypass.
 
-### `SiteWalksTab.tsx` — `approveProgress`
-Replace the `claim_opportunities` insert (lines ~1809–1819) with a `valuation_items` insert against the open valuation, using the existing `getOrCreateOpenValuation` helper. The matched contract item logic above stays — it still produces `unit_rate`, `quantity`, `claimed_value`, which become the line item's fields. We still write the `approved_findings` row for audit trail. Toast becomes "Added to Valuation IV-XX". UI strings updated:
-- "Progress · approve to send to Ready To Claim" → "Progress · approve to add to current valuation"
-- "In Ready To Claim" → "Added to IV-XX" (or just a tick — we already track `approvedKeys`, no need to fetch the number per row; show a generic "Added")
-- "Added to the Variations tab as Draft (duplicates skipped). Approve there to send to Ready To Claim." → "Added to the Variations tab as Draft (duplicates skipped). Approve there to add to the current valuation."
+## 2. Database migration (single migration)
 
-### `projects.$id.tsx`
-- Remove the `ready-to-claim` `TabsTrigger` and its `TabsContent`.
-- Remove the `ReadyToClaimTab` import.
-- Bottom nav: drop the `Claim` entry from `PRIMARY_NAV`. That leaves 4 primary items (Scope, Site Diary, Valuations, Variations) plus More — total 5 buttons instead of 6, so change `grid-cols-6` to `grid-cols-5`.
-- Stats: `claim_opportunities` is no longer the source of truth. Replace the "Potential Claim / Approved Claim / Ready To Claim / Included In Valuation / Paid" derivations with values derived from `valuation_items` joined to `valuations` and `invoices`:
-  - **Potential Claim** = sum of `valuation_items.claimed_value` on the open valuation (Draft, no invoice)
-  - Drop `readyToClaim`, `approvedClaim` from the displayed metrics — they no longer have a clear meaning. The header currently only renders `Open Variations`, `Procurement Outstanding`, `Potential Claim`, so removing the unused fields from the `stats` object is enough; no visible metric changes besides the new derivation of `Potential Claim`.
+```sql
+ALTER TABLE public.projects   ADD COLUMN po_number text;
+ALTER TABLE public.variations ADD COLUMN client_reference text;
+ALTER TABLE public.variations ADD COLUMN variation_number text;  -- stores V-01 etc. (currently derived?)
+-- (confirm: if V-01 is already derived from created_at order, skip variation_number)
 
-### `ReadyToClaimTab.tsx`
-- File stays on disk, unimported. (Per your "Leave the rows, just hide the tab" choice we don't need to delete it; deleting is fine too but isn't required. I'll delete it to keep the tree clean — the rows in `claim_opportunities` are untouched.)
+CREATE OR REPLACE FUNCTION public.valuation_is_invoiced(_vid uuid) ...;
+```
 
-## Existing data
+No schema change needed for invoice number editing (column already `text`), scope edits (columns exist), valuation item edits (columns exist), or invoice delete (just `DELETE`).
 
-Per your answer, `claim_opportunities` rows already in `Pending Review` stay in the database untouched. They simply have no UI surface anymore. No migration, no backfill.
+## 3. File-by-file changes
 
-## Out of scope
+**Projects / PO number**
+- `src/routes/_authenticated/projects.$id.tsx` — add editable PO Number field in header/metadata area, server fn `updateProject({id, po_number})`.
+- `src/components/project/InvoicesTab.tsx` + `src/routes/_authenticated/valuations.$id.invoice.tsx` — render `project.po_number` on the invoice PDF/preview when present.
 
-- No change to the `claim_opportunities` table schema.
-- No change to invoice flow.
-- No change to the open-valuation helper (`src/lib/openValuation.ts`).
-- No change to variation approval (already auto-posts).
+**Variations**
+- `src/components/project/VariationsTab.tsx`:
+  - Show `client_reference` next to the internal `V-NN` label (e.g. `V-02 · Ref: CC-2451`).
+  - Inline edit (or edit dialog) for `description`, `qty`, `unit`, `rate`, `client_reference` when `!isLocked`.
+  - When locked, render read-only with a small "Invoiced in V-### – locked" badge.
+- New server fn `updateVariation` with the invoiced-lock guard.
+- Anywhere else variations are displayed (valuation builder, valuation detail, invoice line items) — append `client_reference` to the label.
 
-## Files touched
+**Scope elements**
+- `src/components/project/ProjectDocumentsTab.tsx` (or wherever the scope tree lives — search for `scope_elements`):
+  - Per-row edit (qty, unit, unit_rate, description, title) and delete buttons.
+  - New server fns `updateScopeElement`, `deleteScopeElement`.
+  - Delete should refuse (or cascade-warn) if the element is referenced by an invoiced `valuation_items` row; otherwise allow and cascade-clean the `valuation_basket_items` / non-invoiced `valuation_items` references.
 
-- `src/components/project/SiteWalksTab.tsx` — auto-post on approve, label updates
-- `src/routes/_authenticated/projects.$id.tsx` — remove tab + bottom-nav entry, rework stats query, grid-cols-5
-- `src/components/project/ReadyToClaimTab.tsx` — delete
+**Valuations**
+- `src/routes/_authenticated/valuations.$id.tsx`:
+  - Compute `isLocked` from embedded `invoices`.
+  - Existing line-item remove dialog: wrap in `disabled={isLocked}`; same for edit controls.
+  - Add inline edit for `claimed_qty`, `unit_rate`, `description` on each `valuation_items` row when unlocked.
+- Server fns `updateValuationItem`, `deleteValuationItem` re-check lock.
 
-## Risks
+**Invoices**
+- `src/routes/_authenticated/valuations.$id.invoice.tsx` (and `InvoicesTab.tsx`):
+  - Make `invoice_number` an editable text input with a Save button; server fn `updateInvoiceNumber`.
+  - Add a Delete Invoice button with confirm dialog ("This will unlock the valuation for further edits. Underlying line items are kept."). Server fn `deleteInvoice` performs only `DELETE FROM invoices WHERE id=...`; the valuation/items remain. Optionally set `valuations.status` back to `draft` if you currently flip it on invoice creation.
 
-- The matched-contract-item logic (`matchFn`) is currently inside `approveProgress` and runs synchronously per click. Moving the destination from `claim_opportunities` to `valuation_items` doesn't change that latency — same single-tap UX, same Anthropic call.
-- If the same finding text is approved twice for the same room, we'll currently insert two `valuation_items` rows. The `claim_opportunity_id` unique index from last turn doesn't apply because we're not writing one. The in-memory `approvedKeys` set still prevents this within a session; cross-session duplicates remain possible but are unlikely (analyses aren't normally re-approved). I'd rather not add another unique index without a stable natural key — flag it and fix only if it actually hurts.
+## 4. Build order
+
+1. **Migration** (PO number, client_reference, helper fn) — unblocks everything else; types regenerate.
+2. **Lock helper** — small `useIsValuationInvoiced(valuationId)` hook + server-fn guard utility, used by 3–6.
+3. **Invoice delete + editable invoice number** — smallest, makes the unlock path testable end-to-end before piling edit UIs on top.
+4. **Valuation item edit/delete lock wiring** — extends existing remove dialog.
+5. **Variations edit + client_reference display** (depends on lock helper).
+6. **Scope element edit/delete**.
+7. **PO number field + invoice template wiring** (independent, can slot in anywhere after step 1).
+
+## 5. Open questions before I build
+
+- Is `V-01 / V-02` currently derived from `created_at` order, or is there a stored variation number column I missed? Affects whether the migration adds `variation_number`.
+- For scope element delete: hard-delete, or soft-delete (`status='deleted'`) so historical valuation references stay resolvable?
+- When an invoice is deleted, should the valuation's `status` revert to a specific value (e.g. `submitted` → `draft`)? What's the current status flow?

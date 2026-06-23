@@ -2,12 +2,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, Trash2, Save } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getCurrentProfile, getLogoSignedUrl, getLogoDataUrl, type Profile } from "@/lib/profile";
+
 
 export const Route = createFileRoute("/_authenticated/valuations/$id/invoice")({
   component: InvoicePage,
@@ -20,7 +22,9 @@ type Project = {
   client_name: string | null;
   gross_value: number | null;
   contract_value: number | null;
+  po_number: string | null;
 };
+
 
 type Valuation = {
   id: string;
@@ -95,7 +99,7 @@ function InvoicePage() {
       await Promise.all([
         supabase
           .from("projects")
-          .select("id,name,client,client_name,gross_value,contract_value")
+          .select("id,name,client,client_name,gross_value,contract_value,po_number")
           .eq("id", val.project_id)
           .maybeSingle(),
         supabase
@@ -230,6 +234,9 @@ function InvoicePage() {
     doc.setFontSize(10);
     doc.text(`Invoice #: ${invoice.invoice_number}`, 196, 28, { align: "right" });
     doc.text(`Date: ${today}`, 196, 34, { align: "right" });
+    if (project.po_number) {
+      doc.text(`PO #: ${project.po_number}`, 196, 40, { align: "right" });
+    }
 
     doc.setFontSize(12);
     doc.text(project.name, 14, 48);
@@ -240,6 +247,7 @@ function InvoicePage() {
       14,
       60,
     );
+
 
     autoTable(doc, {
       startY: 66,
@@ -331,13 +339,14 @@ function InvoicePage() {
         </div>
       )}
 
-      <header className="space-y-1 border-b border-border pb-4">
+      <header className="space-y-2 border-b border-border pb-4">
         <h1 className="text-2xl font-semibold text-primary">{project.name}</h1>
         <div className="text-sm text-muted-foreground">Client: {clientName}</div>
-        <div className="flex justify-between items-baseline pt-2">
-          <div className="text-lg font-semibold">
-            Invoice {invoice.invoice_number}
-          </div>
+        {project.po_number && (
+          <div className="text-xs text-muted-foreground">PO Number: <span className="text-foreground font-medium">{project.po_number}</span></div>
+        )}
+        <div className="flex justify-between items-end gap-3 pt-2 flex-wrap">
+          <InvoiceNumberEditor invoice={invoice} onSaved={(num) => setInvoice({ ...invoice, invoice_number: num })} />
           <div className="text-xs text-muted-foreground">
             {today} ·{" "}
             <span className="text-foreground uppercase tracking-wider">
@@ -346,6 +355,7 @@ function InvoicePage() {
           </div>
         </div>
       </header>
+
 
       {/* Line items */}
       <section className="space-y-2">
@@ -401,15 +411,132 @@ function InvoicePage() {
         </div>
       </section>
 
-      <div className="pt-2">
+      <div className="pt-2 space-y-2">
         <Button className="w-full" size="lg" onClick={downloadPdf}>
           <Download className="w-4 h-4 mr-2" />
           Download PDF
         </Button>
+        <DeleteInvoiceButton
+          invoice={invoice}
+          onDeleted={() =>
+            navigate({ to: "/valuations/$id", params: { id: invoice.valuation_id } })
+          }
+        />
       </div>
     </div>
   );
 }
+
+function InvoiceNumberEditor({
+  invoice,
+  onSaved,
+}: {
+  invoice: Invoice;
+  onSaved: (num: string) => void;
+}) {
+  const [value, setValue] = useState(invoice.invoice_number);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setValue(invoice.invoice_number), [invoice.invoice_number]);
+
+  const save = async () => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      toast.error("Invoice number cannot be empty");
+      return;
+    }
+    if (trimmed === invoice.invoice_number) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from("invoices")
+      .update({ invoice_number: trimmed })
+      .eq("id", invoice.id);
+    setSaving(false);
+    if (error) return showError("Invoice", error);
+    onSaved(trimmed);
+    setEditing(false);
+    toast.success("Invoice number updated");
+  };
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        className="text-lg font-semibold text-foreground hover:text-primary underline-offset-4 hover:underline"
+        onClick={() => setEditing(true)}
+        title="Click to edit"
+      >
+        Invoice {invoice.invoice_number}
+      </button>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <Input
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="h-9 w-44 text-sm font-semibold"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") {
+            setValue(invoice.invoice_number);
+            setEditing(false);
+          }
+        }}
+      />
+      <Button size="sm" onClick={save} disabled={saving} className="h-9">
+        <Save className="w-3.5 h-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+function DeleteInvoiceButton({
+  invoice,
+  onDeleted,
+}: {
+  invoice: Invoice;
+  onDeleted: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const handle = async () => {
+    if (
+      !confirm(
+        "Delete this invoice?\n\nThe valuation and its line items will be kept and unlocked for editing. The invoice itself will be removed.",
+      )
+    )
+      return;
+    setBusy(true);
+    // Revert valuation status back to Draft so the line items become editable again.
+    await supabase.from("valuations").update({ status: "Draft" }).eq("id", invoice.valuation_id);
+    // Reset any scope elements that were flipped to Invoiced for this invoice.
+    await (supabase as any)
+      .from("scope_elements")
+      .update({ status: "Claimed", invoiced_in: null })
+      .contains("invoiced_in", { id: invoice.id });
+    const { error } = await supabase.from("invoices").delete().eq("id", invoice.id);
+    setBusy(false);
+    if (error) return showError("Invoice", error);
+    toast.success("Invoice deleted — valuation unlocked");
+    onDeleted();
+  };
+  return (
+    <Button
+      variant="outline"
+      className="w-full text-destructive hover:text-destructive border-destructive/40"
+      onClick={handle}
+      disabled={busy}
+    >
+      <Trash2 className="w-4 h-4 mr-2" />
+      {busy ? "Deleting…" : "Delete Invoice"}
+    </Button>
+  );
+}
+
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (

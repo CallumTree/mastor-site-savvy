@@ -84,6 +84,8 @@ function ValuationPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+  const [isInvoiced, setIsInvoiced] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data: val, error: vErr } = await supabase
@@ -98,7 +100,7 @@ function ValuationPage() {
     }
     setValuation(val as Valuation);
 
-    const [{ data: proj }, { data: lines }, { data: priorVals }, profileData] =
+    const [{ data: proj }, { data: lines }, { data: priorVals }, { data: invRows }, profileData] =
       await Promise.all([
         supabase
           .from("projects")
@@ -115,12 +117,14 @@ function ValuationPage() {
           .eq("project_id", val.project_id)
           .eq("status", "Approved")
           .neq("id", id),
+        supabase.from("invoices").select("id").eq("valuation_id", id).limit(1),
         getCurrentProfile().catch(() => null),
       ]);
 
     setProject((proj as Project) ?? null);
     setItems((lines ?? []) as LineItem[]);
     setProfile(profileData as Profile | null);
+    setIsInvoiced((invRows ?? []).length > 0);
 
     const priorIds = (priorVals ?? []).map((v) => v.id);
     if (priorIds.length) {
@@ -139,6 +143,7 @@ function ValuationPage() {
 
     setLoading(false);
   }, [id]);
+
 
   useEffect(() => {
     load();
@@ -433,11 +438,14 @@ function ValuationPage() {
   }
 
   const isApproved = valuation.status === "Approved";
-  const canRemove = !isApproved && editMode;
+  // Lock based on whether the valuation has been invoiced — not on Approved status alone.
+  const isLocked = isInvoiced;
+  const canRemove = !isLocked && editMode;
   const thisClaim = items.reduce((s, it) => s + Number(it.claimed_value ?? 0), 0);
   const projectValue = Number(project.gross_value ?? project.contract_value ?? 0);
   const totalClaimed = previouslyClaimed + thisClaim;
   const remaining = projectValue - totalClaimed;
+
 
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
@@ -464,7 +472,7 @@ function ValuationPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {!isApproved && (
+          {!isLocked && (
             <Button
               size="sm"
               variant={editMode ? "default" : "outline"}
@@ -481,10 +489,16 @@ function ValuationPage() {
               )}
             </Button>
           )}
+          {isLocked && (
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground self-center">
+              Invoiced — locked
+            </span>
+          )}
           <Button size="sm" variant="outline" onClick={exportPdf}>
             <Download className="w-3.5 h-3.5 mr-1" /> Export PDF
           </Button>
         </div>
+
       </header>
 
       <section className="space-y-2">
@@ -520,7 +534,7 @@ function ValuationPage() {
                       {it.description ?? "—"}
                     </td>
                     <td className="py-2 px-3 text-right tabular-nums">
-                      {isApproved ? (
+                      {isLocked ? (
                         it.unit_rate != null ? GBP.format(Number(it.unit_rate)) : "—"
                       ) : (
                         <Input
@@ -533,7 +547,7 @@ function ValuationPage() {
                       )}
                     </td>
                     <td className="py-2 px-3 text-right tabular-nums">
-                      {isApproved ? (
+                      {isLocked ? (
                         it.claimed_qty != null ? String(it.claimed_qty) : "—"
                       ) : (
                         <Input
@@ -615,7 +629,7 @@ function ValuationPage() {
                   <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
                     <div>
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Unit Rate</div>
-                      {isApproved ? (
+                      {isLocked ? (
                         <div className="text-xs tabular-nums mt-1">
                           {it.unit_rate != null ? GBP.format(Number(it.unit_rate)) : "—"}
                         </div>
@@ -631,7 +645,7 @@ function ValuationPage() {
                     </div>
                     <div>
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Quantity</div>
-                      {isApproved ? (
+                      {isLocked ? (
                         <div className="text-xs tabular-nums mt-1">
                           {it.claimed_qty != null ? String(it.claimed_qty) : "—"}
                         </div>
