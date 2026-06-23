@@ -2,9 +2,18 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { Check, Trash2, FileEdit, ClipboardCheck, FileDown, Loader2 } from "lucide-react";
+import { Check, Trash2, FileEdit, ClipboardCheck, FileDown, Loader2, Pencil, Lock } from "lucide-react";
 import { LoadingDot } from "@/components/ui/loading-dot";
 import { EmptyState } from "@/components/ui/empty-state";
 import jsPDF from "jspdf";
@@ -20,6 +29,7 @@ type Variation = {
   rate: number | null;
   status: string;
   created_at: string;
+  client_reference: string | null;
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -57,6 +67,8 @@ export function VariationsTab({ projectId }: { projectId: string }) {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
+  const [editing, setEditing] = useState<Variation | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,7 +78,37 @@ export function VariationsTab({ projectId }: { projectId: string }) {
       .eq("project_id", projectId)
       .order("created_at", { ascending: false });
     if (error) showError("Variations", error);
-    setItems((data ?? []) as Variation[]);
+    const vars = (data ?? []) as Variation[];
+    setItems(vars);
+
+    // Determine which variations are locked because their containing valuation has been invoiced.
+    if (vars.length > 0) {
+      const variationIds = vars.map((v) => v.id);
+      const { data: viRows } = await (supabase as any)
+        .from("valuation_items")
+        .select("variation_id, valuation_id")
+        .in("variation_id", variationIds);
+      const valuationIds = Array.from(
+        new Set(((viRows ?? []) as any[]).map((r) => r.valuation_id).filter(Boolean)),
+      );
+      let invoicedValuations = new Set<string>();
+      if (valuationIds.length > 0) {
+        const { data: invs } = await supabase
+          .from("invoices")
+          .select("valuation_id")
+          .in("valuation_id", valuationIds);
+        invoicedValuations = new Set((invs ?? []).map((r) => r.valuation_id));
+      }
+      const locked = new Set<string>();
+      for (const row of (viRows ?? []) as any[]) {
+        if (row.variation_id && invoicedValuations.has(row.valuation_id)) {
+          locked.add(row.variation_id);
+        }
+      }
+      setLockedIds(locked);
+    } else {
+      setLockedIds(new Set());
+    }
     setLoading(false);
   }, [projectId]);
 
@@ -82,14 +124,16 @@ export function VariationsTab({ projectId }: { projectId: string }) {
       const claimedValue =
         v.qty != null && v.rate != null ? Number(v.qty) * Number(v.rate) : null;
 
-      const { error: viErr } = await supabase.from("valuation_items").insert({
+      const refLabel = v.client_reference ? ` [Ref: ${v.client_reference}]` : "";
+      const { error: viErr } = await (supabase as any).from("valuation_items").insert({
         valuation_id: val.id,
         work_package_name: "Variation",
-        description: v.description ?? "",
+        description: (v.description ?? "") + refLabel,
         status: "Draft",
         unit_rate: v.rate,
         claimed_qty: v.qty,
         claimed_value: claimedValue,
+        variation_id: v.id,
       });
       if (viErr) throw viErr;
 
@@ -114,17 +158,57 @@ export function VariationsTab({ projectId }: { projectId: string }) {
     load();
   };
 
-  const remove = async (id: string) => {
+  const remove = async (v: Variation) => {
+    if (lockedIds.has(v.id)) {
+      toast.error("This variation has been invoiced and cannot be deleted.");
+      return;
+    }
     if (!confirm("Delete this variation?")) return;
-    const { error } = await supabase.from("variations").delete().eq("id", id);
+    const { error } = await supabase.from("variations").delete().eq("id", v.id);
     if (error) return showError("Variations", error);
+    load();
+  };
+
+  const saveEdit = async (patch: Partial<Variation>) => {
+    if (!editing) return;
+    if (lockedIds.has(editing.id)) {
+      toast.error("This variation has been invoiced and cannot be edited.");
+      return;
+    }
+    const { error } = await (supabase as any)
+      .from("variations")
+      .update({
+        description: patch.description ?? null,
+        qty: patch.qty ?? null,
+        unit: patch.unit ?? null,
+        rate: patch.rate ?? null,
+        client_reference: patch.client_reference ?? null,
+      })
+      .eq("id", editing.id);
+    if (error) return showError("Variations", error);
+
+    // Mirror edit into any non-invoiced valuation_items rows linked to this variation.
+    const newValue =
+      patch.qty != null && patch.rate != null ? Number(patch.qty) * Number(patch.rate) : null;
+    const refLabel = patch.client_reference ? ` [Ref: ${patch.client_reference}]` : "";
+    await (supabase as any)
+      .from("valuation_items")
+      .update({
+        description: (patch.description ?? "") + refLabel,
+        unit_rate: patch.rate ?? null,
+        claimed_qty: patch.qty ?? null,
+        claimed_value: newValue,
+      })
+      .eq("variation_id", editing.id);
+
+    toast.success("Variation updated");
+    setEditing(null);
     load();
   };
 
   const generateEvidencePack = async () => {
     setGenerating(true);
     try {
-      // Approved variations, oldest first so numbering reads naturally
       const approvedSorted = items
         .filter((i) => i.status === "Approved")
         .slice()
@@ -172,7 +256,6 @@ export function VariationsTab({ projectId }: { projectId: string }) {
       const margin = 14;
       const rightX = pageWidth - margin;
 
-      // Header — matches invoice style
       let cursorX = margin;
       if (profile?.company_logo_url) {
         const logo = await getLogoDataUrl(profile.company_logo_url);
@@ -213,6 +296,7 @@ export function VariationsTab({ projectId }: { projectId: string }) {
       for (let i = 0; i < approvedSorted.length; i++) {
         const v = approvedSorted[i];
         const number = `V-${String(i + 1).padStart(2, "0")}`;
+        const refSuffix = v.client_reference ? `  ·  CLIENT REF: ${v.client_reference}` : "";
         const variationPhotos = photos.filter((p) => p.linked_variation_id === v.id);
         const sourceWalk = variationPhotos.length
           ? walkMap.get(variationPhotos[0].site_walk_id)
@@ -220,23 +304,20 @@ export function VariationsTab({ projectId }: { projectId: string }) {
 
         ensureSpace(40);
 
-        // Section heading bar
         doc.setFillColor(40, 40, 40);
         doc.rect(margin, y, pageWidth - margin * 2, 8, "F");
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(11);
-        doc.text(`${number}  ·  ${v.status.toUpperCase()}`, margin + 2, y + 5.6);
+        doc.text(`${number}  ·  ${v.status.toUpperCase()}${refSuffix}`, margin + 2, y + 5.6);
         doc.setTextColor(0, 0, 0);
         y += 14;
 
-        // Description
         doc.setFontSize(10);
         const desc = doc.splitTextToSize(v.description ?? "—", pageWidth - margin * 2);
         ensureSpace(desc.length * 5 + 10);
         doc.text(desc, margin, y);
         y += desc.length * 5 + 4;
 
-        // Meta lines
         doc.setFontSize(9);
         doc.setTextColor(90, 90, 90);
         const dateIdentified = new Date(v.created_at).toLocaleDateString("en-GB", {
@@ -254,7 +335,6 @@ export function VariationsTab({ projectId }: { projectId: string }) {
         y += 8;
         doc.setTextColor(0, 0, 0);
 
-        // Photos
         const photoW = 56;
         const photoH = 42;
         const gap = 6;
@@ -286,7 +366,6 @@ export function VariationsTab({ projectId }: { projectId: string }) {
             doc.rect(colX, y, photoW, photoH);
           }
 
-          // Caption: timestamp + geo
           doc.setFontSize(7);
           doc.setTextColor(90, 90, 90);
           const mm = String(Math.floor(p.timestamp_seconds / 60)).padStart(2, "0");
@@ -315,6 +394,10 @@ export function VariationsTab({ projectId }: { projectId: string }) {
       setGenerating(false);
     }
   };
+
+  // Variations are numbered in chronological order (oldest = V-01).
+  const sortedAscIds = items.slice().sort((a, b) => a.created_at.localeCompare(b.created_at)).map((i) => i.id);
+  const numberFor = (id: string) => `V-${String(sortedAscIds.indexOf(id) + 1).padStart(2, "0")}`;
 
   const drafts = items.filter((i) => i.status === "Draft" || i.status === "Pending");
   const approved = items.filter((i) => i.status === "Approved");
@@ -350,51 +433,169 @@ export function VariationsTab({ projectId }: { projectId: string }) {
         />
       ) : (
         <div className="space-y-2">
-          {items.map((v) => (
-            <div key={v.id} className="p-3 rounded-md bg-card border border-border space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm text-foreground leading-relaxed">{v.description ?? "—"}</div>
-                  <div className="text-[11px] text-muted-foreground mt-1">
-                    {new Date(v.created_at).toLocaleDateString("en-GB", {
-                      day: "numeric", month: "short", year: "numeric",
-                    })}
+          {items.map((v) => {
+            const locked = lockedIds.has(v.id);
+            const number = numberFor(v.id);
+            const value =
+              v.qty != null && v.rate != null ? Number(v.qty) * Number(v.rate) : null;
+            return (
+              <div key={v.id} className="p-3 rounded-md bg-card border border-border space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">{number}</span>
+                      {v.client_reference && (
+                        <span className="text-[10px] text-muted-foreground">
+                          Client Ref: <span className="text-foreground font-medium">{v.client_reference}</span>
+                        </span>
+                      )}
+                      {locked && (
+                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                          <Lock className="w-3 h-3" /> Invoiced
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-foreground leading-relaxed">{v.description ?? "—"}</div>
+                    <div className="text-[11px] text-muted-foreground mt-1 flex flex-wrap gap-x-3">
+                      {v.qty != null && <span>Qty: {v.qty}{v.unit ? ` ${v.unit}` : ""}</span>}
+                      {v.rate != null && <span>Rate: £{Number(v.rate).toLocaleString()}</span>}
+                      {value != null && <span>Value: £{value.toLocaleString()}</span>}
+                      <span>{new Date(v.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                    </div>
                   </div>
+                  <Badge variant="outline" className={`text-[10px] uppercase tracking-wider shrink-0 ${STATUS_STYLES[v.status] ?? ""}`}>
+                    {v.status}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className={`text-[10px] uppercase tracking-wider shrink-0 ${STATUS_STYLES[v.status] ?? ""}`}>
-                  {v.status}
-                </Badge>
-              </div>
-              <div className="flex flex-wrap gap-1 justify-end">
-                {(v.status === "Draft" || v.status === "Pending") && (
-                  <>
-                    <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => reject(v.id)}>
-                      Reject
+                <div className="flex flex-wrap gap-1 justify-end">
+                  {(v.status === "Draft" || v.status === "Pending") && (
+                    <>
+                      <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => reject(v.id)}>
+                        Reject
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-[11px] gap-1"
+                        disabled={busyId === v.id}
+                        onClick={() => approve(v)}
+                      >
+                        <ClipboardCheck className="w-3 h-3" />
+                        {busyId === v.id ? "Adding…" : "Approve → Add to Valuation"}
+                      </Button>
+                    </>
+                  )}
+                  {v.status === "Approved" && !locked && (
+                    <span className="text-[11px] text-emerald-700 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> In open valuation
+                    </span>
+                  )}
+                  {!locked && (
+                    <Button size="sm" variant="ghost" className="h-7 text-[11px] gap-1" onClick={() => setEditing(v)}>
+                      <Pencil className="w-3 h-3" /> Edit
                     </Button>
-                    <Button
-                      size="sm"
-                      className="h-7 text-[11px] gap-1"
-                      disabled={busyId === v.id}
-                      onClick={() => approve(v)}
-                    >
-                      <ClipboardCheck className="w-3 h-3" />
-                      {busyId === v.id ? "Adding…" : "Approve → Add to Valuation"}
-                    </Button>
-                  </>
-                )}
-                {v.status === "Approved" && (
-                  <span className="text-[11px] text-emerald-700 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> In open valuation
-                  </span>
-                )}
-                <Button size="sm" variant="ghost" className="h-7 text-[11px] text-destructive hover:text-destructive" onClick={() => remove(v.id)}>
-                  <Trash2 className="w-3 h-3" />
-                </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[11px] text-destructive hover:text-destructive disabled:opacity-30"
+                    onClick={() => remove(v)}
+                    disabled={locked}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      <EditVariationDialog
+        variation={editing}
+        onClose={() => setEditing(null)}
+        onSave={saveEdit}
+      />
+    </div>
+  );
+}
+
+function EditVariationDialog({
+  variation,
+  onClose,
+  onSave,
+}: {
+  variation: Variation | null;
+  onClose: () => void;
+  onSave: (patch: Partial<Variation>) => Promise<void>;
+}) {
+  const [description, setDescription] = useState("");
+  const [qty, setQty] = useState<string>("");
+  const [unit, setUnit] = useState("");
+  const [rate, setRate] = useState<string>("");
+  const [ref, setRef] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (variation) {
+      setDescription(variation.description ?? "");
+      setQty(variation.qty != null ? String(variation.qty) : "");
+      setUnit(variation.unit ?? "");
+      setRate(variation.rate != null ? String(variation.rate) : "");
+      setRef(variation.client_reference ?? "");
+    }
+  }, [variation]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave({
+      description: description.trim() || null,
+      qty: qty === "" ? null : Number(qty),
+      unit: unit.trim() || null,
+      rate: rate === "" ? null : Number(rate),
+      client_reference: ref.trim() || null,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <Dialog open={!!variation} onOpenChange={(o) => !o && !saving && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit variation</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Field label="Description">
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="min-h-[80px] text-sm" />
+          </Field>
+          <Field label="Client Reference">
+            <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="e.g. CC-2451" />
+          </Field>
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Qty">
+              <Input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
+            </Field>
+            <Field label="Unit">
+              <Input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="m², hr…" />
+            </Field>
+            <Field label="Rate (£)">
+              <Input type="number" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} />
+            </Field>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <label className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</label>
+      {children}
     </div>
   );
 }
