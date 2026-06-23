@@ -107,7 +107,7 @@ export const parseBoQJob = inngest.createFunction(
                   custom_id: jobId,
                   params: {
                     model: "claude-sonnet-4-6",
-                    max_tokens: 16000,
+                    max_tokens: 32000,
                     system: SYSTEM_PROMPT,
                     messages: [
                       {
