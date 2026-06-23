@@ -472,7 +472,7 @@ function ValuationPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {!isApproved && (
+          {!isLocked && (
             <Button
               size="sm"
               variant={editMode ? "default" : "outline"}
@@ -489,10 +489,16 @@ function ValuationPage() {
               )}
             </Button>
           )}
+          {isLocked && (
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground self-center">
+              Invoiced — locked
+            </span>
+          )}
           <Button size="sm" variant="outline" onClick={exportPdf}>
             <Download className="w-3.5 h-3.5 mr-1" /> Export PDF
           </Button>
         </div>
+
       </header>
 
       <section className="space-y-2">
