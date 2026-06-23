@@ -339,13 +339,14 @@ function InvoicePage() {
         </div>
       )}
 
-      <header className="space-y-1 border-b border-border pb-4">
+      <header className="space-y-2 border-b border-border pb-4">
         <h1 className="text-2xl font-semibold text-primary">{project.name}</h1>
         <div className="text-sm text-muted-foreground">Client: {clientName}</div>
-        <div className="flex justify-between items-baseline pt-2">
-          <div className="text-lg font-semibold">
-            Invoice {invoice.invoice_number}
-          </div>
+        {project.po_number && (
+          <div className="text-xs text-muted-foreground">PO Number: <span className="text-foreground font-medium">{project.po_number}</span></div>
+        )}
+        <div className="flex justify-between items-end gap-3 pt-2 flex-wrap">
+          <InvoiceNumberEditor invoice={invoice} onSaved={(num) => setInvoice({ ...invoice, invoice_number: num })} />
           <div className="text-xs text-muted-foreground">
             {today} ·{" "}
             <span className="text-foreground uppercase tracking-wider">
@@ -354,6 +355,7 @@ function InvoicePage() {
           </div>
         </div>
       </header>
+
 
       {/* Line items */}
       <section className="space-y-2">
