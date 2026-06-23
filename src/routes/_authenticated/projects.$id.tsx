@@ -134,6 +134,11 @@ function ProjectDetail() {
           {project.client && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{project.client}</span>}
           {project.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location}</span>}
         </div>
+        <PoNumberField
+          projectId={project.id}
+          initial={project.po_number}
+          onSaved={(v) => setProject((p) => (p ? { ...p, po_number: v } : p))}
+        />
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
           <DisplayMetric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} className="rounded-lg border border-border bg-card p-3" />
           <Metric label="Progress" value={`${project.progress ?? 0}%`} />
@@ -142,6 +147,7 @@ function ProjectDetail() {
           <Metric label="Potential Claim" value={GBP.format(stats.potentialClaim)} />
         </div>
       </header>
+
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
 
