@@ -97,7 +97,7 @@ function InvoicePage() {
       await Promise.all([
         supabase
           .from("projects")
-          .select("id,name,client,client_name,gross_value,contract_value")
+          .select("id,name,client,client_name,gross_value,contract_value,po_number")
           .eq("id", val.project_id)
           .maybeSingle(),
         supabase
