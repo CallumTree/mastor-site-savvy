@@ -84,6 +84,8 @@ function ValuationPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+  const [isInvoiced, setIsInvoiced] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data: val, error: vErr } = await supabase
@@ -98,7 +100,7 @@ function ValuationPage() {
     }
     setValuation(val as Valuation);
 
-    const [{ data: proj }, { data: lines }, { data: priorVals }, profileData] =
+    const [{ data: proj }, { data: lines }, { data: priorVals }, { data: invRows }, profileData] =
       await Promise.all([
         supabase
           .from("projects")
@@ -115,12 +117,14 @@ function ValuationPage() {
           .eq("project_id", val.project_id)
           .eq("status", "Approved")
           .neq("id", id),
+        supabase.from("invoices").select("id").eq("valuation_id", id).limit(1),
         getCurrentProfile().catch(() => null),
       ]);
 
     setProject((proj as Project) ?? null);
     setItems((lines ?? []) as LineItem[]);
     setProfile(profileData as Profile | null);
+    setIsInvoiced((invRows ?? []).length > 0);
 
     const priorIds = (priorVals ?? []).map((v) => v.id);
     if (priorIds.length) {
@@ -139,6 +143,7 @@ function ValuationPage() {
 
     setLoading(false);
   }, [id]);
+
 
   useEffect(() => {
     load();
