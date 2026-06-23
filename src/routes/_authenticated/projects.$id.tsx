@@ -308,6 +308,47 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function PoNumberField({
+  projectId,
+  initial,
+  onSaved,
+}: {
+  projectId: string;
+  initial: string | null;
+  onSaved: (v: string | null) => void;
+}) {
+  const [value, setValue] = useState(initial ?? "");
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    const trimmed = value.trim() || null;
+    if (trimmed === (initial ?? null)) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("projects")
+      .update({ po_number: trimmed } as any)
+      .eq("id", projectId);
+    setSaving(false);
+    if (error) return showError("Project", error);
+    onSaved(trimmed);
+    toast.success("PO number saved");
+  };
+  return (
+    <div className="mt-3 flex items-center gap-2 text-xs">
+      <label className="text-muted-foreground uppercase tracking-wider">PO Number</label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={save}
+        disabled={saving}
+        placeholder="Optional — appears on invoices"
+        className="h-7 px-2 rounded border border-input bg-background text-xs flex-1 max-w-xs"
+      />
+    </div>
+  );
+}
+
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
