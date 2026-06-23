@@ -431,6 +431,7 @@ function ParsedScopeView({
   );
 }
 
+
 function ScopeStatusBadge({ item }: { item: ScopeElement }) {
   const status = (item.status ?? "Not Started") as ScopeStatus;
   const styles: Record<ScopeStatus, string> = {
