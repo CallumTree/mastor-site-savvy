@@ -40,7 +40,9 @@ type Project = {
   contract_value: number | null;
   status: string;
   progress: number;
+  po_number: string | null;
 };
+
 
 type HeaderStats = {
   openVariations: number;
