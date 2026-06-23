@@ -534,7 +534,7 @@ function ValuationPage() {
                       {it.description ?? "—"}
                     </td>
                     <td className="py-2 px-3 text-right tabular-nums">
-                      {isApproved ? (
+                      {isLocked ? (
                         it.unit_rate != null ? GBP.format(Number(it.unit_rate)) : "—"
                       ) : (
                         <Input
@@ -547,7 +547,7 @@ function ValuationPage() {
                       )}
                     </td>
                     <td className="py-2 px-3 text-right tabular-nums">
-                      {isApproved ? (
+                      {isLocked ? (
                         it.claimed_qty != null ? String(it.claimed_qty) : "—"
                       ) : (
                         <Input
@@ -629,7 +629,7 @@ function ValuationPage() {
                   <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
                     <div>
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Unit Rate</div>
-                      {isApproved ? (
+                      {isLocked ? (
                         <div className="text-xs tabular-nums mt-1">
                           {it.unit_rate != null ? GBP.format(Number(it.unit_rate)) : "—"}
                         </div>
@@ -645,7 +645,7 @@ function ValuationPage() {
                     </div>
                     <div>
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Quantity</div>
-                      {isApproved ? (
+                      {isLocked ? (
                         <div className="text-xs tabular-nums mt-1">
                           {it.claimed_qty != null ? String(it.claimed_qty) : "—"}
                         </div>
