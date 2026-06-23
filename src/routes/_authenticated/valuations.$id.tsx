@@ -438,11 +438,14 @@ function ValuationPage() {
   }
 
   const isApproved = valuation.status === "Approved";
-  const canRemove = !isApproved && editMode;
+  // Lock based on whether the valuation has been invoiced — not on Approved status alone.
+  const isLocked = isInvoiced;
+  const canRemove = !isLocked && editMode;
   const thisClaim = items.reduce((s, it) => s + Number(it.claimed_value ?? 0), 0);
   const projectValue = Number(project.gross_value ?? project.contract_value ?? 0);
   const totalClaimed = previouslyClaimed + thisClaim;
   const remaining = projectValue - totalClaimed;
+
 
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
