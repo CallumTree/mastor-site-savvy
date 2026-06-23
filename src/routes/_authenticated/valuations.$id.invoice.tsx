@@ -411,15 +411,132 @@ function InvoicePage() {
         </div>
       </section>
 
-      <div className="pt-2">
+      <div className="pt-2 space-y-2">
         <Button className="w-full" size="lg" onClick={downloadPdf}>
           <Download className="w-4 h-4 mr-2" />
           Download PDF
         </Button>
+        <DeleteInvoiceButton
+          invoice={invoice}
+          onDeleted={() =>
+            navigate({ to: "/valuations/$id", params: { id: invoice.valuation_id } })
+          }
+        />
       </div>
     </div>
   );
 }
+
+function InvoiceNumberEditor({
+  invoice,
+  onSaved,
+}: {
+  invoice: Invoice;
+  onSaved: (num: string) => void;
+}) {
+  const [value, setValue] = useState(invoice.invoice_number);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setValue(invoice.invoice_number), [invoice.invoice_number]);
+
+  const save = async () => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      toast.error("Invoice number cannot be empty");
+      return;
+    }
+    if (trimmed === invoice.invoice_number) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from("invoices")
+      .update({ invoice_number: trimmed })
+      .eq("id", invoice.id);
+    setSaving(false);
+    if (error) return showError("Invoice", error);
+    onSaved(trimmed);
+    setEditing(false);
+    toast.success("Invoice number updated");
+  };
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        className="text-lg font-semibold text-foreground hover:text-primary underline-offset-4 hover:underline"
+        onClick={() => setEditing(true)}
+        title="Click to edit"
+      >
+        Invoice {invoice.invoice_number}
+      </button>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <Input
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="h-9 w-44 text-sm font-semibold"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") {
+            setValue(invoice.invoice_number);
+            setEditing(false);
+          }
+        }}
+      />
+      <Button size="sm" onClick={save} disabled={saving} className="h-9">
+        <Save className="w-3.5 h-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+function DeleteInvoiceButton({
+  invoice,
+  onDeleted,
+}: {
+  invoice: Invoice;
+  onDeleted: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const handle = async () => {
+    if (
+      !confirm(
+        "Delete this invoice?\n\nThe valuation and its line items will be kept and unlocked for editing. The invoice itself will be removed.",
+      )
+    )
+      return;
+    setBusy(true);
+    // Revert valuation status back to Draft so the line items become editable again.
+    await supabase.from("valuations").update({ status: "Draft" }).eq("id", invoice.valuation_id);
+    // Reset any scope elements that were flipped to Invoiced for this invoice.
+    await (supabase as any)
+      .from("scope_elements")
+      .update({ status: "Claimed", invoiced_in: null })
+      .contains("invoiced_in", { id: invoice.id });
+    const { error } = await supabase.from("invoices").delete().eq("id", invoice.id);
+    setBusy(false);
+    if (error) return showError("Invoice", error);
+    toast.success("Invoice deleted — valuation unlocked");
+    onDeleted();
+  };
+  return (
+    <Button
+      variant="outline"
+      className="w-full text-destructive hover:text-destructive border-destructive/40"
+      onClick={handle}
+      disabled={busy}
+    >
+      <Trash2 className="w-4 h-4 mr-2" />
+      {busy ? "Deleting…" : "Delete Invoice"}
+    </Button>
+  );
+}
+
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
