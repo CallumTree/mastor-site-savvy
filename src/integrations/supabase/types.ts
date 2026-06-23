@@ -1716,6 +1716,7 @@ export type Database = {
           status: string
           unit_rate: number | null
           valuation_id: string
+          variation_id: string | null
           work_package_id: string | null
           work_package_name: string | null
         }
@@ -1731,6 +1732,7 @@ export type Database = {
           status?: string
           unit_rate?: number | null
           valuation_id: string
+          variation_id?: string | null
           work_package_id?: string | null
           work_package_name?: string | null
         }
@@ -1746,6 +1748,7 @@ export type Database = {
           status?: string
           unit_rate?: number | null
           valuation_id?: string
+          variation_id?: string | null
           work_package_id?: string | null
           work_package_name?: string | null
         }
@@ -1769,6 +1772,13 @@ export type Database = {
             columns: ["valuation_id"]
             isOneToOne: false
             referencedRelation: "valuations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_items_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "variations"
             referencedColumns: ["id"]
           },
         ]
