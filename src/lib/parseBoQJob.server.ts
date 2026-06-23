@@ -38,6 +38,8 @@ Return this exact structure:
     }
   ]
 }
+
+Be concise. Keep description and comments fields as short as possible while preserving meaning. Do not pad or repeat information from other fields.
 `;
 
 const ANTHROPIC_HEADERS = (apiKey: string) => ({
