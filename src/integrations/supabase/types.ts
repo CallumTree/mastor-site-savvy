@@ -2086,7 +2086,6 @@ export type Database = {
     Functions: {
       user_owns_project: { Args: { _project_id: string }; Returns: boolean }
       user_owns_work_package: { Args: { _wp_id: string }; Returns: boolean }
-      valuation_is_invoiced: { Args: { _vid: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
