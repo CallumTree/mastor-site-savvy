@@ -232,6 +232,9 @@ function InvoicePage() {
     doc.setFontSize(10);
     doc.text(`Invoice #: ${invoice.invoice_number}`, 196, 28, { align: "right" });
     doc.text(`Date: ${today}`, 196, 34, { align: "right" });
+    if (project.po_number) {
+      doc.text(`PO #: ${project.po_number}`, 196, 40, { align: "right" });
+    }
 
     doc.setFontSize(12);
     doc.text(project.name, 14, 48);
@@ -242,6 +245,7 @@ function InvoicePage() {
       14,
       60,
     );
+
 
     autoTable(doc, {
       startY: 66,
