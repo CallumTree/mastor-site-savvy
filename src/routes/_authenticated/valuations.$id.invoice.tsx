@@ -2,12 +2,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, Trash2, Save } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getCurrentProfile, getLogoSignedUrl, getLogoDataUrl, type Profile } from "@/lib/profile";
+
 
 export const Route = createFileRoute("/_authenticated/valuations/$id/invoice")({
   component: InvoicePage,
