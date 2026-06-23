@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   ChevronLeft,
   MapPin,
@@ -142,26 +142,6 @@ function ProjectDetail() {
       </header>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full flex flex-nowrap gap-2 overflow-x-auto bg-transparent p-0 h-auto scrollbar-hide">
-          <TabsTrigger value="scope-documents" className="px-4 py-2 whitespace-nowrap">
-            Scope & Documents
-          </TabsTrigger>
-          <TabsTrigger value="site-walks" className="px-4 py-2 whitespace-nowrap">
-            Site Diary
-          </TabsTrigger>
-          <TabsTrigger value="procurement" className="px-4 py-2 whitespace-nowrap">
-            Procurement
-          </TabsTrigger>
-          <TabsTrigger value="variations" className="px-4 py-2 whitespace-nowrap">
-            Variations
-          </TabsTrigger>
-          <TabsTrigger value="valuations" className="px-4 py-2 whitespace-nowrap">
-            Valuations
-          </TabsTrigger>
-          <TabsTrigger value="invoices" className="px-4 py-2 whitespace-nowrap">
-            Invoices
-          </TabsTrigger>
-        </TabsList>
 
         <TabsContent value="scope-documents" className="mt-4 space-y-8">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Understand the Job</p>
