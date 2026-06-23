@@ -20,7 +20,9 @@ type Project = {
   client_name: string | null;
   gross_value: number | null;
   contract_value: number | null;
+  po_number: string | null;
 };
+
 
 type Valuation = {
   id: string;
