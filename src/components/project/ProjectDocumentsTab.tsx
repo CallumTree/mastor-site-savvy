@@ -31,6 +31,7 @@ type ScopeElement = {
   description: string | null;
   quantity: number | null;
   unit: string | null;
+  unit_rate?: number | null;
   source_reference: string | null;
   confidence: "high" | "medium" | "low";
   location?: string | null;
@@ -38,6 +39,7 @@ type ScopeElement = {
   claimed_in_valuation?: { id?: string; number?: string } | null;
   invoiced_in?: { id?: string; number?: string } | null;
 };
+
 
 const ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt";
 const SUPPORTED_EXTS = ["pdf", "doc", "docx", "xls", "xlsx", "csv", "txt"] as const;
