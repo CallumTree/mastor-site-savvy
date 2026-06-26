@@ -515,7 +515,7 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
         .select("valuation_id")
         .in("valuation_id", valuationIds);
       if ((invs ?? []).length > 0) {
-        toast.error("This scope item is on an invoiced valuation and cannot be deleted.");
+        toast.error("This item has been claimed in an invoiced valuation and cannot be deleted.");
         return;
       }
       // Detach from any open (non-invoiced) valuation items first.
