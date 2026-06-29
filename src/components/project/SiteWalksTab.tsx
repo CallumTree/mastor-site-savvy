@@ -296,9 +296,13 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "en-GB";
+    // Each new recognition instance starts a fresh result stream; reset the
+    // guard so its results are accumulated from the first index.
+    lastFinalIndexRef.current = -1;
     // Android Chrome emits cumulative final results and re-fires previous
     // final results on every event. Iterate only from the first changed
     // result and only append each final result once.
+
     rec.onresult = (event: any) => {
       let sessionInterim = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
