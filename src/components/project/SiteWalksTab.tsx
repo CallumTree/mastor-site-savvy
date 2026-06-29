@@ -184,6 +184,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const shouldRestartRef = useRef(false);
   const transcriptRef = useRef("");
   const sessionBaseRef = useRef("");
+  const lastFinalIndexRef = useRef(-1);
+
 
   // Video recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -294,31 +296,36 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "en-GB";
-    // Android Chrome emits cumulative final results (each new final extends
-    // the previous text). Instead of dedup-by-index + append, we treat the
-    // engine's current result set as authoritative for THIS session and
-    // overwrite the session portion of the transcript on every event.
+    // Each new recognition instance starts a fresh result stream; reset the
+    // guard so its results are accumulated from the first index.
+    lastFinalIndexRef.current = -1;
+    // Android Chrome emits cumulative final results and re-fires previous
+    // final results on every event. Iterate only from the first changed
+    // result and only append each final result once.
+
     rec.onresult = (event: any) => {
-      let sessionFinal = "";
       let sessionInterim = "";
-      for (let i = 0; i < event.results.length; i++) {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
         const res = event.results[i];
         const text = (res[0]?.transcript ?? "").trim();
         if (!text) continue;
         if (res.isFinal) {
-          sessionFinal += (sessionFinal ? " " : "") + text;
+          if (i > lastFinalIndexRef.current) {
+            const base = sessionBaseRef.current;
+            const sep = base && !/\s$/.test(base) ? " " : "";
+            sessionBaseRef.current += sep + text;
+            lastFinalIndexRef.current = i;
+          }
         } else {
           sessionInterim += (sessionInterim ? " " : "") + text;
         }
       }
-      const base = sessionBaseRef.current;
-      const sep = base && sessionFinal && !/\s$/.test(base) ? " " : "";
-      const next = base + (sessionFinal ? sep + sessionFinal : "");
-      transcriptRef.current = next;
-      setTranscript(next);
+      transcriptRef.current = sessionBaseRef.current;
+      setTranscript(sessionBaseRef.current);
       // Interim is preview-only — never written into the saved transcript.
       setInterim(sessionInterim);
     };
+
     rec.onerror = (e: any) => {
       const err = e?.error;
       if (err === "not-allowed" || err === "service-not-allowed") {
@@ -335,11 +342,15 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       // Fold completed session into the base so the next session starts clean.
       sessionBaseRef.current = transcriptRef.current;
       if (shouldRestartRef.current) {
+        // The same recognition instance may be restarted; reset the index
+        // guard so the next session's results are accumulated fresh.
+        lastFinalIndexRef.current = -1;
         try {
           rec.start();
         } catch {}
       }
     };
+
     return rec;
   };
 
@@ -636,7 +647,9 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     setTranscript("");
     transcriptRef.current = "";
     sessionBaseRef.current = "";
+    lastFinalIndexRef.current = -1;
     setInterim("");
+
     setSeconds(0);
     secondsRef.current = 0;
     transcriptTimelineRef.current = [];
