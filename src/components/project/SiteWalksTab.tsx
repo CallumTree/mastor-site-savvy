@@ -184,6 +184,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const shouldRestartRef = useRef(false);
   const transcriptRef = useRef("");
   const sessionBaseRef = useRef("");
+  const lastFinalIndexRef = useRef(-1);
+
 
   // Video recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -636,7 +638,9 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     setTranscript("");
     transcriptRef.current = "";
     sessionBaseRef.current = "";
+    lastFinalIndexRef.current = -1;
     setInterim("");
+
     setSeconds(0);
     secondsRef.current = 0;
     transcriptTimelineRef.current = [];
