@@ -338,11 +338,15 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       // Fold completed session into the base so the next session starts clean.
       sessionBaseRef.current = transcriptRef.current;
       if (shouldRestartRef.current) {
+        // The same recognition instance may be restarted; reset the index
+        // guard so the next session's results are accumulated fresh.
+        lastFinalIndexRef.current = -1;
         try {
           rec.start();
         } catch {}
       }
     };
+
     return rec;
   };
 
