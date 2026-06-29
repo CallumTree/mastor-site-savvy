@@ -296,31 +296,32 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "en-GB";
-    // Android Chrome emits cumulative final results (each new final extends
-    // the previous text). Instead of dedup-by-index + append, we treat the
-    // engine's current result set as authoritative for THIS session and
-    // overwrite the session portion of the transcript on every event.
+    // Android Chrome emits cumulative final results and re-fires previous
+    // final results on every event. Iterate only from the first changed
+    // result and only append each final result once.
     rec.onresult = (event: any) => {
-      let sessionFinal = "";
       let sessionInterim = "";
-      for (let i = 0; i < event.results.length; i++) {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
         const res = event.results[i];
         const text = (res[0]?.transcript ?? "").trim();
         if (!text) continue;
         if (res.isFinal) {
-          sessionFinal += (sessionFinal ? " " : "") + text;
+          if (i > lastFinalIndexRef.current) {
+            const base = sessionBaseRef.current;
+            const sep = base && !/\s$/.test(base) ? " " : "";
+            sessionBaseRef.current += sep + text;
+            lastFinalIndexRef.current = i;
+          }
         } else {
           sessionInterim += (sessionInterim ? " " : "") + text;
         }
       }
-      const base = sessionBaseRef.current;
-      const sep = base && sessionFinal && !/\s$/.test(base) ? " " : "";
-      const next = base + (sessionFinal ? sep + sessionFinal : "");
-      transcriptRef.current = next;
-      setTranscript(next);
+      transcriptRef.current = sessionBaseRef.current;
+      setTranscript(sessionBaseRef.current);
       // Interim is preview-only — never written into the saved transcript.
       setInterim(sessionInterim);
     };
+
     rec.onerror = (e: any) => {
       const err = e?.error;
       if (err === "not-allowed" || err === "service-not-allowed") {
