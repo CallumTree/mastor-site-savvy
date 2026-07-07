@@ -958,7 +958,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       : status === "paused"
       ? "border-amber-500/40 text-amber-600 bg-amber-500/10"
       : status === "finished"
-      ? "border-primary/40 text-primary bg-primary/5"
+      ? "border-gold/40 text-gold bg-gold/10"
       : "border-border text-muted-foreground";
 
   const voiceActive = status === "recording" && speechSupported && !micDenied;
@@ -1053,7 +1053,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 onClick={beginSnapshot}
                 disabled={snapBusy}
                 aria-label="Take snapshot"
-                className="h-14 w-14 rounded-full bg-[#D4AF37] text-primary shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
+                className="h-14 w-14 rounded-full bg-gold text-gold-foreground shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
               >
                 {snapBusy ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
@@ -1131,10 +1131,10 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       )}
 
       {/* Recorder */}
-      <section className="rounded-xl border border-border bg-card p-5 space-y-5 shadow-sm">
+      <section className="rounded-sm border border-border bg-card p-5 space-y-5">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            <h3 className="label-mono">
               Site Diary Recorder
             </h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1163,7 +1163,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         </div>
 
         <div className="text-center">
-          <div className="font-mono text-5xl md:text-6xl font-semibold tabular-nums text-primary">
+          <div className="font-mono text-5xl md:text-6xl font-semibold tabular-nums text-gold">
             {formatDuration(seconds)}
           </div>
         </div>
@@ -1171,19 +1171,19 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         <div className="flex flex-wrap gap-2 justify-center">
           {status === "idle" && (
             <div className="flex flex-col gap-3 w-full sm:w-auto items-center">
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center w-full">
                 <Button
                   onClick={() => handleStart("audio")}
                   size="lg"
-                  className="gap-2 h-14 px-6 text-base"
+                  className="gap-2 h-16 px-8 text-base w-full sm:w-auto bg-gold text-gold-foreground border-none hover:bg-gold/90"
                 >
-                  <Mic className="w-5 h-5" /> Audio Site Diary
+                  <Mic className="w-5 h-5" /> Start Audio Site Diary
                 </Button>
                 <Button
                   onClick={() => handleStart("video")}
                   size="lg"
-                  variant="secondary"
-                  className="gap-2 h-14 px-6 text-base"
+                  variant="outline"
+                  className="gap-2 h-16 px-8 text-base w-full sm:w-auto"
                 >
                   <Video className="w-5 h-5" /> Video Site Diary
                 </Button>
@@ -1256,7 +1256,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 disabled={snapBusy}
                 size="lg"
                 aria-label="Take snapshot"
-                className="h-20 w-20 rounded-full p-0 bg-[#D4AF37] hover:bg-[#bf9a2e] text-primary shadow-lg shadow-[#D4AF37]/30 ring-4 ring-[#D4AF37]/20"
+                className="h-20 w-20 rounded-full p-0 bg-gold hover:bg-gold/90 text-gold-foreground shadow-lg shadow-gold/30 ring-4 ring-gold/20"
               >
                 {snapBusy ? (
                   <Loader2 className="w-8 h-8 animate-spin" />
@@ -1329,7 +1329,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         {/* Area markers */}
         {isActive && (
           <div className="space-y-2">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            <div className="label-mono">
               Insert area
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1338,7 +1338,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                   key={a}
                   size="sm"
                   variant="outline"
-                  className="gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                  className="gap-1 border-gold/30 text-gold hover:bg-gold/5"
                   onClick={() => insertMarker(a)}
                 >
                   <Plus className="w-3 h-3" /> {a}
@@ -1347,7 +1347,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1 border-[#D4AF37]/40 text-[#9c7e1f] hover:bg-[#D4AF37]/10"
+                className="gap-1 border-gold/40 text-gold hover:bg-gold/10"
                 onClick={() => setCustomOpen(true)}
               >
                 <Plus className="w-3 h-3" /> Custom Area
@@ -1360,7 +1360,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         {(isActive || transcript) && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div className="label-mono">
                 Transcript {isActive && "· editable · final results only"}
               </div>
               {savedAt && (
@@ -1387,7 +1387,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
             />
             {voiceActive && (
               <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 min-h-[2.25rem]">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">
+                <div className="label-mono mb-0.5">
                   Live preview (not saved)
                 </div>
                 <div className="text-sm italic text-muted-foreground">
@@ -1401,7 +1401,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
       {/* History */}
       <section className="space-y-3">
-        <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        <h3 className="label-mono">
           Previous Site Diary Entries
         </h3>
         {loading ? (
@@ -1421,12 +1421,12 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               return (
                 <div
                   key={w.id}
-                  className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-card border border-border hover:border-primary/40 transition-colors"
+                  className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-card border border-border hover:border-gold/40 transition-colors"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-foreground truncate flex items-center gap-2">
                       {w.recording_type === "video" ? (
-                        <FileVideo className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <FileVideo className="w-3.5 h-3.5 text-gold shrink-0" />
                       ) : (
                         <Mic className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                       )}
@@ -1441,7 +1441,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                       })}{" "}
                       · {formatMinutes(w.duration_seconds)}
                       {count > 0 && (
-                        <span className="ml-2 text-primary">
+                        <span className="ml-2 text-gold">
                           · {count} analysis{count === 1 ? "" : "es"}
                         </span>
                       )}
@@ -1454,7 +1454,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                      className="gap-1 border-gold/30 text-gold hover:bg-gold/5"
                       disabled={busy}
                       onClick={() => analyseWalk(w)}
                     >
@@ -1484,7 +1484,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       {/* Previous Analyses */}
       {analyses.length > 0 && (
         <section className="space-y-3">
-          <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          <h3 className="label-mono">
             Previous Analyses
           </h3>
           <div className="space-y-2">
@@ -1515,7 +1515,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                      className="gap-1 border-gold/30 text-gold hover:bg-gold/5"
                       onClick={() => setViewingAnalysis(a)}
                     >
                       <Eye className="w-4 h-4" /> View Analysis
@@ -1570,7 +1570,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <label className="label-mono">
                 Title
               </label>
               <Input
@@ -1605,7 +1605,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileVideo className="w-4 h-4 text-primary" /> Save Video Site Diary
+              <FileVideo className="w-4 h-4 text-gold" /> Save Video Site Diary
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
@@ -1615,7 +1615,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               <div>Transcript: <span className="text-foreground font-medium">{transcript.trim().length} chars</span></div>
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <label className="label-mono">
                 Title
               </label>
               <Input
@@ -1650,7 +1650,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           </DialogHeader>
           {viewing && (
             <div className="space-y-3">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              <div className="label-mono">
                 {new Date(viewing.created_at).toLocaleDateString("en-GB", {
                   day: "numeric",
                   month: "long",
@@ -1671,7 +1671,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary" /> AI Review Queue
+              <Sparkles className="w-4 h-4 text-gold" /> AI Review Queue
             </DialogTitle>
           </DialogHeader>
           {viewingAnalysis && (
@@ -1703,7 +1703,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 {photoViewer && formatDuration(photoViewer.timestamp_seconds)}
               </span>
               {photoViewer?.hasLocation && (
-                <span className="flex items-center gap-1 text-xs text-primary">
+                <span className="flex items-center gap-1 text-xs text-gold">
                   <MapPin className="w-3.5 h-3.5" /> Geotagged
                 </span>
               )}
@@ -1918,7 +1918,7 @@ function AnalysisViewer({
                     key={p.id}
                     type="button"
                     onClick={() => p.signedUrl && setLightboxPhoto(p.signedUrl)}
-                    className="shrink-0 w-36 rounded-md border border-border bg-background overflow-hidden text-left hover:border-primary/50 transition-colors"
+                    className="shrink-0 w-36 rounded-md border border-border bg-background overflow-hidden text-left hover:border-gold/50 transition-colors"
                   >
                     {p.signedUrl ? (
                       <img src={p.signedUrl} alt="" className="w-full h-24 object-cover" />
@@ -2049,7 +2049,7 @@ function RoomCard({
 
       {progressItems.length > 0 && (
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+          <div className="label-mono mb-1.5">
             Progress · approve to add to current valuation
           </div>
           <ul className="space-y-1.5">
@@ -2104,7 +2104,7 @@ function RoomCard({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {sections.map((s) => (
           <div key={s.label}>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+            <div className="label-mono mb-1">
               {s.label}
             </div>
             {s.items.length === 0 ? (
@@ -2122,7 +2122,7 @@ function RoomCard({
 
       {photos.length > 0 && (
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+          <div className="label-mono mb-1.5">
             Photos ({photos.length})
           </div>
           <div className="flex gap-2 overflow-x-auto">
@@ -2160,9 +2160,9 @@ function Section({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h4 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{title}</h4>
+        <h4 className="label-mono">{title}</h4>
         {badge && (
-          <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-primary/30 text-primary bg-primary/5">
+          <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-gold/30 text-gold bg-gold/10">
             {badge}
           </span>
         )}
