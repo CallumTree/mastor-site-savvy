@@ -120,34 +120,34 @@ function AuthPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Header band */}
-      <header className="bg-primary text-primary-foreground">
-        <div className="max-w-md mx-auto px-4 py-5 flex items-center gap-2">
-          <span className="inline-flex items-center justify-center w-9 h-9 rounded bg-gold">
-            <span className="font-display font-bold text-primary text-lg">M</span>
-          </span>
-          <span className="font-display text-xl font-semibold tracking-wide">Mastor</span>
-        </div>
-      </header>
-
-      <main className="flex-1 px-4 py-8 md:py-14">
-        <div className="max-w-md mx-auto">
-          <h1 className="font-display text-3xl font-semibold text-primary">
-            {mode === "login" ? "Welcome back" : "Create your account"}
+      <main className="flex-1 flex flex-col justify-center px-6 py-12">
+        <div className="max-w-md mx-auto w-full">
+          <h1 className="font-display font-bold tracking-tight text-foreground leading-[0.85] text-[3.75rem] sm:text-[5.5rem]">
+            MASTOR
           </h1>
+          <div className="h-1 w-16 bg-gold mt-4 mb-8" />
+
+          <p className="label-mono">
+            {mode === "login" ? "Sign in to your site" : "Start your 14-day trial"}
+          </p>
+          <h2 className="font-display text-2xl font-semibold text-foreground mt-2">
+            {mode === "login" ? "Welcome back" : "Create your account"}
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">
             {mode === "login"
               ? "Sign in to your Mastor dashboard."
-              : "Start your 14-day free trial. No credit card required."}
+              : "No credit card required."}
           </p>
 
           {/* Tab toggle */}
-          <div className="mt-6 inline-flex rounded-md bg-secondary p-1 text-sm">
+          <div className="mt-6 flex gap-6 border-b border-border text-sm">
             <button
               type="button"
               onClick={() => setMode("login")}
-              className={`px-4 py-1.5 rounded ${
-                mode === "login" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+              className={`pb-2 -mb-px border-b-2 transition-colors ${
+                mode === "login"
+                  ? "border-gold text-gold font-medium"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
               Sign in
@@ -155,8 +155,10 @@ function AuthPage() {
             <button
               type="button"
               onClick={() => setMode("signup")}
-              className={`px-4 py-1.5 rounded ${
-                mode === "signup" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+              className={`pb-2 -mb-px border-b-2 transition-colors ${
+                mode === "signup"
+                  ? "border-gold text-gold font-medium"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
               Sign up
@@ -263,7 +265,7 @@ function AuthPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                <Label className="label-mono">
                   Company Logo <span className="normal-case text-[10px]">(optional)</span>
                 </Label>
                 <label className="flex items-center gap-3 rounded-md border border-dashed border-input px-3 py-3 cursor-pointer hover:border-gold transition-colors">
@@ -302,7 +304,7 @@ function AuthPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs uppercase tracking-wider text-muted-foreground">{label}</Label>
+      <Label className="label-mono">{label}</Label>
       {children}
     </div>
   );

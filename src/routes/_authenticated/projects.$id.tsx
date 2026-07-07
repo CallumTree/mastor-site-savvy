@@ -111,10 +111,10 @@ function ProjectDetail() {
   if (!project) {
     return (
       <main className="max-w-5xl mx-auto px-4 py-8">
-        <Link to="/dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4">
+        <Link to="/dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-gold mb-4">
           <ChevronLeft className="w-4 h-4" /> Back
         </Link>
-        <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
+        <div className="p-6 rounded-sm border border-dashed border-border text-center text-sm text-muted-foreground">
           Project not found.
         </div>
       </main>
@@ -123,13 +123,13 @@ function ProjectDetail() {
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-5 pb-20">
-      <Link to="/dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4">
+      <Link to="/dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-gold mb-4">
         <ChevronLeft className="w-4 h-4" /> Back
       </Link>
 
       <header className="mb-6">
-        <p className="text-xs uppercase tracking-[0.18em] text-gold/70">{project.status}</p>
-        <h1 className="text-2xl font-bold text-primary mt-1">{project.name}</h1>
+        <p className="label-mono text-gold/80">{project.status}</p>
+        <h1 className="text-2xl font-bold text-foreground mt-1">{project.name}</h1>
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
           {project.client && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{project.client}</span>}
           {project.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location}</span>}
@@ -140,7 +140,7 @@ function ProjectDetail() {
           onSaved={(v) => setProject((p) => (p ? { ...p, po_number: v } : p))}
         />
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
-          <DisplayMetric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} className="rounded-lg border border-border bg-card p-3" />
+          <DisplayMetric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} className="border border-border bg-card p-3" />
           <Metric label="Progress" value={`${project.progress ?? 0}%`} />
           <Metric label="Open Variations" value={String(stats.openVariations)} />
           <Metric label="Procurement Outstanding" value={String(stats.procurementOutstanding)} />
@@ -152,7 +152,7 @@ function ProjectDetail() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
 
         <TabsContent value="scope-documents" className="mt-4 space-y-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Understand the Job</p>
+          <p className="label-mono">Understand the Job</p>
           <Section title="Work Packages">
             <WorkPackagesTab projectId={project.id} />
           </Section>
@@ -162,28 +162,28 @@ function ProjectDetail() {
         </TabsContent>
 
         <TabsContent value="site-walks" className="mt-4 space-y-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Understand Progress</p>
+          <p className="label-mono">Understand Progress</p>
           <SiteWalksTab projectId={project.id} />
         </TabsContent>
 
         <TabsContent value="procurement" className="mt-4 space-y-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Procurement</p>
+          <p className="label-mono">Procurement</p>
           <ProcurementTab projectId={project.id} />
         </TabsContent>
 
         <TabsContent value="variations" className="mt-4 space-y-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Variations</p>
+          <p className="label-mono">Variations</p>
           <VariationsTab projectId={project.id} />
         </TabsContent>
 
 
         <TabsContent value="valuations" className="mt-4 space-y-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Get Paid Faster</p>
+          <p className="label-mono">Get Paid Faster</p>
           <ValuationsTab projectId={project.id} />
         </TabsContent>
 
         <TabsContent value="invoices" className="mt-4 space-y-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Invoicing</p>
+          <p className="label-mono">Invoicing</p>
           <InvoicesTab projectId={project.id} />
         </TabsContent>
       </Tabs>
@@ -198,14 +198,14 @@ function ProjectDetail() {
   );
 }
 
-const PRIMARY_NAV: Array<{ value: string; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
+const PRIMARY_NAV: Array<{ value: string; label: string; Icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }> = [
   { value: "scope-documents", label: "Scope", Icon: FileText },
   { value: "site-walks", label: "Site Diary", Icon: ClipboardList },
   { value: "valuations", label: "Valuations", Icon: Receipt },
   { value: "variations", label: "Variations", Icon: GitBranch },
 ];
 
-const MORE_NAV: Array<{ value: string; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
+const MORE_NAV: Array<{ value: string; label: string; Icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }> = [
   { value: "procurement", label: "Procurement", Icon: ShoppingCart },
   { value: "invoices", label: "Invoices", Icon: FileSpreadsheet },
 ];
@@ -224,7 +224,7 @@ function ProjectBottomNav({
   const moreActive = MORE_NAV.some((i) => i.value === active);
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-30 bg-black border-t border-white/10"
+      className="fixed bottom-0 inset-x-0 z-30 bg-card border-t border-border"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Project sections"
     >
@@ -237,12 +237,13 @@ function ProjectBottomNav({
                 type="button"
                 onClick={() => onSelect(value)}
                 className={cn(
-                  "w-full flex flex-col items-center justify-center gap-1 py-2 px-1 text-[10px] font-medium transition-colors",
-                  isActive ? "text-gold" : "text-white/60 hover:text-white",
+                  "relative w-full flex flex-col items-center justify-center gap-1 py-2.5 px-1 text-[10px] font-medium transition-colors",
+                  isActive ? "text-gold" : "text-muted-foreground hover:text-foreground",
                 )}
                 aria-current={isActive ? "page" : undefined}
               >
-                <Icon className="w-5 h-5" />
+                {isActive && <span className="absolute top-0 inset-x-3 h-0.5 bg-gold" />}
+                <Icon className="w-5 h-5" strokeWidth={isActive ? 2.25 : 2} />
                 <span className="truncate max-w-full">{label}</span>
               </button>
             </li>
@@ -254,17 +255,18 @@ function ProjectBottomNav({
               <button
                 type="button"
                 className={cn(
-                  "w-full flex flex-col items-center justify-center gap-1 py-2 px-1 text-[10px] font-medium transition-colors",
-                  moreActive ? "text-gold" : "text-white/60 hover:text-white",
+                  "relative w-full flex flex-col items-center justify-center gap-1 py-2.5 px-1 text-[10px] font-medium transition-colors",
+                  moreActive ? "text-gold" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <MoreHorizontal className="w-5 h-5" />
+                {moreActive && <span className="absolute top-0 inset-x-3 h-0.5 bg-gold" />}
+                <MoreHorizontal className="w-5 h-5" strokeWidth={moreActive ? 2.25 : 2} />
                 <span>More</span>
               </button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="bg-black border-white/10 text-white">
+            <SheetContent side="bottom" className="bg-card border-border text-foreground">
               <SheetHeader>
-                <SheetTitle className="text-white">More sections</SheetTitle>
+                <SheetTitle className="text-foreground">More sections</SheetTitle>
               </SheetHeader>
               <div className="mt-4 grid gap-2 pb-[env(safe-area-inset-bottom)]">
                 {MORE_NAV.map(({ value, label, Icon }) => {
@@ -278,10 +280,10 @@ function ProjectBottomNav({
                         setMoreOpen(false);
                       }}
                       className={cn(
-                        "flex items-center gap-3 px-4 py-3 rounded-md border text-left transition-colors",
+                        "flex items-center gap-3 px-4 py-3 rounded-sm border text-left transition-colors",
                         isActive
                           ? "border-gold/60 bg-gold/10 text-gold"
-                          : "border-white/10 text-white/80 hover:bg-white/5",
+                          : "border-border text-muted-foreground hover:bg-white/5",
                       )}
                     >
                       <Icon className="w-5 h-5" />
@@ -300,12 +302,7 @@ function ProjectBottomNav({
 
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-card p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold text-primary mt-0.5">{value}</div>
-    </div>
-  );
+  return <DisplayMetric label={label} value={value} className="border border-border bg-card p-3" />;
 }
 
 function PoNumberField({
@@ -352,7 +349,7 @@ function PoNumberField({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-primary border-b border-border pb-2">
+      <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground divider-heavy pt-3">
         {title}
       </h2>
       {children}

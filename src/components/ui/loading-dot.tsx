@@ -9,10 +9,8 @@ interface LoadingDotProps {
 export function LoadingDot({ label, className }: LoadingDotProps) {
   return (
     <div className={cn("inline-flex items-center gap-2", className)}>
-      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-      {label && (
-        <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</span>
-      )}
+      <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />
+      {label && <span className="label-mono">{label}</span>}
     </div>
   );
 }
