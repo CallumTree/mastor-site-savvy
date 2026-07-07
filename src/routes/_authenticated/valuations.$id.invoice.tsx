@@ -265,8 +265,8 @@ function InvoicePage() {
     let y = finalY + 10;
     const rows: Array<[string, string]> = [
       ["Previously Claimed", GBP.format(previouslyClaimed)],
-      ["This Claim", String(items.length)],
-      ["Total Claimed", String(previouslyClaimed + items.length)],
+      ["This Claim", GBP.format(thisClaim)],
+      ["Total Claimed", GBP.format(totalClaimed)],
       ["Remaining Value", GBP.format(remaining)],
       ["Total Amount Due", GBP.format(Number(invoice.total_amount))],
     ];
@@ -301,7 +301,7 @@ function InvoicePage() {
   }
 
   const projectValue = Number(project.gross_value ?? project.contract_value ?? 0);
-  const thisClaim = items.length;
+  const thisClaim = items.reduce((s, it) => s + Number(it.claimed_value ?? 0), 0);
   const totalClaimed = previouslyClaimed + thisClaim;
   const remaining = projectValue - totalClaimed;
   const clientName = project.client_name ?? project.client ?? "—";
@@ -397,8 +397,8 @@ function InvoicePage() {
       {/* Summary */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <SummaryCard label="Previously Claimed" value={GBP.format(previouslyClaimed)} />
-        <SummaryCard label="This Claim" value={String(thisClaim)} />
-        <SummaryCard label="Total Claimed" value={String(totalClaimed)} />
+        <SummaryCard label="This Claim" value={GBP.format(thisClaim)} />
+        <SummaryCard label="Total Claimed" value={GBP.format(totalClaimed)} />
         <SummaryCard label="Remaining Value" value={GBP.format(remaining)} />
       </section>
 
