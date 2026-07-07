@@ -243,6 +243,32 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     return () => clearTimeout(t);
   }, [savedAt]);
 
+  // The full-screen camera preview only mounts once status flips to
+  // "recording"/"paused", which happens *after* the stream is acquired in
+  // startVideoRecorder — so the ref is still null when srcObject is first
+  // assigned. Re-attach here once the <video> element actually exists.
+  useEffect(() => {
+    const isRecordingOrPaused = status === "recording" || status === "paused";
+    if (mode !== "video" || !isRecordingOrPaused) return;
+    if (
+      videoPreviewRef.current &&
+      mediaStreamRef.current &&
+      videoPreviewRef.current.srcObject !== mediaStreamRef.current
+    ) {
+      videoPreviewRef.current.srcObject = mediaStreamRef.current;
+      videoPreviewRef.current.play().catch(() => {});
+    }
+    if (
+      dualCamera &&
+      frontVideoRef.current &&
+      frontStreamRef.current &&
+      frontVideoRef.current.srcObject !== frontStreamRef.current
+    ) {
+      frontVideoRef.current.srcObject = frontStreamRef.current;
+      frontVideoRef.current.play().catch(() => {});
+    }
+  }, [mode, status, dualCamera]);
+
 
   const loadAll = async () => {
     setLoading(true);
@@ -342,12 +368,18 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       // Fold completed session into the base so the next session starts clean.
       sessionBaseRef.current = transcriptRef.current;
       if (shouldRestartRef.current) {
-        // The same recognition instance may be restarted; reset the index
-        // guard so the next session's results are accumulated fresh.
-        lastFinalIndexRef.current = -1;
-        try {
-          rec.start();
-        } catch {}
+        // Some browsers (notably Android Chrome) replay already-finalized
+        // results from the ended session when the same recognition instance
+        // is restarted, which duplicates words once the index guard resets.
+        // Spin up a brand-new instance for each session instead so there is
+        // no stale result state to replay.
+        const next = createRecognition();
+        if (next) {
+          recognitionRef.current = next;
+          try {
+            next.start();
+          } catch {}
+        }
       }
     };
 
