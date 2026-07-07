@@ -151,7 +151,7 @@ export function WorkPackagesTab({ projectId }: { projectId: string }) {
 
   if (packages.length === 0) {
     return (
-      <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
+      <div className="p-6 rounded-sm border border-dashed border-border text-center text-sm text-muted-foreground">
         No work packages yet. Upload a scope document and click <span className="font-medium">Parse Scope</span> — Mastor will group tasks into commercial packages.
       </div>
     );
@@ -169,7 +169,7 @@ export function WorkPackagesTab({ projectId }: { projectId: string }) {
           const detail = details[pkg.id];
           const progress = STATUS_PROGRESS[pkg.status] ?? 0;
           return (
-            <div key={pkg.id} className="rounded-md bg-card border border-border">
+            <div key={pkg.id} className="rounded-sm bg-card border border-border">
               <button
                 className="w-full px-3 py-3 flex items-start justify-between text-left gap-3"
                 onClick={() => onToggle(pkg)}
@@ -187,7 +187,7 @@ export function WorkPackagesTab({ projectId }: { projectId: string }) {
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                       <Progress value={progress} className="h-1.5 w-32" />
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <span className="label-mono">
                         {progress}%
                       </span>
                     </div>
@@ -206,7 +206,7 @@ export function WorkPackagesTab({ projectId }: { projectId: string }) {
                   {pkg.description && <p className="text-xs text-muted-foreground">{pkg.description}</p>}
 
                   <div className="flex flex-wrap items-center gap-1">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Status:</span>
+                    <span className="label-mono mr-1">Status:</span>
                     {STATUSES.map((s) => (
                       <Button
                         key={s}
@@ -254,7 +254,7 @@ export function WorkPackagesTab({ projectId }: { projectId: string }) {
 function DetailList({ title, items }: { title: string; items: LinkedItem[] }) {
   return (
     <div className="rounded border border-border p-2">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+      <div className="label-mono mb-1">
         {title} <span className="text-foreground/60">({items.length})</span>
       </div>
       {items.length === 0 ? (

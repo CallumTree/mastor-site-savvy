@@ -35,7 +35,10 @@
 }
 
 :root {
-  --radius: 0.125rem;
+  /* Kept low enough that rounded-sm/rounded-md read as nearly sharp
+     (matching the "sharp-cornered" cards/buttons throughout) while staying
+     non-negative through the sm/md/lg/xl calc() scale below. */
+  --radius: 0.25rem;
 
   /* Dark charcoal surfaces, not pure black — pure black + white text reads
      harsh at scale; a near-black with a hint of warmth reads as material. */

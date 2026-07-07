@@ -439,18 +439,18 @@ export function VariationsTab({ projectId }: { projectId: string }) {
             const value =
               v.qty != null && v.rate != null ? Number(v.qty) * Number(v.rate) : null;
             return (
-              <div key={v.id} className="p-3 rounded-md bg-card border border-border space-y-2">
+              <div key={v.id} className="p-3 rounded-sm bg-card border border-border space-y-2">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">{number}</span>
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-gold">{number}</span>
                       {v.client_reference && (
                         <span className="text-[10px] text-muted-foreground">
                           Client Ref: <span className="text-foreground font-medium">{v.client_reference}</span>
                         </span>
                       )}
                       {locked && (
-                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <span className="inline-flex items-center gap-1 label-mono">
                           <Lock className="w-3 h-3" /> Invoiced
                         </span>
                       )}
@@ -594,7 +594,7 @@ function EditVariationDialog({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <label className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</label>
+      <label className="label-mono">{label}</label>
       {children}
     </div>
   );
@@ -602,14 +602,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
   const toneClass: Record<string, string> = {
-    amber: "text-amber-700",
-    emerald: "text-emerald-700",
-    slate: "text-slate-700",
+    amber: "text-amber-400",
+    emerald: "text-emerald-400",
+    slate: "text-slate-300",
   };
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={`text-xl font-semibold mt-0.5 ${toneClass[tone] ?? "text-primary"}`}>{value}</div>
+    <div className="rounded-sm border border-border bg-card p-3">
+      <div className="label-mono">{label}</div>
+      <div className={`text-xl font-semibold mt-0.5 ${toneClass[tone] ?? "text-gold"}`}>{value}</div>
     </div>
   );
 }
