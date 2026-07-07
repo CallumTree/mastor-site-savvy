@@ -183,8 +183,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const recognitionRef = useRef<SR | null>(null);
   const shouldRestartRef = useRef(false);
   const transcriptRef = useRef("");
-  const sessionBaseRef = useRef("");
-  const lastFinalIndexRef = useRef(-1);
+  const lastCommittedResultIndexRef = useRef(-1);
 
 
   // Video recording refs
@@ -322,12 +321,10 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "en-GB";
-    // Each new recognition instance starts a fresh result stream; reset the
-    // guard so its results are accumulated from the first index.
-    lastFinalIndexRef.current = -1;
-    // Android Chrome emits cumulative final results and re-fires previous
-    // final results on every event. Iterate only from the first changed
-    // result and only append each final result once.
+    // Every new recognition instance is a fresh result stream — a session
+    // that has just started has never committed anything, so the guard
+    // starts at -1.
+    lastCommittedResultIndexRef.current = -1;
 
     rec.onresult = (event: any) => {
       let sessionInterim = "";
@@ -336,19 +333,27 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         const text = (res[0]?.transcript ?? "").trim();
         if (!text) continue;
         if (res.isFinal) {
-          if (i > lastFinalIndexRef.current) {
-            const base = sessionBaseRef.current;
-            const sep = base && !/\s$/.test(base) ? " " : "";
-            sessionBaseRef.current += sep + text;
-            lastFinalIndexRef.current = i;
+          // Index-based guard: a result is only ever committed once per
+          // instance, regardless of what text it carries. This is what
+          // makes the fix immune to Android Chrome's habit of replaying
+          // already-final results in later onresult events — replays carry
+          // an index we've already seen, so they're skipped outright rather
+          // than relying on string matching to notice the text is a repeat.
+          if (i > lastCommittedResultIndexRef.current) {
+            const current = transcriptRef.current;
+            const sep = current && !/\s$/.test(current) ? " " : "";
+            const next = current + sep + text;
+            transcriptRef.current = next;
+            setTranscript(next);
+            lastCommittedResultIndexRef.current = i;
           }
         } else {
           sessionInterim += (sessionInterim ? " " : "") + text;
         }
       }
-      transcriptRef.current = sessionBaseRef.current;
-      setTranscript(sessionBaseRef.current);
-      // Interim is preview-only — never written into the saved transcript.
+      // Interim is preview-only — it is never written into transcriptRef/the
+      // saved transcript, so a discarded or revised interim guess can never
+      // leave a trace in the committed text.
       setInterim(sessionInterim);
     };
 
@@ -365,14 +370,14 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     rec.onend = () => {
       // Drop any uncommitted interim from the ended session.
       setInterim("");
-      // Fold completed session into the base so the next session starts clean.
-      sessionBaseRef.current = transcriptRef.current;
       if (shouldRestartRef.current) {
         // Some browsers (notably Android Chrome) replay already-finalized
-        // results from the ended session when the same recognition instance
-        // is restarted, which duplicates words once the index guard resets.
-        // Spin up a brand-new instance for each session instead so there is
-        // no stale result state to replay.
+        // results from the ended session if the same instance is restarted.
+        // A brand-new instance means there is no stale result buffer to
+        // replay in the first place — createRecognition() above resets
+        // lastCommittedResultIndexRef to -1 for it, and its onresult appends
+        // directly onto whatever is already in transcriptRef.current.
+        // Nothing about the previous session's committed text is touched.
         const next = createRecognition();
         if (next) {
           recognitionRef.current = next;
@@ -392,8 +397,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     if (!rec) return;
     recognitionRef.current = rec;
     shouldRestartRef.current = true;
-    // New session: anchor to whatever is already in the transcript.
-    sessionBaseRef.current = transcriptRef.current;
     try {
       rec.start();
     } catch {}
@@ -678,8 +681,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     setMode(selectedMode);
     setTranscript("");
     transcriptRef.current = "";
-    sessionBaseRef.current = "";
-    lastFinalIndexRef.current = -1;
+    lastCommittedResultIndexRef.current = -1;
     setInterim("");
 
     setSeconds(0);
@@ -758,7 +760,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       const prefix = current && !current.endsWith("\n") ? "\n" : "";
       const next = current + prefix + marker;
       transcriptRef.current = next;
-      sessionBaseRef.current = next;
       setTranscript(next);
       return;
     }
@@ -770,7 +771,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     const inserted = needsLeadingNl + marker;
     const next = before + inserted + after;
     transcriptRef.current = next;
-    sessionBaseRef.current = next;
     setTranscript(next);
     requestAnimationFrame(() => {
       const pos = (before + inserted).length;
@@ -1375,7 +1375,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               value={transcript}
               onChange={(e) => {
                 transcriptRef.current = e.target.value;
-                sessionBaseRef.current = e.target.value;
                 setTranscript(e.target.value);
               }}
               placeholder={
