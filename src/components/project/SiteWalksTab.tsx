@@ -1216,7 +1216,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 onPointerUp={cancelHoldStop}
                 onPointerLeave={cancelHoldStop}
                 onPointerCancel={cancelHoldStop}
-                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-md bg-destructive text-destructive-foreground shadow-sm font-medium overflow-hidden"
+                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-sm bg-destructive text-destructive-foreground font-medium overflow-hidden"
               >
                 <Square className="w-5 h-5 relative z-10" /> <span className="relative z-10">Hold to Stop</span>
                 {stopProgress > 0 && (
@@ -1236,7 +1236,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 onPointerUp={cancelHoldStop}
                 onPointerLeave={cancelHoldStop}
                 onPointerCancel={cancelHoldStop}
-                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-md bg-destructive text-destructive-foreground shadow-sm font-medium overflow-hidden"
+                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-sm bg-destructive text-destructive-foreground font-medium overflow-hidden"
               >
                 <Square className="w-5 h-5 relative z-10" /> <span className="relative z-10">Hold to Stop</span>
                 {stopProgress > 0 && (
@@ -1994,7 +1994,7 @@ function AnalysisViewer({
           {hs.map((item, i) => (
             <li
               key={`hs-${i}`}
-              className="rounded-md border border-rose-500/30 bg-rose-500/5 p-2.5 text-sm text-rose-900 dark:text-rose-200"
+              className="rounded-sm border border-rose-500/30 bg-rose-500/5 p-2.5 text-sm text-rose-300"
             >
               {item}
             </li>
@@ -2039,7 +2039,7 @@ function RoomCard({
     {
       label: "Health & Safety",
       items: room.health_and_safety ?? [],
-      tone: "text-rose-700 dark:text-rose-300",
+      tone: "text-rose-400",
     },
     { label: "Valuation Notes", items: room.valuation_notes ?? [] },
   ];
@@ -2060,10 +2060,10 @@ function RoomCard({
               const pct = Math.max(0, Math.min(100, Math.round(item.completion_percent)));
               const pctTone =
                 pct >= 90
-                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  ? "bg-emerald-500/15 text-emerald-400"
                   : pct >= 50
-                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                    : "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300";
+                    ? "bg-amber-500/15 text-amber-400"
+                    : "bg-rose-500/15 text-rose-400";
               return (
                 <li
                   key={`prog-${i}`}
