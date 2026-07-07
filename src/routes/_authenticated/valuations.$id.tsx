@@ -461,10 +461,10 @@ function ValuationPage() {
 
       <header className="flex items-start justify-between gap-3 flex-wrap">
         <div className="space-y-1">
-          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          <div className="label-mono">
             {project.name}
           </div>
-          <h1 className="text-2xl font-semibold text-primary">
+          <h1 className="text-2xl font-semibold text-foreground">
             Valuation IV-{String(valuation.valuation_number ?? 0).padStart(2, "0")}
           </h1>
           <div className="text-xs text-muted-foreground">
@@ -490,7 +490,7 @@ function ValuationPage() {
             </Button>
           )}
           {isLocked && (
-            <span className="text-[11px] uppercase tracking-wider text-muted-foreground self-center">
+            <span className="label-mono self-center">
               Invoiced — locked
             </span>
           )}
@@ -502,10 +502,10 @@ function ValuationPage() {
       </header>
 
       <section className="space-y-2">
-        <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        <h2 className="label-mono">
           Line Items ({items.length})
         </h2>
-        <div className="hidden md:block rounded-md border border-border overflow-hidden">
+        <div className="hidden md:block rounded-sm border border-border overflow-hidden">
           <table className="w-full text-xs">
             <thead className="bg-secondary/40 text-muted-foreground">
               <tr>
@@ -527,7 +527,7 @@ function ValuationPage() {
               ) : (
                 items.map((it) => (
                   <tr key={it.id} className="border-t border-border align-top">
-                    <td className="py-2 px-3 font-medium text-primary">
+                    <td className="py-2 px-3 font-medium text-foreground">
                       {it.work_package_name ?? "—"}
                     </td>
                     <td className="py-2 px-3 text-muted-foreground leading-relaxed">
@@ -584,7 +584,7 @@ function ValuationPage() {
                   <td colSpan={canRemove ? 5 : 4} className="py-2 px-3 text-right text-muted-foreground uppercase tracking-wider text-[10px]">
                     Total
                   </td>
-                  <td className="py-2 px-3 text-right font-semibold text-primary tabular-nums">
+                  <td className="py-2 px-3 text-right font-semibold text-gold tabular-nums">
                     {GBP.format(thisClaim)}
                   </td>
                 </tr>
@@ -596,16 +596,16 @@ function ValuationPage() {
         {/* Mobile card stack */}
         <div className="md:hidden space-y-2">
           {items.length === 0 ? (
-            <div className="rounded-md border border-border p-4 text-center text-xs text-muted-foreground">
+            <div className="rounded-sm border border-border p-4 text-center text-xs text-muted-foreground">
               No line items.
             </div>
           ) : (
             <>
               {items.map((it) => (
-                <div key={it.id} className="rounded-md border border-border bg-card p-3 space-y-2">
+                <div key={it.id} className="rounded-sm border border-border bg-card p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-primary truncate">
+                      <div className="text-sm font-semibold text-foreground truncate">
                         {it.work_package_name ?? "—"}
                       </div>
                       {it.description && (
@@ -628,7 +628,7 @@ function ValuationPage() {
                   </div>
                   <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
                     <div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Unit Rate</div>
+                      <div className="label-mono">Unit Rate</div>
                       {isLocked ? (
                         <div className="text-xs tabular-nums mt-1">
                           {it.unit_rate != null ? GBP.format(Number(it.unit_rate)) : "—"}
@@ -644,7 +644,7 @@ function ValuationPage() {
                       )}
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Quantity</div>
+                      <div className="label-mono">Quantity</div>
                       {isLocked ? (
                         <div className="text-xs tabular-nums mt-1">
                           {it.claimed_qty != null ? String(it.claimed_qty) : "—"}
@@ -660,17 +660,17 @@ function ValuationPage() {
                       )}
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Value</div>
-                      <div className="text-sm font-semibold text-primary tabular-nums mt-1">
+                      <div className="label-mono">Value</div>
+                      <div className="text-sm font-semibold text-gold tabular-nums mt-1">
                         {it.claimed_value != null ? GBP.format(Number(it.claimed_value)) : "—"}
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
-              <div className="rounded-md border border-border bg-secondary/30 p-3 flex justify-between items-center">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</span>
-                <span className="text-sm font-semibold text-primary tabular-nums">{GBP.format(thisClaim)}</span>
+              <div className="rounded-sm border border-border bg-secondary/30 p-3 flex justify-between items-center">
+                <span className="label-mono">Total</span>
+                <span className="text-sm font-semibold text-gold tabular-nums">{GBP.format(thisClaim)}</span>
               </div>
             </>
           )}
@@ -678,11 +678,11 @@ function ValuationPage() {
 
       </section>
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard label="Previously Claimed" value={GBP.format(previouslyClaimed)} />
-        <SummaryCard label="This Claim" value={GBP.format(thisClaim)} />
-        <SummaryCard label="Total Claimed" value={GBP.format(totalClaimed)} />
-        <SummaryCard label="Remaining Value" value={GBP.format(remaining)} />
+      <section className="border border-border rounded-sm overflow-hidden">
+        <LedgerRow label="Previously Claimed" value={GBP.format(previouslyClaimed)} />
+        <LedgerRow label="This Claim" value={GBP.format(thisClaim)} />
+        <LedgerRow label="Total Claimed" value={GBP.format(totalClaimed)} />
+        <LedgerRow label="Remaining Value" value={GBP.format(remaining)} />
       </section>
 
       <div className="pt-2 space-y-2">
@@ -733,7 +733,7 @@ function ValuationPage() {
                     onClick={() => setReason(r)}
                     className={`text-left text-xs px-3 py-2 rounded-md border transition-colors ${
                       reason === r
-                        ? "border-primary bg-primary/10 text-primary"
+                        ? "border-gold bg-gold/10 text-gold"
                         : "border-border bg-card hover:bg-muted/40"
                     }`}
                   >
@@ -770,13 +770,11 @@ function ValuationPage() {
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+function LedgerRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border bg-card p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      <div className="text-lg font-semibold text-primary mt-1">{value}</div>
+    <div className="flex justify-between items-center px-4 py-2.5 border-b border-border last:border-b-0 text-sm">
+      <span className="label-mono">{label}</span>
+      <span className="font-semibold text-foreground tabular-nums">{value}</span>
     </div>
   );
 }

@@ -72,7 +72,7 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Interim Valuations</h3>
+        <h3 className="label-mono">Interim Valuations</h3>
         <Button size="sm" variant="outline" onClick={createDraft} disabled={hasDraft}>
           <Plus className="w-3 h-3 mr-1" /> New draft
         </Button>
@@ -92,7 +92,7 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
         vals.map((v) => {
           const isOpen = expanded === v.id;
           return (
-            <div key={v.id} className="rounded-md bg-card border border-border">
+            <div key={v.id} className="rounded-sm bg-card border border-border">
               <button
                 className="w-full p-3 flex justify-between items-start text-left"
                 onClick={() => setExpanded(isOpen ? null : v.id)}
@@ -100,7 +100,7 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
                 <div className="flex items-start gap-2">
                   {isOpen ? <ChevronDown className="w-4 h-4 mt-0.5" /> : <ChevronRight className="w-4 h-4 mt-0.5" />}
                   <div>
-                    <div className="text-xs font-semibold text-primary">
+                    <div className="font-mono text-sm font-semibold text-foreground">
                       IV-{String(v.valuation_number ?? 0).padStart(2, "0")}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
@@ -108,7 +108,10 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
                     </div>
                   </div>
                 </div>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{v.status}</span>
+                <span className="flex items-center gap-1.5 label-mono">
+                  <span className={`w-1.5 h-1.5 rounded-full ${v.status === "Draft" ? "bg-gold" : "bg-emerald-400"}`} />
+                  {v.status}
+                </span>
               </button>
               {isOpen && (
                 <div className="px-3 pb-3 border-t border-border pt-3">
@@ -173,46 +176,43 @@ function ValuationItemsList({ valuationId, readOnly }: { valuationId: string; re
   }
 
   return (
-    <div className="space-y-2">
-      {items.map((it) => (
-        <div
-          key={it.id}
-          className="rounded-md border border-border bg-card p-3 flex items-start justify-between gap-3"
-        >
-          <div className="min-w-0 flex-1 space-y-1">
-            <div className="text-sm text-foreground">{it.description ?? "—"}</div>
-            <div className="text-[11px] text-muted-foreground">
-              {it.work_package_name ?? "—"}
+    <div className="border border-border rounded-sm overflow-hidden">
+      <div className="divide-y divide-border">
+        {items.map((it) => (
+          <div key={it.id} className="flex items-start justify-between gap-3 p-3">
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="text-sm text-foreground">{it.description ?? "—"}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {it.work_package_name ?? "—"}
+              </div>
+              <div className="flex gap-3 text-[11px] text-muted-foreground tabular-nums">
+                <span>Qty {it.claimed_qty ?? "—"}</span>
+                <span>@ {it.unit_rate != null ? GBP.format(num(it.unit_rate)) : "—"}</span>
+              </div>
             </div>
-            <div className="flex gap-3 text-[11px] text-muted-foreground">
-              <span>Qty: {it.claimed_qty ?? "—"}</span>
-              <span>Rate: {it.unit_rate != null ? GBP.format(num(it.unit_rate)) : "—"}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="text-sm font-semibold text-foreground tabular-nums">
+                {GBP.format(num(it.claimed_value))}
+              </div>
+              {!readOnly && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
+                  disabled={removingId === it.id}
+                  onClick={() => remove(it.id)}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="text-sm font-semibold text-primary">
-              {GBP.format(num(it.claimed_value))}
-            </div>
-            {!readOnly && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-destructive hover:text-destructive"
-                disabled={removingId === it.id}
-                onClick={() => remove(it.id)}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
-            )}
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
 
-      <div className="flex justify-between items-center rounded-md border border-primary/30 bg-primary/5 p-3">
-        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          Total claimed
-        </div>
-        <div className="text-lg font-semibold text-primary">{GBP.format(total)}</div>
+      <div className="flex justify-between items-center bg-gold/5 border-t-2 border-gold/40 p-3">
+        <div className="label-mono">Total claimed</div>
+        <div className="hero-number text-2xl">{GBP.format(total)}</div>
       </div>
     </div>
   );
