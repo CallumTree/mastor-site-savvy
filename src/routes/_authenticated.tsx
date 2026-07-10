@@ -8,9 +8,15 @@ import { showError } from "@/lib/toast-error";
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
-    return { user: data.user };
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      // The session check itself failed — a real problem, not just "logged
+      // out" — so it's worth surfacing rather than a silent bounce.
+      showError("Session check", error);
+      throw redirect({ to: "/auth" });
+    }
+    if (!data.session) throw redirect({ to: "/auth" });
+    return { user: data.session.user };
   },
   component: AuthedLayout,
 });

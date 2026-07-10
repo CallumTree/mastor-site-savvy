@@ -52,7 +52,10 @@ function AuthPage() {
     setBusy(false);
     if (error) return showError("Sign in", error);
     toast.success("Welcome back");
-    navigate({ to: "/dashboard", replace: true });
+    // Navigation to /dashboard is handled by the onAuthStateChange listener
+    // above (SIGNED_IN) — the single source of truth for post-auth
+    // navigation. Do not navigate() here too; that was the second of three
+    // competing triggers behind the login race.
   };
 
   const handleSignup = async (e: React.FormEvent) => {
