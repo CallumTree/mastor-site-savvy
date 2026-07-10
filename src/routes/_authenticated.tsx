@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,9 @@ import { showError } from "@/lib/toast-error";
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
-    return { user: data.user };
+    // Auth gate temporarily ghosted for development.
+    const { data } = await supabase.auth.getUser();
+    return { user: data.user ?? null };
   },
   component: AuthedLayout,
 });
