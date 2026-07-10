@@ -183,8 +183,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
   const recognitionRef = useRef<SR | null>(null);
   const shouldRestartRef = useRef(false);
   const transcriptRef = useRef("");
-  const sessionBaseRef = useRef("");
-  const lastFinalIndexRef = useRef(-1);
+  const lastCommittedResultIndexRef = useRef(-1);
 
 
   // Video recording refs
@@ -243,6 +242,32 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     return () => clearTimeout(t);
   }, [savedAt]);
 
+  // The full-screen camera preview only mounts once status flips to
+  // "recording"/"paused", which happens *after* the stream is acquired in
+  // startVideoRecorder — so the ref is still null when srcObject is first
+  // assigned. Re-attach here once the <video> element actually exists.
+  useEffect(() => {
+    const isRecordingOrPaused = status === "recording" || status === "paused";
+    if (mode !== "video" || !isRecordingOrPaused) return;
+    if (
+      videoPreviewRef.current &&
+      mediaStreamRef.current &&
+      videoPreviewRef.current.srcObject !== mediaStreamRef.current
+    ) {
+      videoPreviewRef.current.srcObject = mediaStreamRef.current;
+      videoPreviewRef.current.play().catch(() => {});
+    }
+    if (
+      dualCamera &&
+      frontVideoRef.current &&
+      frontStreamRef.current &&
+      frontVideoRef.current.srcObject !== frontStreamRef.current
+    ) {
+      frontVideoRef.current.srcObject = frontStreamRef.current;
+      frontVideoRef.current.play().catch(() => {});
+    }
+  }, [mode, status, dualCamera]);
+
 
   const loadAll = async () => {
     setLoading(true);
@@ -296,12 +321,10 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "en-GB";
-    // Each new recognition instance starts a fresh result stream; reset the
-    // guard so its results are accumulated from the first index.
-    lastFinalIndexRef.current = -1;
-    // Android Chrome emits cumulative final results and re-fires previous
-    // final results on every event. Iterate only from the first changed
-    // result and only append each final result once.
+    // Every new recognition instance is a fresh result stream — a session
+    // that has just started has never committed anything, so the guard
+    // starts at -1.
+    lastCommittedResultIndexRef.current = -1;
 
     rec.onresult = (event: any) => {
       let sessionInterim = "";
@@ -310,19 +333,27 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         const text = (res[0]?.transcript ?? "").trim();
         if (!text) continue;
         if (res.isFinal) {
-          if (i > lastFinalIndexRef.current) {
-            const base = sessionBaseRef.current;
-            const sep = base && !/\s$/.test(base) ? " " : "";
-            sessionBaseRef.current += sep + text;
-            lastFinalIndexRef.current = i;
+          // Index-based guard: a result is only ever committed once per
+          // instance, regardless of what text it carries. This is what
+          // makes the fix immune to Android Chrome's habit of replaying
+          // already-final results in later onresult events — replays carry
+          // an index we've already seen, so they're skipped outright rather
+          // than relying on string matching to notice the text is a repeat.
+          if (i > lastCommittedResultIndexRef.current) {
+            const current = transcriptRef.current;
+            const sep = current && !/\s$/.test(current) ? " " : "";
+            const next = current + sep + text;
+            transcriptRef.current = next;
+            setTranscript(next);
+            lastCommittedResultIndexRef.current = i;
           }
         } else {
           sessionInterim += (sessionInterim ? " " : "") + text;
         }
       }
-      transcriptRef.current = sessionBaseRef.current;
-      setTranscript(sessionBaseRef.current);
-      // Interim is preview-only — never written into the saved transcript.
+      // Interim is preview-only — it is never written into transcriptRef/the
+      // saved transcript, so a discarded or revised interim guess can never
+      // leave a trace in the committed text.
       setInterim(sessionInterim);
     };
 
@@ -339,15 +370,21 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     rec.onend = () => {
       // Drop any uncommitted interim from the ended session.
       setInterim("");
-      // Fold completed session into the base so the next session starts clean.
-      sessionBaseRef.current = transcriptRef.current;
       if (shouldRestartRef.current) {
-        // The same recognition instance may be restarted; reset the index
-        // guard so the next session's results are accumulated fresh.
-        lastFinalIndexRef.current = -1;
-        try {
-          rec.start();
-        } catch {}
+        // Some browsers (notably Android Chrome) replay already-finalized
+        // results from the ended session if the same instance is restarted.
+        // A brand-new instance means there is no stale result buffer to
+        // replay in the first place — createRecognition() above resets
+        // lastCommittedResultIndexRef to -1 for it, and its onresult appends
+        // directly onto whatever is already in transcriptRef.current.
+        // Nothing about the previous session's committed text is touched.
+        const next = createRecognition();
+        if (next) {
+          recognitionRef.current = next;
+          try {
+            next.start();
+          } catch {}
+        }
       }
     };
 
@@ -360,8 +397,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     if (!rec) return;
     recognitionRef.current = rec;
     shouldRestartRef.current = true;
-    // New session: anchor to whatever is already in the transcript.
-    sessionBaseRef.current = transcriptRef.current;
     try {
       rec.start();
     } catch {}
@@ -646,8 +681,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     setMode(selectedMode);
     setTranscript("");
     transcriptRef.current = "";
-    sessionBaseRef.current = "";
-    lastFinalIndexRef.current = -1;
+    lastCommittedResultIndexRef.current = -1;
     setInterim("");
 
     setSeconds(0);
@@ -726,7 +760,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       const prefix = current && !current.endsWith("\n") ? "\n" : "";
       const next = current + prefix + marker;
       transcriptRef.current = next;
-      sessionBaseRef.current = next;
       setTranscript(next);
       return;
     }
@@ -738,7 +771,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     const inserted = needsLeadingNl + marker;
     const next = before + inserted + after;
     transcriptRef.current = next;
-    sessionBaseRef.current = next;
     setTranscript(next);
     requestAnimationFrame(() => {
       const pos = (before + inserted).length;
@@ -926,7 +958,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       : status === "paused"
       ? "border-amber-500/40 text-amber-600 bg-amber-500/10"
       : status === "finished"
-      ? "border-primary/40 text-primary bg-primary/5"
+      ? "border-gold/40 text-gold bg-gold/10"
       : "border-border text-muted-foreground";
 
   const voiceActive = status === "recording" && speechSupported && !micDenied;
@@ -1021,7 +1053,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 onClick={beginSnapshot}
                 disabled={snapBusy}
                 aria-label="Take snapshot"
-                className="h-14 w-14 rounded-full bg-[#D4AF37] text-primary shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
+                className="h-14 w-14 rounded-full bg-gold text-gold-foreground shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
               >
                 {snapBusy ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
@@ -1099,10 +1131,10 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       )}
 
       {/* Recorder */}
-      <section className="rounded-xl border border-border bg-card p-5 space-y-5 shadow-sm">
+      <section className="rounded-sm border border-border bg-card p-5 space-y-5">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            <h3 className="label-mono">
               Site Diary Recorder
             </h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1131,7 +1163,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         </div>
 
         <div className="text-center">
-          <div className="font-mono text-5xl md:text-6xl font-semibold tabular-nums text-primary">
+          <div className="font-mono text-5xl md:text-6xl font-semibold tabular-nums text-gold">
             {formatDuration(seconds)}
           </div>
         </div>
@@ -1139,19 +1171,19 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         <div className="flex flex-wrap gap-2 justify-center">
           {status === "idle" && (
             <div className="flex flex-col gap-3 w-full sm:w-auto items-center">
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center w-full">
                 <Button
                   onClick={() => handleStart("audio")}
                   size="lg"
-                  className="gap-2 h-14 px-6 text-base"
+                  className="gap-2 h-16 px-8 text-base w-full sm:w-auto bg-gold text-gold-foreground border-none hover:bg-gold/90"
                 >
-                  <Mic className="w-5 h-5" /> Audio Site Diary
+                  <Mic className="w-5 h-5" /> Start Audio Site Diary
                 </Button>
                 <Button
                   onClick={() => handleStart("video")}
                   size="lg"
-                  variant="secondary"
-                  className="gap-2 h-14 px-6 text-base"
+                  variant="outline"
+                  className="gap-2 h-16 px-8 text-base w-full sm:w-auto"
                 >
                   <Video className="w-5 h-5" /> Video Site Diary
                 </Button>
@@ -1184,7 +1216,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 onPointerUp={cancelHoldStop}
                 onPointerLeave={cancelHoldStop}
                 onPointerCancel={cancelHoldStop}
-                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-md bg-destructive text-destructive-foreground shadow-sm font-medium overflow-hidden"
+                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-sm bg-destructive text-destructive-foreground font-medium overflow-hidden"
               >
                 <Square className="w-5 h-5 relative z-10" /> <span className="relative z-10">Hold to Stop</span>
                 {stopProgress > 0 && (
@@ -1204,7 +1236,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 onPointerUp={cancelHoldStop}
                 onPointerLeave={cancelHoldStop}
                 onPointerCancel={cancelHoldStop}
-                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-md bg-destructive text-destructive-foreground shadow-sm font-medium overflow-hidden"
+                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-sm bg-destructive text-destructive-foreground font-medium overflow-hidden"
               >
                 <Square className="w-5 h-5 relative z-10" /> <span className="relative z-10">Hold to Stop</span>
                 {stopProgress > 0 && (
@@ -1224,7 +1256,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 disabled={snapBusy}
                 size="lg"
                 aria-label="Take snapshot"
-                className="h-20 w-20 rounded-full p-0 bg-[#D4AF37] hover:bg-[#bf9a2e] text-primary shadow-lg shadow-[#D4AF37]/30 ring-4 ring-[#D4AF37]/20"
+                className="h-20 w-20 rounded-full p-0 bg-gold hover:bg-gold/90 text-gold-foreground shadow-lg shadow-gold/30 ring-4 ring-gold/20"
               >
                 {snapBusy ? (
                   <Loader2 className="w-8 h-8 animate-spin" />
@@ -1297,7 +1329,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         {/* Area markers */}
         {isActive && (
           <div className="space-y-2">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            <div className="label-mono">
               Insert area
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1306,7 +1338,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                   key={a}
                   size="sm"
                   variant="outline"
-                  className="gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                  className="gap-1 border-gold/30 text-gold hover:bg-gold/5"
                   onClick={() => insertMarker(a)}
                 >
                   <Plus className="w-3 h-3" /> {a}
@@ -1315,7 +1347,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1 border-[#D4AF37]/40 text-[#9c7e1f] hover:bg-[#D4AF37]/10"
+                className="gap-1 border-gold/40 text-gold hover:bg-gold/10"
                 onClick={() => setCustomOpen(true)}
               >
                 <Plus className="w-3 h-3" /> Custom Area
@@ -1328,7 +1360,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         {(isActive || transcript) && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div className="label-mono">
                 Transcript {isActive && "· editable · final results only"}
               </div>
               {savedAt && (
@@ -1343,7 +1375,6 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               value={transcript}
               onChange={(e) => {
                 transcriptRef.current = e.target.value;
-                sessionBaseRef.current = e.target.value;
                 setTranscript(e.target.value);
               }}
               placeholder={
@@ -1356,7 +1387,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
             />
             {voiceActive && (
               <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 min-h-[2.25rem]">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">
+                <div className="label-mono mb-0.5">
                   Live preview (not saved)
                 </div>
                 <div className="text-sm italic text-muted-foreground">
@@ -1370,7 +1401,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
 
       {/* History */}
       <section className="space-y-3">
-        <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        <h3 className="label-mono">
           Previous Site Diary Entries
         </h3>
         {loading ? (
@@ -1390,12 +1421,12 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               return (
                 <div
                   key={w.id}
-                  className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-card border border-border hover:border-primary/40 transition-colors"
+                  className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-card border border-border hover:border-gold/40 transition-colors"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-foreground truncate flex items-center gap-2">
                       {w.recording_type === "video" ? (
-                        <FileVideo className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <FileVideo className="w-3.5 h-3.5 text-gold shrink-0" />
                       ) : (
                         <Mic className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                       )}
@@ -1410,7 +1441,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                       })}{" "}
                       · {formatMinutes(w.duration_seconds)}
                       {count > 0 && (
-                        <span className="ml-2 text-primary">
+                        <span className="ml-2 text-gold">
                           · {count} analysis{count === 1 ? "" : "es"}
                         </span>
                       )}
@@ -1423,7 +1454,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                      className="gap-1 border-gold/30 text-gold hover:bg-gold/5"
                       disabled={busy}
                       onClick={() => analyseWalk(w)}
                     >
@@ -1453,7 +1484,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       {/* Previous Analyses */}
       {analyses.length > 0 && (
         <section className="space-y-3">
-          <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          <h3 className="label-mono">
             Previous Analyses
           </h3>
           <div className="space-y-2">
@@ -1484,7 +1515,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                      className="gap-1 border-gold/30 text-gold hover:bg-gold/5"
                       onClick={() => setViewingAnalysis(a)}
                     >
                       <Eye className="w-4 h-4" /> View Analysis
@@ -1539,7 +1570,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <label className="label-mono">
                 Title
               </label>
               <Input
@@ -1574,7 +1605,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileVideo className="w-4 h-4 text-primary" /> Save Video Site Diary
+              <FileVideo className="w-4 h-4 text-gold" /> Save Video Site Diary
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
@@ -1584,7 +1615,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               <div>Transcript: <span className="text-foreground font-medium">{transcript.trim().length} chars</span></div>
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <label className="label-mono">
                 Title
               </label>
               <Input
@@ -1619,7 +1650,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
           </DialogHeader>
           {viewing && (
             <div className="space-y-3">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              <div className="label-mono">
                 {new Date(viewing.created_at).toLocaleDateString("en-GB", {
                   day: "numeric",
                   month: "long",
@@ -1640,7 +1671,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary" /> AI Review Queue
+              <Sparkles className="w-4 h-4 text-gold" /> AI Review Queue
             </DialogTitle>
           </DialogHeader>
           {viewingAnalysis && (
@@ -1672,7 +1703,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 {photoViewer && formatDuration(photoViewer.timestamp_seconds)}
               </span>
               {photoViewer?.hasLocation && (
-                <span className="flex items-center gap-1 text-xs text-primary">
+                <span className="flex items-center gap-1 text-xs text-gold">
                   <MapPin className="w-3.5 h-3.5" /> Geotagged
                 </span>
               )}
@@ -1887,7 +1918,7 @@ function AnalysisViewer({
                     key={p.id}
                     type="button"
                     onClick={() => p.signedUrl && setLightboxPhoto(p.signedUrl)}
-                    className="shrink-0 w-36 rounded-md border border-border bg-background overflow-hidden text-left hover:border-primary/50 transition-colors"
+                    className="shrink-0 w-36 rounded-md border border-border bg-background overflow-hidden text-left hover:border-gold/50 transition-colors"
                   >
                     {p.signedUrl ? (
                       <img src={p.signedUrl} alt="" className="w-full h-24 object-cover" />
@@ -1963,7 +1994,7 @@ function AnalysisViewer({
           {hs.map((item, i) => (
             <li
               key={`hs-${i}`}
-              className="rounded-md border border-rose-500/30 bg-rose-500/5 p-2.5 text-sm text-rose-900 dark:text-rose-200"
+              className="rounded-sm border border-rose-500/30 bg-rose-500/5 p-2.5 text-sm text-rose-300"
             >
               {item}
             </li>
@@ -2008,7 +2039,7 @@ function RoomCard({
     {
       label: "Health & Safety",
       items: room.health_and_safety ?? [],
-      tone: "text-rose-700 dark:text-rose-300",
+      tone: "text-rose-400",
     },
     { label: "Valuation Notes", items: room.valuation_notes ?? [] },
   ];
@@ -2018,7 +2049,7 @@ function RoomCard({
 
       {progressItems.length > 0 && (
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+          <div className="label-mono mb-1.5">
             Progress · approve to add to current valuation
           </div>
           <ul className="space-y-1.5">
@@ -2029,10 +2060,10 @@ function RoomCard({
               const pct = Math.max(0, Math.min(100, Math.round(item.completion_percent)));
               const pctTone =
                 pct >= 90
-                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  ? "bg-emerald-500/15 text-emerald-400"
                   : pct >= 50
-                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                    : "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300";
+                    ? "bg-amber-500/15 text-amber-400"
+                    : "bg-rose-500/15 text-rose-400";
               return (
                 <li
                   key={`prog-${i}`}
@@ -2073,7 +2104,7 @@ function RoomCard({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {sections.map((s) => (
           <div key={s.label}>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+            <div className="label-mono mb-1">
               {s.label}
             </div>
             {s.items.length === 0 ? (
@@ -2091,7 +2122,7 @@ function RoomCard({
 
       {photos.length > 0 && (
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+          <div className="label-mono mb-1.5">
             Photos ({photos.length})
           </div>
           <div className="flex gap-2 overflow-x-auto">
@@ -2129,9 +2160,9 @@ function Section({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h4 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{title}</h4>
+        <h4 className="label-mono">{title}</h4>
         {badge && (
-          <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-primary/30 text-primary bg-primary/5">
+          <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-gold/30 text-gold bg-gold/10">
             {badge}
           </span>
         )}

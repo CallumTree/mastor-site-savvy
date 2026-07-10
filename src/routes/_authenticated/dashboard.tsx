@@ -93,22 +93,30 @@ function Dashboard() {
 
   useEffect(() => { load(); }, []);
 
+  const activeSites = projects.filter((p) => p.status === "On Site").length;
+  const recentActivity = projects.filter((p) => {
+    const h = healthMap[p.id];
+    return h && h.daysSinceWalk !== null && h.daysSinceWalk <= 2;
+  });
+
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 pb-20">
-      <section className="mb-6">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Site Overview</p>
-        <h1 className="font-display text-4xl text-primary mt-2">Good day</h1>
+      <section className="mb-8">
+        <p className="label-mono">Site Overview</p>
+        <h1 className="hero-number text-5xl sm:text-6xl mt-2">
+          {activeSites} {activeSites === 1 ? "Site" : "Sites"} Live
+        </h1>
       </section>
 
       {/* Quick Check */}
-      <section className="mb-8">
-        <div className="border border-border border-l-[2px] border-l-primary bg-card shadow-sm overflow-hidden">
-          <div className="bg-primary text-primary-foreground px-4 py-3 flex items-center gap-2">
-            <ClipboardCheck className="w-4 h-4 text-gold" />
+      <section className="mb-6">
+        <div className="border border-border bg-card overflow-hidden">
+          <div className="bg-primary text-primary-foreground px-4 py-2.5 flex items-center gap-2">
+            <ClipboardCheck className="w-4 h-4" />
             <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">Quick Check</h2>
           </div>
           <div className="grid grid-cols-3 divide-x divide-border">
-            <Stat icon={<HardHat className="w-4 h-4" />} label="Active Sites" value={projects.filter(p => p.status === "On Site").length} />
+            <Stat icon={<HardHat className="w-4 h-4" />} label="Active Sites" value={activeSites} />
             <Stat icon={<AlertTriangle className="w-4 h-4" />} label="Open RFIs" value={7} />
             <Stat icon={<ClipboardCheck className="w-4 h-4" />} label="Valuations Due" value={3} />
           </div>
@@ -117,12 +125,12 @@ function Dashboard() {
 
       {/* AI Activity */}
       <section className="mb-8">
-        <div className="border border-border border-l-[2px] border-l-primary bg-card shadow-sm overflow-hidden">
-          <div className="bg-primary text-primary-foreground px-4 py-3 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-gold" />
+        <div className="border border-border bg-card overflow-hidden">
+          <div className="bg-primary text-primary-foreground px-4 py-2.5 flex items-center gap-2">
+            <Sparkles className="w-4 h-4" />
             <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">AI Activity</h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-border">
+          <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-y sm:divide-y-0 divide-border">
             <Stat icon={<Inbox className="w-4 h-4" />} label="Awaiting Review" value={ai.awaiting} />
             <Stat icon={<CheckCircle2 className="w-4 h-4" />} label="Approved (7d)" value={ai.approvedWeek} />
             <Stat icon={<FileEdit className="w-4 h-4" />} label="Variations" value={ai.variations} />
@@ -132,11 +140,34 @@ function Dashboard() {
         </div>
       </section>
 
+      {/* Recently active — horizontal scroll strip, only when there's something to show */}
+      {!loading && recentActivity.length > 0 && (
+        <section className="mb-8">
+          <p className="label-mono mb-3">Walked in the last 48 hours</p>
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1">
+            {recentActivity.map((p) => (
+              <Link
+                key={p.id}
+                to="/projects/$id"
+                params={{ id: p.id }}
+                className="shrink-0 w-48 border border-border bg-card hover:border-gold/50 transition-colors p-3"
+              >
+                <h3 className="font-display text-base text-foreground truncate">{p.name}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{p.client ?? "—"}</p>
+                <div className="mt-3 flex items-center gap-1 text-[10px] text-gold">
+                  <Footprints className="w-3 h-3" />
+                  {healthMap[p.id]?.daysSinceWalk === 0 ? "Today" : `${healthMap[p.id]?.daysSinceWalk}d ago`}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Projects header */}
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-2xl text-primary">Projects</h2>
+        <div className="flex items-center justify-between mb-4 divider-heavy pt-4">
+          <h2 className="font-display text-2xl text-foreground">Projects</h2>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button size="sm">
@@ -164,15 +195,16 @@ function Dashboard() {
                 key={p.id}
                 to="/projects/$id"
                 params={{ id: p.id }}
-                className="group block border border-border border-l-[2px] border-l-primary bg-card shadow-sm hover:border-l-gold transition overflow-hidden"
+                className="group block border border-border bg-card hover:border-gold/50 transition-colors overflow-hidden"
               >
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="font-display text-lg text-primary truncate">{p.name}</h3>
+                      <h3 className="font-display text-lg text-foreground truncate">{p.name}</h3>
                       <p className="text-xs text-muted-foreground mt-0.5">{p.client ?? "—"}</p>
                     </div>
-                    <span className="shrink-0 text-[10px] uppercase tracking-[0.2em] bg-accent text-accent-foreground px-3 py-1 rounded-full font-semibold">
+                    <span className="shrink-0 flex items-center gap-1.5 label-mono">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gold" />
                       {p.status}
                     </span>
                   </div>
@@ -183,8 +215,8 @@ function Dashboard() {
                   )}
                   <div className="mt-4">
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="uppercase tracking-[0.2em] text-muted-foreground">Progress</span>
-                      <span className="font-medium text-primary">{p.progress}%</span>
+                      <span className="label-mono">Progress</span>
+                      <span className="font-medium text-foreground">{p.progress}%</span>
                     </div>
                     <div className="h-1.5 bg-secondary overflow-hidden">
                       <div className="h-full bg-gold" style={{ width: `${p.progress}%` }} />
@@ -193,10 +225,10 @@ function Dashboard() {
                   {(() => {
                     const h = healthMap[p.id];
                     if (!h) return null;
-                    const walkColor = h.daysSinceWalk === null || h.daysSinceWalk > 7 ? "bg-red-100 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200";
+                    const walkColor = h.daysSinceWalk === null || h.daysSinceWalk > 7 ? "bg-red-500/15 text-red-400 border-red-500/30" : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
                     const walkLabel = h.daysSinceWalk === null ? "No walk" : `${h.daysSinceWalk}d`;
-                    const varColor = h.draftVariations > 0 ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-green-100 text-green-700 border-green-200";
-                    const procColor = h.staleProcurement > 0 ? "bg-red-100 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200";
+                    const varColor = h.draftVariations > 0 ? "bg-amber-500/15 text-amber-400 border-amber-500/30" : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+                    const procColor = h.staleProcurement > 0 ? "bg-red-500/15 text-red-400 border-red-500/30" : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
                     return (
                       <div className="mt-3 flex flex-wrap gap-2">
                         <HealthPill icon={<Footprints className="w-3 h-3" />} label={walkLabel} classes={walkColor} />
@@ -206,8 +238,8 @@ function Dashboard() {
                     );
                   })()}
                   <div className="mt-4 pt-3 border-t border-border flex justify-between items-end">
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Contract</span>
-                    <span className="font-display text-primary leading-none" style={{ fontSize: "2.5rem" }}>
+                    <span className="label-mono">Contract</span>
+                    <span className="hero-number text-4xl">
                       {p.contract_value ? GBP.format(Number(p.contract_value)) : "—"}
                     </span>
                   </div>
@@ -225,15 +257,15 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
   return (
     <div className="p-4 text-center">
       <div className="flex justify-center text-gold mb-1.5">{icon}</div>
-      <div className="font-display text-primary leading-none" style={{ fontSize: "2.5rem" }}>{value}</div>
-      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-2">{label}</div>
+      <div className="hero-number text-4xl">{value}</div>
+      <div className="label-mono mt-2">{label}</div>
     </div>
   );
 }
 
 function HealthPill({ icon, label, classes }: { icon: React.ReactNode; label: string; classes: string }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold ${classes}`}>
+    <span className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-[10px] font-semibold ${classes}`}>
       {icon}
       {label}
     </span>

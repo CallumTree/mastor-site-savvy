@@ -312,13 +312,13 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
       {loading ? (
         <LoadingDot label="Loading" />
       ) : docs.length === 0 ? (
-        <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
+        <div className="p-6 rounded-sm border border-dashed border-border text-center text-sm text-muted-foreground">
           No documents uploaded yet. Accepted formats: {ACCEPTED_LABEL}.
         </div>
       ) : (
         <div className="space-y-2">
           {docs.map((d) => (
-            <div key={d.id} className="p-3 rounded-md bg-card border border-border">
+            <div key={d.id} className="p-3 rounded-sm bg-card border border-border">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex items-start gap-2">
                   <FileText className="w-4 h-4 mt-0.5 shrink-0 text-gold-foreground/70" />
@@ -326,7 +326,7 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
                     <div className="text-sm text-foreground truncate">{d.file_name}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">
                       {d.file_type.toUpperCase()} · {new Date(d.uploaded_at).toLocaleDateString()}
-                      {d.parsed_at && <span className="ml-2 text-primary">Parsed</span>}
+                      {d.parsed_at && <span className="ml-2 text-gold">Parsed</span>}
                     </div>
                   </div>
                 </div>
@@ -379,7 +379,7 @@ function ParsedScopeView({
   return (
     <section className="space-y-3 pt-4 border-t border-border">
       <div className="flex justify-between items-center gap-2">
-        <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Parsed Scope</h3>
+        <h3 className="label-mono">Parsed Scope</h3>
         {docs.length > 0 && (
           <select
             className="h-8 px-2 rounded-md border border-input bg-background text-xs"
@@ -397,7 +397,7 @@ function ParsedScopeView({
       </div>
 
       {elements.length === 0 ? (
-        <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
+        <div className="p-6 rounded-sm border border-dashed border-border text-center text-sm text-muted-foreground">
           Nothing parsed yet. Upload a document and click "Parse Scope".
         </div>
       ) : (
@@ -406,12 +406,12 @@ function ParsedScopeView({
           if (items.length === 0) return null;
           const isOpen = open[t] !== false;
           return (
-            <div key={t} className="rounded-md bg-card border border-border">
+            <div key={t} className="rounded-sm bg-card border border-border">
               <button
                 className="w-full px-3 py-2 flex items-center justify-between text-left"
                 onClick={() => setOpen((o) => ({ ...o, [t]: !isOpen }))}
               >
-                <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gold">
                   {TYPE_LABEL[t]} <span className="text-muted-foreground font-normal ml-1">({items.length})</span>
                 </span>
                 {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}

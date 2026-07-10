@@ -265,8 +265,8 @@ function InvoicePage() {
     let y = finalY + 10;
     const rows: Array<[string, string]> = [
       ["Previously Claimed", GBP.format(previouslyClaimed)],
-      ["This Claim", String(items.length)],
-      ["Total Claimed", String(previouslyClaimed + items.length)],
+      ["This Claim", GBP.format(thisClaim)],
+      ["Total Claimed", GBP.format(totalClaimed)],
       ["Remaining Value", GBP.format(remaining)],
       ["Total Amount Due", GBP.format(Number(invoice.total_amount))],
     ];
@@ -301,7 +301,7 @@ function InvoicePage() {
   }
 
   const projectValue = Number(project.gross_value ?? project.contract_value ?? 0);
-  const thisClaim = items.length;
+  const thisClaim = items.reduce((s, it) => s + Number(it.claimed_value ?? 0), 0);
   const totalClaimed = previouslyClaimed + thisClaim;
   const remaining = projectValue - totalClaimed;
   const clientName = project.client_name ?? project.client ?? "—";
@@ -359,10 +359,10 @@ function InvoicePage() {
 
       {/* Line items */}
       <section className="space-y-2">
-        <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        <h2 className="label-mono">
           Line Items ({items.length})
         </h2>
-        <div className="rounded-md border border-border overflow-hidden">
+        <div className="rounded-sm border border-border overflow-hidden">
           <table className="w-full text-xs">
             <thead className="bg-secondary/40 text-muted-foreground">
               <tr>
@@ -380,7 +380,7 @@ function InvoicePage() {
               ) : (
                 items.map((it) => (
                   <tr key={it.id} className="border-t border-border">
-                    <td className="py-2 px-3 font-medium text-primary">
+                    <td className="py-2 px-3 font-medium text-foreground">
                       {it.work_package_name ?? "—"}
                     </td>
                     <td className="py-2 px-3 text-muted-foreground leading-relaxed">
@@ -394,19 +394,17 @@ function InvoicePage() {
         </div>
       </section>
 
-      {/* Summary */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard label="Previously Claimed" value={GBP.format(previouslyClaimed)} />
-        <SummaryCard label="This Claim" value={String(thisClaim)} />
-        <SummaryCard label="Total Claimed" value={String(totalClaimed)} />
-        <SummaryCard label="Remaining Value" value={GBP.format(remaining)} />
+      {/* Summary — ledger strip, not a KPI tile grid */}
+      <section className="border border-border rounded-sm overflow-hidden">
+        <LedgerRow label="Previously Claimed" value={GBP.format(previouslyClaimed)} />
+        <LedgerRow label="This Claim" value={GBP.format(thisClaim)} />
+        <LedgerRow label="Total Claimed" value={GBP.format(totalClaimed)} />
+        <LedgerRow label="Remaining Value" value={GBP.format(remaining)} />
       </section>
 
-      <section className="rounded-md border border-primary/30 bg-primary/5 p-4 flex justify-between items-center">
-        <div className="text-sm uppercase tracking-[0.18em] text-muted-foreground">
-          Total Amount Due
-        </div>
-        <div className="text-2xl font-semibold text-primary">
+      <section className="rounded-sm border-2 border-gold/50 bg-gold/5 p-4 flex justify-between items-center">
+        <div className="label-mono">Total Amount Due</div>
+        <div className="hero-number text-3xl">
           {GBP.format(Number(invoice.total_amount))}
         </div>
       </section>
@@ -465,7 +463,7 @@ function InvoiceNumberEditor({
     return (
       <button
         type="button"
-        className="text-lg font-semibold text-foreground hover:text-primary underline-offset-4 hover:underline"
+        className="text-lg font-semibold text-foreground hover:text-gold underline-offset-4 hover:underline"
         onClick={() => setEditing(true)}
         title="Click to edit"
       >
@@ -538,13 +536,11 @@ function DeleteInvoiceButton({
 }
 
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+function LedgerRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border bg-card p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      <div className="text-lg font-semibold text-primary mt-1">{value}</div>
+    <div className="flex justify-between items-center px-4 py-2.5 border-b border-border last:border-b-0 text-sm">
+      <span className="label-mono">{label}</span>
+      <span className="font-semibold text-foreground tabular-nums">{value}</span>
     </div>
   );
 }

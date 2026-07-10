@@ -57,24 +57,24 @@ export function InvoicesTab({ projectId }: { projectId: string }) {
       {invoices.map((inv) => (
         <div
           key={inv.id}
-          className="rounded-md bg-card border border-border p-4 flex items-center justify-between gap-4"
+          className="rounded-sm bg-card border border-border p-4 flex items-center justify-between gap-4"
         >
           <div className="flex items-center gap-3 min-w-0">
             <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-primary truncate">{inv.invoice_number}</div>
+              <div className="font-mono text-sm font-semibold text-foreground truncate">{inv.invoice_number}</div>
               <div className="text-xs text-muted-foreground">
                 {new Date(inv.created_at).toLocaleDateString("en-GB")}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-4 shrink-0">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{inv.status}</span>
+            <span className="label-mono">{inv.status}</span>
             <DisplayMetric value={GBP.format(Number(inv.total_amount))} className="items-end" />
             <Link
               to="/valuations/$id/invoice"
               params={{ id: inv.valuation_id }}
-              className="text-xs text-primary hover:underline"
+              className="text-xs text-gold hover:underline"
             >
               View
             </Link>

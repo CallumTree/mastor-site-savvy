@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,15 @@ import { showError } from "@/lib/toast-error";
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    // Auth gate temporarily ghosted for development.
-    const { data } = await supabase.auth.getUser();
-    return { user: data.user ?? null };
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      // The session check itself failed — a real problem, not just "logged
+      // out" — so it's worth surfacing rather than a silent bounce.
+      showError("Session check", error);
+      throw redirect({ to: "/auth" });
+    }
+    if (!data.session) throw redirect({ to: "/auth" });
+    return { user: data.session.user };
   },
   component: AuthedLayout,
 });
@@ -42,25 +48,23 @@ function AuthedLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 bg-[#0A0A0A] text-white border-b border-[#0A0A0A]">
+      <header className="sticky top-0 z-30 bg-card text-foreground border-b border-border">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/dashboard" className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded bg-[#D4AF37]">
-              <span className="font-display font-bold text-[#0A0A0A]">M</span>
+          <Link to="/dashboard" className="flex items-center gap-2.5">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-sm bg-gold">
+              <span className="font-display font-bold text-gold-foreground">M</span>
             </span>
-            <span className="font-display text-lg font-semibold tracking-wide text-white">Mastor</span>
+            <span className="font-display text-lg font-semibold tracking-[0.08em] uppercase">
+              Mastor
+            </span>
           </Link>
           <div className="flex items-center gap-3">
-            {companyName && (
-              <span className="text-xs uppercase tracking-[0.2em] opacity-80 hidden sm:inline">
-                {companyName}
-              </span>
-            )}
+            {companyName && <span className="label-mono hidden sm:inline">{companyName}</span>}
             <Button
               size="sm"
               variant="ghost"
               onClick={handleSignOut}
-              className="text-white hover:bg-white/10"
+              className="text-foreground hover:bg-white/5"
             >
               <LogOut className="w-4 h-4" />
               <span className="sr-only">Sign out</span>

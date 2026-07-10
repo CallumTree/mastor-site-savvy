@@ -35,40 +35,53 @@
 }
 
 :root {
-  --radius: 0.375rem;
+  /* Kept low enough that rounded-sm/rounded-md read as nearly sharp
+     (matching the "sharp-cornered" cards/buttons throughout) while staying
+     non-negative through the sm/md/lg/xl calc() scale below. */
+  --radius: 0.25rem;
 
-  /* Near black */
-  --primary: oklch(0.08 0 0);
-  --primary-foreground: oklch(1 0 0);
+  /* Dark charcoal surfaces, not pure black — pure black + white text reads
+     harsh at scale; a near-black with a hint of warmth reads as material. */
+  --background: oklch(0.14 0.005 95);
+  --foreground: oklch(0.96 0.005 95);
 
-  /* Gold */
-  --gold: oklch(0.74 0.13 85);
-  --gold-foreground: oklch(0.08 0 0);
+  --card: oklch(0.18 0.006 95);
+  --card-foreground: oklch(0.96 0.005 95);
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.1 0 0);
+  --popover: oklch(0.16 0.006 95);
+  --popover-foreground: oklch(0.96 0.005 95);
 
-  --card: oklch(0.97 0 0);
-  --card-foreground: oklch(0.1 0 0);
+  /* --primary/--foreground were near-duplicate near-blacks in the old light
+     theme (both ~0.08-0.1) because `text-primary` is used everywhere as the
+     default "readable heading/value" text color, not just as a button fill.
+     Keeping that same relationship in the dark theme means both become
+     near-white — flipping only --background/--card and leaving --primary
+     black would make every `text-primary` heading invisible on the new dark
+     surfaces. --primary-foreground is the near-black pairing used for text
+     on primary-filled elements (buttons, badges, checkboxes). */
+  --primary: oklch(0.96 0.005 95);
+  --primary-foreground: oklch(0.1 0 0);
 
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.1 0 0);
+  --secondary: oklch(0.24 0.006 95);
+  --secondary-foreground: oklch(0.92 0.005 95);
 
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0.1 0 0);
+  --muted: oklch(0.22 0.006 95);
+  --muted-foreground: oklch(0.62 0.01 95);
 
-  --muted: oklch(0.94 0 0);
-  --muted-foreground: oklch(0.45 0 0);
+  /* Gold — the one accent color. Reserve it for active states, key numbers
+     and the record button; never use it as a large background fill or it
+     stops reading as an accent. */
+  --gold: oklch(0.78 0.14 85);
+  --gold-foreground: oklch(0.1 0 0);
+  --accent: var(--gold);
+  --accent-foreground: var(--gold-foreground);
 
-  --accent: oklch(0.74 0.13 85);
-  --accent-foreground: oklch(0.08 0 0);
-
-  --destructive: oklch(0.55 0.22 27);
+  --destructive: oklch(0.6 0.2 25);
   --destructive-foreground: oklch(1 0 0);
 
-  --border: oklch(0.88 0 0);
-  --input: oklch(0.88 0 0);
-  --ring: oklch(0.74 0.13 85);
+  --border: oklch(0.28 0.006 95);
+  --input: oklch(0.28 0.006 95);
+  --ring: var(--gold);
 
   --font-display: "Playfair Display", Georgia, serif;
   --font-sans: "Inter", system-ui, sans-serif;
@@ -96,4 +109,27 @@
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Uppercase tracked eyebrow/label — the one small-caps treatment used for
+   every field label, stat label and section eyebrow across the app. */
+@utility label-mono {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--muted-foreground);
+}
+
+/* Big serif figure for money/quantities — the "command center" number. */
+@utility hero-number {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+@utility divider-heavy {
+  border-top: 2px solid var(--border);
 }

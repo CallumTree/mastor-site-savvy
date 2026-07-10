@@ -32,11 +32,11 @@ const ACTIVE = new Set(["Required", "Quoted", "Ordered"]);
 const ARCHIVE = new Set(["Delivered", "Dismissed"]);
 
 const STATUS_STYLES: Record<string, string> = {
-  Required: "bg-amber-500/15 text-amber-700 border-amber-500/30",
-  Quoted: "bg-sky-500/15 text-sky-700 border-sky-500/30",
-  Ordered: "bg-indigo-500/15 text-indigo-700 border-indigo-500/30",
-  Delivered: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
-  Dismissed: "bg-slate-500/15 text-slate-700 border-slate-500/30",
+  Required: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  Quoted: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+  Ordered: "bg-indigo-500/15 text-indigo-400 border-indigo-500/30",
+  Delivered: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  Dismissed: "bg-slate-500/15 text-slate-300 border-slate-500/30",
 };
 
 export function ProcurementTab({ projectId }: { projectId: string }) {
@@ -126,7 +126,7 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Procurement Items</h3>
+        <h3 className="label-mono">Procurement Items</h3>
         {!editing && (
           <Button size="sm" variant="outline" onClick={() => setEditing({ status: "Required" })}>
             <Plus className="w-3 h-3 mr-1" /> Add item
@@ -141,13 +141,13 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
         <CountCard label="Delivered" value={counts.Delivered} tone="emerald" />
       </div>
 
-      <div className="p-3 rounded-md bg-secondary border border-border flex justify-between items-center">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">Active Procurement Cost</span>
-        <span className="text-base font-semibold text-primary">{GBP.format(total)}</span>
+      <div className="p-3 rounded-sm bg-secondary border border-border flex justify-between items-center">
+        <span className="label-mono">Active Procurement Cost</span>
+        <span className="hero-number text-2xl">{GBP.format(total)}</span>
       </div>
 
       {editing && (
-        <div className="p-3 rounded-md bg-card border border-border space-y-2">
+        <div className="p-3 rounded-sm bg-card border border-border space-y-2">
           <Input placeholder="Description" value={editing.description ?? ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
           <div className="grid grid-cols-3 gap-2">
             <Input type="number" placeholder="Quantity" value={editing.quantity ?? ""} onChange={(e) => setEditing({ ...editing, quantity: e.target.value === "" ? null : Number(e.target.value) })} />
@@ -216,12 +216,12 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
       )}
 
       {archiveItems.length > 0 && (
-        <div className="rounded-md border border-border bg-card">
+        <div className="rounded-sm border border-border bg-card">
           <button
             className="w-full px-3 py-2 flex items-center justify-between"
             onClick={() => setShowArchive((v) => !v)}
           >
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <span className="label-mono flex items-center gap-1.5">
               <Archive className="w-3 h-3" />
               {showArchive ? "Hide Archive" : "Show Archive"}
               <span className="text-muted-foreground font-normal ml-1">({archiveItems.length})</span>
@@ -245,15 +245,15 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
 
 function CountCard({ label, value, tone }: { label: string; value: number; tone: string }) {
   const toneClass: Record<string, string> = {
-    amber: "text-amber-700",
-    sky: "text-sky-700",
-    indigo: "text-indigo-700",
-    emerald: "text-emerald-700",
+    amber: "text-amber-400",
+    sky: "text-sky-400",
+    indigo: "text-indigo-400",
+    emerald: "text-emerald-400",
   };
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={`text-xl font-semibold mt-0.5 ${toneClass[tone] ?? "text-primary"}`}>{value}</div>
+    <div className="rounded-sm border border-border bg-card p-3">
+      <div className="label-mono">{label}</div>
+      <div className={`text-xl font-semibold mt-0.5 ${toneClass[tone] ?? "text-gold"}`}>{value}</div>
     </div>
   );
 }
@@ -270,14 +270,14 @@ function Row({
   onStatus: (s: string) => void;
 }) {
   return (
-    <div className="p-3 rounded-md bg-card border border-border">
+    <div className="p-3 rounded-sm bg-card border border-border">
       <div className="flex justify-between gap-3">
         <div className="min-w-0">
           <div className="text-sm font-medium text-foreground flex items-center gap-1.5">
             {item.description}
             {!item.scope_element_id && (
               <span
-                className="inline-flex items-center gap-0.5 text-[9px] uppercase tracking-wider text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded px-1 py-px"
+                className="inline-flex items-center gap-0.5 text-[9px] uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-sm px-1 py-px"
                 title="Not matched to a scope element — edit to assign manually"
               >
                 <HelpCircle className="w-2.5 h-2.5" /> Unmatched
@@ -289,7 +289,7 @@ function Row({
           </div>
         </div>
         <div className="text-right shrink-0 flex flex-col items-end gap-2">
-          <div className="text-sm font-semibold text-primary">
+          <div className="text-sm font-semibold text-gold">
             {item.estimated_cost != null ? GBP.format(Number(item.estimated_cost)) : "—"}
           </div>
           <Badge variant="outline" className={`text-[10px] uppercase tracking-wider ${STATUS_STYLES[item.status] ?? ""}`}>
