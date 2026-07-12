@@ -402,13 +402,48 @@ export function VariationsTab({ projectId }: { projectId: string }) {
   const drafts = items.filter((i) => i.status === "Draft" || i.status === "Pending");
   const approved = items.filter((i) => i.status === "Approved");
   const rejected = items.filter((i) => i.status === "Rejected");
+  const statusTotal = drafts.length + approved.length + rejected.length;
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-2">
-        <Stat label="Draft" value={drafts.length} tone="amber" />
-        <Stat label="Approved" value={approved.length} tone="emerald" />
-        <Stat label="Rejected" value={rejected.length} tone="slate" />
+      <div className="space-y-2">
+        <div className="h-2 flex overflow-hidden bg-secondary">
+          {drafts.length > 0 && (
+            <div
+              className="h-full bg-gold"
+              style={{ width: `${(drafts.length / statusTotal) * 100}%` }}
+            />
+          )}
+          {approved.length > 0 && (
+            <div
+              className="h-full bg-emerald-400"
+              style={{ width: `${(approved.length / statusTotal) * 100}%` }}
+            />
+          )}
+          {rejected.length > 0 && (
+            <div
+              className="h-full bg-slate-400"
+              style={{ width: `${(rejected.length / statusTotal) * 100}%` }}
+            />
+          )}
+        </div>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-gold shrink-0" />
+            Draft{" "}
+            <span className="text-foreground font-medium tabular-nums">{drafts.length}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+            Approved{" "}
+            <span className="text-foreground font-medium tabular-nums">{approved.length}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
+            Rejected{" "}
+            <span className="text-foreground font-medium tabular-nums">{rejected.length}</span>
+          </span>
+        </div>
       </div>
 
       <div className="flex justify-end">
@@ -600,16 +635,3 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
-  const toneClass: Record<string, string> = {
-    amber: "text-amber-400",
-    emerald: "text-emerald-400",
-    slate: "text-slate-300",
-  };
-  return (
-    <div className="rounded-sm border border-border bg-card p-3">
-      <div className="label-mono">{label}</div>
-      <div className={`text-xl font-semibold mt-0.5 ${toneClass[tone] ?? "text-gold"}`}>{value}</div>
-    </div>
-  );
-}

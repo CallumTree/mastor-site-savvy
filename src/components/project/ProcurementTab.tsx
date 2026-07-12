@@ -134,11 +134,23 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <CountCard label="Required" value={counts.Required} tone="amber" />
-        <CountCard label="Quoted" value={counts.Quoted} tone="sky" />
-        <CountCard label="Ordered" value={counts.Ordered} tone="indigo" />
-        <CountCard label="Delivered" value={counts.Delivered} tone="emerald" />
+      <div className="flex items-stretch border border-border bg-card divide-x divide-border">
+        {[
+          { label: "Required", value: counts.Required, tone: "text-amber-400" },
+          { label: "Quoted", value: counts.Quoted, tone: "text-sky-400" },
+          { label: "Ordered", value: counts.Ordered, tone: "text-indigo-400" },
+          { label: "Delivered", value: counts.Delivered, tone: "text-emerald-400" },
+        ].map((stage, i, arr) => (
+          <div key={stage.label} className="flex-1 relative">
+            <div className="p-3 text-center">
+              <div className="label-mono">{stage.label}</div>
+              <div className={`text-2xl font-semibold mt-0.5 ${stage.tone}`}>{stage.value}</div>
+            </div>
+            {i < arr.length - 1 && (
+              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground absolute top-1/2 -right-[7px] -translate-y-1/2 z-10 bg-card rounded-full" />
+            )}
+          </div>
+        ))}
       </div>
 
       <div className="p-3 rounded-sm bg-secondary border border-border flex justify-between items-center">
@@ -239,21 +251,6 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-function CountCard({ label, value, tone }: { label: string; value: number; tone: string }) {
-  const toneClass: Record<string, string> = {
-    amber: "text-amber-400",
-    sky: "text-sky-400",
-    indigo: "text-indigo-400",
-    emerald: "text-emerald-400",
-  };
-  return (
-    <div className="rounded-sm border border-border bg-card p-3">
-      <div className="label-mono">{label}</div>
-      <div className={`text-xl font-semibold mt-0.5 ${toneClass[tone] ?? "text-gold"}`}>{value}</div>
     </div>
   );
 }

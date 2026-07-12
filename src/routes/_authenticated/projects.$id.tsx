@@ -22,7 +22,6 @@ import { showError } from "@/lib/toast-error";
 
 import { ValuationsTab } from "@/components/project/ValuationsTab";
 import { LoadingDot } from "@/components/ui/loading-dot";
-import { DisplayMetric } from "@/components/ui/display-metric";
 import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
@@ -139,12 +138,41 @@ function ProjectDetail() {
           initial={project.po_number}
           onSaved={(v) => setProject((p) => (p ? { ...p, po_number: v } : p))}
         />
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
-          <DisplayMetric label="Contract Value" value={project.contract_value ? GBP.format(Number(project.contract_value)) : "—"} className="border border-border bg-card p-3" />
-          <Metric label="Progress" value={`${project.progress ?? 0}%`} />
-          <Metric label="Open Variations" value={String(stats.openVariations)} />
-          <Metric label="Procurement Outstanding" value={String(stats.procurementOutstanding)} />
-          <Metric label="Potential Claim" value={GBP.format(stats.potentialClaim)} />
+        <div className="mt-4 border border-border bg-card">
+          <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border">
+            <div className="flex-1 p-4">
+              <div className="label-mono">Contract Value</div>
+              <div className="hero-number text-4xl mt-1">
+                {project.contract_value ? GBP.format(Number(project.contract_value)) : "—"}
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-secondary overflow-hidden">
+                  <div className="h-full bg-gold" style={{ width: `${project.progress ?? 0}%` }} />
+                </div>
+                <span className="text-xs font-medium text-foreground tabular-nums shrink-0">
+                  {project.progress ?? 0}%
+                </span>
+              </div>
+            </div>
+            <div className="flex-1 p-4">
+              <div className="label-mono">Potential Claim</div>
+              <div className="hero-number text-4xl mt-1">{GBP.format(stats.potentialClaim)}</div>
+              <div className="mt-3 flex gap-4 text-xs">
+                <span
+                  className={stats.openVariations > 0 ? "text-amber-400" : "text-muted-foreground"}
+                >
+                  {stats.openVariations} Variation{stats.openVariations === 1 ? "" : "s"}
+                </span>
+                <span
+                  className={
+                    stats.procurementOutstanding > 0 ? "text-amber-400" : "text-muted-foreground"
+                  }
+                >
+                  {stats.procurementOutstanding} Procurement
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -298,11 +326,6 @@ function ProjectBottomNav({
       </ul>
     </nav>
   );
-}
-
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return <DisplayMetric label={label} value={value} className="border border-border bg-card p-3" />;
 }
 
 function PoNumberField({
