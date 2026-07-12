@@ -24,6 +24,7 @@ type ValuationLineItem = {
   claimed_qty: number | null;
   claimed_value: number | null;
   status: string;
+  scope_element_id: string | null;
 };
 
 const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
@@ -115,7 +116,7 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
               </button>
               {isOpen && (
                 <div className="px-3 pb-3 border-t border-border pt-3">
-                  <ValuationItemsList valuationId={v.id} readOnly={v.status !== "Draft"} />
+                  <ValuationItemsList projectId={projectId} valuationId={v.id} readOnly={v.status !== "Draft"} />
                 </div>
               )}
             </div>
@@ -126,7 +127,15 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
   );
 }
 
-function ValuationItemsList({ valuationId, readOnly }: { valuationId: string; readOnly: boolean }) {
+function ValuationItemsList({
+  projectId,
+  valuationId,
+  readOnly,
+}: {
+  projectId: string;
+  valuationId: string;
+  readOnly: boolean;
+}) {
   const [items, setItems] = useState<ValuationLineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -135,7 +144,7 @@ function ValuationItemsList({ valuationId, readOnly }: { valuationId: string; re
     setLoading(true);
     const { data, error } = await supabase
       .from("valuation_items")
-      .select("id, work_package_name, description, unit_rate, claimed_qty, claimed_value, status")
+      .select("id, work_package_name, description, unit_rate, claimed_qty, claimed_value, status, scope_element_id")
       .eq("valuation_id", valuationId)
       .order("created_at", { ascending: true });
     if (error) showError("Valuations", error);
@@ -156,9 +165,29 @@ function ValuationItemsList({ valuationId, readOnly }: { valuationId: string; re
   const remove = async (itemId: string) => {
     if (!confirm("Remove this item from the valuation?")) return;
     setRemovingId(itemId);
+    const item = items.find((it) => it.id === itemId);
     const { error } = await supabase.from("valuation_items").delete().eq("id", itemId);
+    if (error) {
+      setRemovingId(null);
+      return showError("Valuations", error);
+    }
+    if (item?.scope_element_id) {
+      // Un-claim: put the scope line back on the to-do list and record why,
+      // mirroring the same round-trip already used on the valuation detail
+      // page's own remove flow.
+      await supabase
+        .from("scope_elements")
+        .update({ status: "In Progress", claimed_in_valuation: null })
+        .eq("id", item.scope_element_id);
+      await supabase.from("scope_element_history").insert({
+        scope_element_id: item.scope_element_id,
+        project_id: projectId,
+        event_type: "Rejected From Valuation",
+        valuation_id: valuationId,
+        rejection_reason: "Removed from valuation",
+      });
+    }
     setRemovingId(null);
-    if (error) return showError("Valuations", error);
     toast.success("Item removed");
     setItems((prev) => prev.filter((it) => it.id !== itemId));
   };

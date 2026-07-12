@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { analyseSiteWalk } from "@/lib/analyseSiteWalk.functions";
-import { matchFindingToContractItem } from "@/lib/matchFinding.functions";
+import { matchFindingToScopeElement } from "@/lib/matchFinding.functions";
 import { getOrCreateOpenValuation, formatValuationNumber } from "@/lib/openValuation";
 import { Button } from "@/components/ui/button";
 import { LoadingDot } from "@/components/ui/loading-dot";
@@ -1737,7 +1737,7 @@ function AnalysisViewer({
   walkTitle: string;
 }) {
   const a = row.analysis_json ?? ({} as Analysis);
-  const matchFn = useServerFn(matchFindingToContractItem);
+  const matchFn = useServerFn(matchFindingToScopeElement);
   const [approvedKeys, setApprovedKeys] = useState<Set<string>>(new Set());
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
@@ -1804,20 +1804,27 @@ function AnalysisViewer({
       setBusyKey(null);
       return showError("Site Diary", fErr ?? new Error("Failed to save finding"));
     }
-    // Ask Anthropic (via server fn) to pick the best matching contract item.
+    // Ask Anthropic (via server fn) to pick the best matching scope-of-works
+    // line (the parsed BoQ). Only offer lines not already claimed elsewhere,
+    // so an already-claimed BoQ item can't be double-claimed into a second
+    // open valuation.
     let unitRate: number | null = null;
     let quantity: number | null = null;
     let claimedValue: number | null = null;
-    const { data: contractItems } = await supabase
-      .from("contract_items")
-      .select("id, unit_rate, total_qty, description, unit")
-      .eq("project_id", projectId);
-    const items = (contractItems ?? []) as Array<{
+    let matchedScopeElementId: string | null = null;
+    let matchedTitle: string | null = null;
+    const { data: scopeRows } = await supabase
+      .from("scope_elements")
+      .select("id, title, description, quantity, unit, unit_rate")
+      .eq("project_id", projectId)
+      .in("status", ["Not Started", "In Progress", "Disputed"]);
+    const items = (scopeRows ?? []) as Array<{
       id: string;
-      unit_rate: number | null;
-      total_qty: number | null;
+      title: string | null;
       description: string | null;
+      quantity: number | null;
       unit: string | null;
+      unit_rate: number | null;
     }>;
     if (items.length > 0) {
       try {
@@ -1825,20 +1832,23 @@ function AnalysisViewer({
           data: {
             finding_text: text,
             room_name: roomName ?? "",
-            contract_items: items.map((c) => ({
+            scope_elements: items.map((c) => ({
               id: c.id,
+              title: c.title,
               description: c.description,
               unit_rate: c.unit_rate != null ? Number(c.unit_rate) : null,
-              total_qty: c.total_qty != null ? Number(c.total_qty) : null,
+              quantity: c.quantity != null ? Number(c.quantity) : null,
               unit: c.unit,
             })),
           },
         });
-        if (res.ok && res.result?.matched && res.result.contract_item_id) {
-          const matched = items.find((c) => c.id === res.result.contract_item_id);
+        if (res.ok && res.result?.matched && res.result.scope_element_id) {
+          const matched = items.find((c) => c.id === res.result.scope_element_id);
           if (matched) {
+            matchedScopeElementId = matched.id;
+            matchedTitle = matched.title;
             unitRate = matched.unit_rate != null ? Number(matched.unit_rate) : null;
-            quantity = matched.total_qty != null ? Number(matched.total_qty) : null;
+            quantity = matched.quantity != null ? Number(matched.quantity) : null;
             if (unitRate != null && quantity != null) {
               const pct = Math.max(0, Math.min(100, Number(completionPercent) || 0));
               claimedValue = unitRate * quantity * (pct / 100);
@@ -1858,21 +1868,40 @@ function AnalysisViewer({
       setBusyKey(null);
       return showError("Site Diary", e);
     }
+    const valNumber = formatValuationNumber(openVal.valuation_number);
 
     const { error: vErr } = await supabase.from("valuation_items").insert({
       valuation_id: openVal.id,
       work_package_name: roomName || "Site Diary Progress",
-      description: text,
+      description: matchedTitle ?? text,
       unit_rate: unitRate,
       claimed_qty: quantity,
       claimed_value: claimedValue,
+      scope_element_id: matchedScopeElementId,
       status: "Draft",
     });
 
     setBusyKey(null);
     if (vErr) return showError("Site Diary", vErr);
+
+    if (matchedScopeElementId) {
+      const { error: seErr } = await supabase
+        .from("scope_elements")
+        .update({
+          status: "Claimed",
+          claimed_in_valuation: { id: openVal.id, number: valNumber },
+        })
+        .eq("id", matchedScopeElementId);
+      // Best-effort: the finding is already safely recorded in valuation_items
+      // above, so a failure here just means the scope line won't show as
+      // claimed (and could in theory be re-matched later) — not worth losing
+      // the approval over. Mirrors the same best-effort pattern already used
+      // when invoicing marks scope elements Invoiced.
+      if (seErr) console.error("[approveProgress] scope_elements claim update failed", seErr);
+    }
+
     setApprovedKeys((s) => new Set(s).add(key));
-    toast.success(`Added to ${formatValuationNumber(openVal.valuation_number)}`);
+    toast.success(`Added to ${valNumber}`);
   };
 
   const rooms = a.rooms ?? [];
