@@ -247,29 +247,6 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
         if (insErr) throw insErr;
       }
 
-      // Mirror to contract_items so claim/valuation pricing has real £ figures.
-      const ciRows = items
-        .filter((item) => item.description)
-        .map((item) => ({
-          project_id: projectId,
-          code: item.code || null,
-          description: item.description,
-          total_qty: item.quantity ?? null,
-          unit: item.unit || null,
-          unit_rate: item.rate ?? null,
-        }));
-      const codes = ciRows.map((r) => r.code).filter(Boolean) as string[];
-      if (codes.length) {
-        await (supabase as any)
-          .from("contract_items")
-          .delete()
-          .eq("project_id", projectId)
-          .in("code", codes);
-      }
-      if (ciRows.length) {
-        const { error: ciErr } = await (supabase as any).from("contract_items").insert(ciRows);
-        if (ciErr) throw ciErr;
-      }
       await (supabase as any)
         .from("project_documents")
         .update({ parsed_at: new Date().toISOString() })
@@ -432,32 +409,13 @@ function ParsedScopeView({
 }
 
 
-function ScopeStatusBadge({ item }: { item: ScopeElement }) {
-  const status = (item.status ?? "Not Started") as ScopeStatus;
-  const styles: Record<ScopeStatus, string> = {
-    "Not Started": "bg-muted text-muted-foreground border-border",
-    "In Progress": "bg-blue-500/15 text-blue-600 border-blue-500/30",
-    Claimed: "bg-amber-500/15 text-amber-600 border-amber-500/30",
-    Disputed: "bg-red-500/15 text-red-600 border-red-500/30",
-    Invoiced: "bg-green-500/15 text-green-600 border-green-500/30",
-  };
-  const ref =
-    status === "Invoiced"
-      ? item.invoiced_in?.number
-      : status === "Claimed"
-        ? item.claimed_in_valuation?.number
-        : null;
+function ClaimedInBadge({ item }: { item: ScopeElement }) {
+  const number = item.claimed_in_valuation?.number;
+  if (!number) return null;
   return (
-    <div className="flex items-center gap-1.5 shrink-0">
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase tracking-wider border ${styles[status]}`}
-      >
-        {status}
-      </span>
-      {ref && (
-        <span className="text-[10px] text-muted-foreground font-medium">{ref}</span>
-      )}
-    </div>
+    <span className="shrink-0 h-fit text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-gold/40 bg-gold/10 text-gold">
+      {number}
+    </span>
   );
 }
 
@@ -602,8 +560,7 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          <ScopeStatusBadge item={item} />
-          <ConfidenceBadge value={item.confidence} />
+          <ClaimedInBadge item={item} />
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditing(true)} title="Edit">
               <FileText className="w-3 h-3" />
@@ -618,19 +575,6 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
   );
 }
 
-
-function ConfidenceBadge({ value }: { value: "high" | "medium" | "low" }) {
-  const styles: Record<string, string> = {
-    high: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30",
-    medium: "bg-amber-500/15 text-amber-600 border-amber-500/30",
-    low: "bg-rose-500/15 text-rose-600 border-rose-500/30",
-  };
-  return (
-    <span className={`shrink-0 h-fit text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${styles[value]}`}>
-      {value}
-    </span>
-  );
-}
 
 const CONF_SCORE: Record<string, number> = { high: 0.9, medium: 0.6, low: 0.3 };
 

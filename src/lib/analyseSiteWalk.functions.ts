@@ -28,8 +28,6 @@ Also produce:
 - A flat list of all potential variations mentioned
 - A flat list of all health and safety flags across all rooms
 
-Where progress mentioned matches a contract item, include the contract item code in the progress item as contract_item_ref. This helps map completed work directly to the schedule of rates.
-
 Rules:
 - Use plain British English
 - Never invent items not mentioned in the transcript
@@ -42,7 +40,7 @@ Return this exact structure:
   "rooms": [
     {
       "room": "string",
-      "progress": [{ "text": "string", "completion_percent": 0, "contract_item_ref": "string (optional, omit if no match)" }],
+      "progress": [{ "text": "string", "completion_percent": 0 }],
       "next_tasks": ["string"],
       "materials_needed": ["string"],
       "health_and_safety": ["string"],
@@ -122,29 +120,28 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
       };
     }
 
-    // Fetch contract items (BoQ) to help the model map progress to rates.
-    const { data: ciRows } = await supabaseAdmin
-      .from("contract_items")
-      .select("code, description, total_qty, unit, unit_rate")
+    // Fetch scope elements (the parsed BoQ) to help the model map progress to rates.
+    const { data: seRows } = await supabaseAdmin
+      .from("scope_elements")
+      .select("title, description, quantity, unit, unit_rate")
       .eq("project_id", data.projectId);
-    const contractItems = (ciRows ?? []) as Array<{
-      code: string | null;
+    const scopeElements = (seRows ?? []) as Array<{
+      title: string | null;
       description: string | null;
-      total_qty: number | null;
+      quantity: number | null;
       unit: string | null;
       unit_rate: number | null;
     }>;
     let userMessage = `Transcript:\n\n${data.transcript}`;
-    if (contractItems.length > 0) {
-      const lines = contractItems.map((c) => {
-        const code = c.code ?? "—";
-        const desc = c.description ?? "";
-        const qty = c.total_qty ?? "";
+    if (scopeElements.length > 0) {
+      const lines = scopeElements.map((c) => {
+        const title = c.title ?? "";
+        const qty = c.quantity ?? "";
         const unit = c.unit ?? "";
         const rate = c.unit_rate != null ? Number(c.unit_rate).toFixed(2) : "";
-        return `[${code}] ${desc} — ${qty} ${unit} @ £${rate}`.trim();
+        return `${title} — ${qty} ${unit} @ £${rate}`.trim();
       });
-      userMessage += `\n\nCONTRACT ITEMS (BoQ):\n${lines.join("\n")}`;
+      userMessage += `\n\nSCOPE OF WORKS (BoQ):\n${lines.join("\n")}`;
     }
 
     // Call Anthropic
