@@ -25,7 +25,7 @@ export default defineTool({
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     const { data, error } = await db(ctx)
       .from("variations")
-      .select("id, description, status, amount, created_at")
+      .select("id, description, status, qty, rate, unit, client_reference, created_at")
       .eq("project_id", project_id)
       .order("created_at", { ascending: false });
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };

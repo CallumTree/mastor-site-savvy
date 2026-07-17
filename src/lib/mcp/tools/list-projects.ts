@@ -24,7 +24,7 @@ export default defineTool({
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     const { data, error } = await supabaseForUser(ctx)
       .from("projects")
-      .select("id, name, client_name, status, address_line1, town, postcode, contract_sum, created_at")
+      .select("id, name, client_name, status, site_address, contract_value, gross_value, progress, created_at")
       .order("created_at", { ascending: false });
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     return {

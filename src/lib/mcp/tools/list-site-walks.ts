@@ -25,9 +25,9 @@ export default defineTool({
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     const { data, error } = await db(ctx)
       .from("site_walks")
-      .select("id, walk_date, status, transcript, created_at")
+      .select("id, title, status, transcript, duration_seconds, recording_type, created_at")
       .eq("project_id", project_id)
-      .order("walk_date", { ascending: false });
+      .order("created_at", { ascending: false });
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     return {
       content: [{ type: "text", text: JSON.stringify(data ?? [], null, 2) }],

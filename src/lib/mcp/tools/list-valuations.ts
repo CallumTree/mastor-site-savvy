@@ -25,9 +25,9 @@ export default defineTool({
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     const { data, error } = await db(ctx)
       .from("valuations")
-      .select("id, valuation_number, valuation_date, status, gross_amount, net_amount, created_at")
+      .select("id, valuation_number, valuation_date, status, created_at")
       .eq("project_id", project_id)
-      .order("valuation_date", { ascending: false });
+      .order("valuation_date", { ascending: false, nullsFirst: false });
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     return {
       content: [{ type: "text", text: JSON.stringify(data ?? [], null, 2) }],
