@@ -42,15 +42,16 @@ function AuthPage() {
   const [postcode, setPostcode] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
-  // If session appears (e.g. after sign in event), bounce to dashboard
+  // If session appears (e.g. after sign in event), bounce to dashboard (or `next` if provided)
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
-        navigate({ to: "/dashboard", replace: true });
+        if (next) window.location.href = next;
+        else navigate({ to: "/dashboard", replace: true });
       }
     });
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, next]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +77,7 @@ function AuthPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}${next ?? "/dashboard"}`,
           data: { full_name: fullName, company_name: companyName },
         },
       });
@@ -117,7 +118,8 @@ function AuthPage() {
           .eq("user_id", user.id);
         if (pErr) showError("Create profile", pErr);
         toast.success("Welcome to Mastor");
-        navigate({ to: "/dashboard", replace: true });
+        if (next) window.location.href = next;
+        else navigate({ to: "/dashboard", replace: true });
       } else {
         toast.success("Check your email to confirm your account");
       }
