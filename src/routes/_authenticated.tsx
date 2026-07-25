@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, redirect, useNavigate } from "@tanstack/
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, LayoutGrid, CalendarDays } from "lucide-react";
 import { showError } from "@/lib/toast-error";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -58,6 +58,22 @@ function AuthedLayout() {
               Mastor
             </span>
           </Link>
+          <nav className="flex items-center gap-1" aria-label="Primary">
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-secondary"
+              activeProps={{ className: "!text-foreground !bg-secondary" }}
+            >
+              <LayoutGrid className="w-4 h-4" /> <span className="hidden sm:inline">Dashboard</span>
+            </Link>
+            <Link
+              to="/calendar"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-secondary"
+              activeProps={{ className: "!text-foreground !bg-secondary" }}
+            >
+              <CalendarDays className="w-4 h-4" /> <span className="hidden sm:inline">Calendar</span>
+            </Link>
+          </nav>
           <div className="flex items-center gap-3">
             {companyName && <span className="label-mono hidden sm:inline">{companyName}</span>}
             <Button
