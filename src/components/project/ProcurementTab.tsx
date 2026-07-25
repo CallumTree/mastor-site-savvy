@@ -32,11 +32,11 @@ const ACTIVE = new Set(["Required", "Quoted", "Ordered"]);
 const ARCHIVE = new Set(["Delivered", "Dismissed"]);
 
 const STATUS_STYLES: Record<string, string> = {
-  Required: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  Quoted: "bg-sky-500/15 text-sky-400 border-sky-500/30",
-  Ordered: "bg-indigo-500/15 text-indigo-400 border-indigo-500/30",
-  Delivered: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  Dismissed: "bg-slate-500/15 text-slate-300 border-slate-500/30",
+  Required: "bg-amber-50 text-amber-700 border-amber-200",
+  Quoted: "bg-sky-50 text-sky-700 border-sky-200",
+  Ordered: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  Delivered: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  Dismissed: "bg-slate-50 text-slate-600 border-slate-200",
 };
 
 export function ProcurementTab({ projectId }: { projectId: string }) {
@@ -134,12 +134,12 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
         )}
       </div>
 
-      <div className="flex items-stretch border border-border bg-card divide-x divide-border">
+      <div className="flex items-stretch rounded-2xl border border-border bg-card divide-x divide-border overflow-hidden shadow-sm">
         {[
-          { label: "Required", value: counts.Required, tone: "text-amber-400" },
-          { label: "Quoted", value: counts.Quoted, tone: "text-sky-400" },
-          { label: "Ordered", value: counts.Ordered, tone: "text-indigo-400" },
-          { label: "Delivered", value: counts.Delivered, tone: "text-emerald-400" },
+          { label: "Required", value: counts.Required, tone: "text-amber-600" },
+          { label: "Quoted", value: counts.Quoted, tone: "text-sky-600" },
+          { label: "Ordered", value: counts.Ordered, tone: "text-indigo-600" },
+          { label: "Delivered", value: counts.Delivered, tone: "text-emerald-600" },
         ].map((stage, i, arr) => (
           <div key={stage.label} className="flex-1 relative">
             <div className="p-3 text-center">
@@ -153,13 +153,13 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
         ))}
       </div>
 
-      <div className="p-3 rounded-sm bg-secondary border border-border flex justify-between items-center">
+      <div className="p-3 rounded-xl bg-secondary border border-border flex justify-between items-center">
         <span className="label-mono">Active Procurement Cost</span>
         <span className="hero-number text-2xl">{GBP.format(total)}</span>
       </div>
 
       {editing && (
-        <div className="p-3 rounded-sm bg-card border border-border space-y-2">
+        <div className="p-4 rounded-2xl bg-card border border-border shadow-sm space-y-2">
           <Input placeholder="Description" value={editing.description ?? ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
           <div className="grid grid-cols-3 gap-2">
             <Input type="number" placeholder="Quantity" value={editing.quantity ?? ""} onChange={(e) => setEditing({ ...editing, quantity: e.target.value === "" ? null : Number(e.target.value) })} />
@@ -169,7 +169,7 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
           <div className="grid grid-cols-2 gap-2">
             <Input placeholder="Supplier" value={editing.supplier ?? ""} onChange={(e) => setEditing({ ...editing, supplier: e.target.value })} />
             <select
-              className="h-9 px-3 rounded-md border border-input bg-background text-sm"
+              className="h-10 px-3.5 rounded-lg border border-input bg-card text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:border-ring"
               value={editing.status ?? "Required"}
               onChange={(e) => setEditing({ ...editing, status: e.target.value })}
             >
@@ -178,7 +178,7 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <select
-              className="h-9 px-2 rounded-md border border-input bg-background text-xs"
+              className="h-10 px-3.5 rounded-lg border border-input bg-card text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:border-ring"
               value={editing.scope_element_id ?? ""}
               onChange={(e) => {
                 const id = e.target.value || null;
@@ -191,7 +191,7 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
               ))}
             </select>
             <select
-              className="h-9 px-2 rounded-md border border-input bg-background text-xs"
+              className="h-10 px-3.5 rounded-lg border border-input bg-card text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:border-ring"
               value={editing.phase_order ?? ""}
               onChange={(e) => setEditing({ ...editing, phase_order: e.target.value === "" ? UNMATCHED_PHASE_ORDER : Number(e.target.value) })}
             >
@@ -228,9 +228,9 @@ export function ProcurementTab({ projectId }: { projectId: string }) {
       )}
 
       {archiveItems.length > 0 && (
-        <div className="rounded-sm border border-border bg-card">
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
           <button
-            className="w-full px-3 py-2 flex items-center justify-between"
+            className="w-full px-3 py-2 flex items-center justify-between hover:bg-secondary transition-colors"
             onClick={() => setShowArchive((v) => !v)}
           >
             <span className="label-mono flex items-center gap-1.5">
@@ -267,14 +267,14 @@ function Row({
   onStatus: (s: string) => void;
 }) {
   return (
-    <div className="p-3 rounded-sm bg-card border border-border">
+    <div className="p-3 rounded-xl bg-card border border-border shadow-sm">
       <div className="flex justify-between gap-3">
         <div className="min-w-0">
           <div className="text-sm font-medium text-foreground flex items-center gap-1.5">
             {item.description}
             {!item.scope_element_id && (
               <span
-                className="inline-flex items-center gap-0.5 text-[9px] uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-sm px-1 py-px"
+                className="inline-flex items-center gap-0.5 text-[9px] uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-px"
                 title="Not matched to a scope element — edit to assign manually"
               >
                 <HelpCircle className="w-2.5 h-2.5" /> Unmatched
@@ -347,7 +347,7 @@ function PhaseGroupedList({
         return (
           <div key={k} className="space-y-2">
             <div className="flex items-center gap-2 pt-1">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-foreground/70">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {String(k).padStart(2, "0")} · {phaseName(k)}
               </span>
               <span className="h-px flex-1 bg-border" />

@@ -328,7 +328,7 @@ function InvoicePage() {
             <img
               src={logoUrl}
               alt={profile?.company_name ?? "Company logo"}
-              className="h-12 w-12 rounded object-contain border border-border bg-card"
+              className="h-12 w-12 rounded-lg object-contain border border-border bg-card"
             />
           ) : null}
           {profile?.company_name && (
@@ -347,11 +347,14 @@ function InvoicePage() {
         )}
         <div className="flex justify-between items-end gap-3 pt-2 flex-wrap">
           <InvoiceNumberEditor invoice={invoice} onSaved={(num) => setInvoice({ ...invoice, invoice_number: num })} />
-          <div className="text-xs text-muted-foreground">
-            {today} ·{" "}
-            <span className="text-foreground uppercase tracking-wider">
-              {invoice.status}
-            </span>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {today} ·
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                invoice.status === "Sent" ? "bg-emerald-500" : "bg-gold"
+              }`}
+            />
+            <span className="label-mono">{invoice.status}</span>
           </div>
         </div>
       </header>
@@ -362,7 +365,7 @@ function InvoicePage() {
         <h2 className="label-mono">
           Line Items ({items.length})
         </h2>
-        <div className="rounded-sm border border-border overflow-hidden">
+        <div className="rounded-xl border border-border shadow-sm overflow-hidden">
           <table className="w-full text-xs">
             <thead className="bg-secondary/40 text-muted-foreground">
               <tr>
@@ -395,14 +398,14 @@ function InvoicePage() {
       </section>
 
       {/* Summary — ledger strip, not a KPI tile grid */}
-      <section className="border border-border rounded-sm overflow-hidden">
+      <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         <LedgerRow label="Previously Claimed" value={GBP.format(previouslyClaimed)} />
         <LedgerRow label="This Claim" value={GBP.format(thisClaim)} />
         <LedgerRow label="Total Claimed" value={GBP.format(totalClaimed)} />
         <LedgerRow label="Remaining Value" value={GBP.format(remaining)} />
       </section>
 
-      <section className="rounded-sm border-2 border-gold/50 bg-gold/5 p-4 flex justify-between items-center">
+      <section className="rounded-2xl border-2 border-gold/50 bg-gold/5 p-4 shadow-sm flex justify-between items-center">
         <div className="label-mono">Total Amount Due</div>
         <div className="hero-number text-3xl">
           {GBP.format(Number(invoice.total_amount))}

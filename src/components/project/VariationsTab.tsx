@@ -33,10 +33,10 @@ type Variation = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  Draft: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  Pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  Approved: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  Rejected: "bg-slate-500/15 text-slate-300 border-slate-500/30",
+  Draft: "bg-amber-50 text-amber-700 border-amber-200",
+  Pending: "bg-amber-50 text-amber-700 border-amber-200",
+  Approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  Rejected: "bg-slate-50 text-slate-600 border-slate-200",
 };
 
 async function fetchPhotoDataUrl(photoUrl: string, storagePath: string | null) {
@@ -407,7 +407,7 @@ export function VariationsTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <div className="h-2 flex overflow-hidden bg-secondary">
+        <div className="h-2 flex overflow-hidden bg-secondary rounded-full">
           {drafts.length > 0 && (
             <div
               className="h-full bg-gold"
@@ -416,7 +416,7 @@ export function VariationsTab({ projectId }: { projectId: string }) {
           )}
           {approved.length > 0 && (
             <div
-              className="h-full bg-emerald-400"
+              className="h-full bg-emerald-500"
               style={{ width: `${(approved.length / statusTotal) * 100}%` }}
             />
           )}
@@ -434,7 +434,7 @@ export function VariationsTab({ projectId }: { projectId: string }) {
             <span className="text-foreground font-medium tabular-nums">{drafts.length}</span>
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
             Approved{" "}
             <span className="text-foreground font-medium tabular-nums">{approved.length}</span>
           </span>
@@ -474,7 +474,7 @@ export function VariationsTab({ projectId }: { projectId: string }) {
             const value =
               v.qty != null && v.rate != null ? Number(v.qty) * Number(v.rate) : null;
             return (
-              <div key={v.id} className="p-3 rounded-sm bg-card border border-border space-y-2">
+              <div key={v.id} className="p-3 rounded-xl bg-card border border-border shadow-sm space-y-2">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -520,7 +520,7 @@ export function VariationsTab({ projectId }: { projectId: string }) {
                     </>
                   )}
                   {v.status === "Approved" && !locked && (
-                    <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                    <span className="text-[11px] text-emerald-600 flex items-center gap-1">
                       <Check className="w-3 h-3" /> In open valuation
                     </span>
                   )}

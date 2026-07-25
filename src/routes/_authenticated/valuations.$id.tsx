@@ -467,8 +467,13 @@ function ValuationPage() {
           <h1 className="text-2xl font-semibold text-foreground">
             Valuation IV-{String(valuation.valuation_number ?? 0).padStart(2, "0")}
           </h1>
-          <div className="text-xs text-muted-foreground">
-            Status: <span className="text-foreground">{valuation.status}</span>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                valuation.status === "Draft" ? "bg-gold" : "bg-emerald-500"
+              }`}
+            />
+            {valuation.status}
           </div>
         </div>
         <div className="flex gap-2">
@@ -490,7 +495,7 @@ function ValuationPage() {
             </Button>
           )}
           {isLocked && (
-            <span className="label-mono self-center">
+            <span className="label-mono self-center inline-flex items-center px-3 py-1.5 rounded-full bg-secondary">
               Invoiced — locked
             </span>
           )}
@@ -505,7 +510,7 @@ function ValuationPage() {
         <h2 className="label-mono">
           Line Items ({items.length})
         </h2>
-        <div className="hidden md:block rounded-sm border border-border overflow-hidden">
+        <div className="hidden md:block rounded-xl border border-border shadow-sm overflow-hidden">
           <table className="w-full text-xs">
             <thead className="bg-secondary/40 text-muted-foreground">
               <tr>
@@ -596,13 +601,13 @@ function ValuationPage() {
         {/* Mobile card stack */}
         <div className="md:hidden space-y-2">
           {items.length === 0 ? (
-            <div className="rounded-sm border border-border p-4 text-center text-xs text-muted-foreground">
+            <div className="rounded-xl border border-border p-4 text-center text-xs text-muted-foreground">
               No line items.
             </div>
           ) : (
             <>
               {items.map((it) => (
-                <div key={it.id} className="rounded-sm border border-border bg-card p-3 space-y-2">
+                <div key={it.id} className="rounded-xl border border-border bg-card shadow-sm p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold text-foreground truncate">
@@ -668,7 +673,7 @@ function ValuationPage() {
                   </div>
                 </div>
               ))}
-              <div className="rounded-sm border border-border bg-secondary/30 p-3 flex justify-between items-center">
+              <div className="rounded-xl border border-border bg-secondary/30 p-3 flex justify-between items-center">
                 <span className="label-mono">Total</span>
                 <span className="text-sm font-semibold text-gold tabular-nums">{GBP.format(thisClaim)}</span>
               </div>
@@ -678,7 +683,7 @@ function ValuationPage() {
 
       </section>
 
-      <section className="border border-border rounded-sm overflow-hidden">
+      <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         <LedgerRow label="Previously Claimed" value={GBP.format(previouslyClaimed)} />
         <LedgerRow label="This Claim" value={GBP.format(thisClaim)} />
         <LedgerRow label="Total Claimed" value={GBP.format(totalClaimed)} />
@@ -717,7 +722,7 @@ function ValuationPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="text-xs text-muted-foreground rounded bg-muted/40 border border-border p-2">
+            <div className="text-xs text-muted-foreground rounded-lg bg-muted/40 border border-border p-2">
               {removing?.work_package_name && (
                 <div className="font-medium text-foreground">{removing.work_package_name}</div>
               )}
@@ -731,7 +736,7 @@ function ValuationPage() {
                     key={r}
                     type="button"
                     onClick={() => setReason(r)}
-                    className={`text-left text-xs px-3 py-2 rounded-md border transition-colors ${
+                    className={`text-left text-xs px-3 py-2 rounded-lg border transition-colors ${
                       reason === r
                         ? "border-gold bg-gold/10 text-gold"
                         : "border-border bg-card hover:bg-muted/40"
