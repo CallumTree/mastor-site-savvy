@@ -125,14 +125,14 @@ export function PhotoAnnotator({ open, imageBlob, onCancel, onSave, saving }: Pr
         </DialogHeader>
 
         <div className="px-4 pb-2 flex flex-wrap items-center gap-2">
-          <div className="flex rounded-md border border-border overflow-hidden">
-            <button type="button" onClick={() => setTool("arrow")} className={`px-3 py-1.5 text-xs flex items-center gap-1 ${tool === "arrow" ? "bg-primary text-primary-foreground" : "bg-background"}`}>
+          <div className="flex items-center gap-1 rounded-full border border-border bg-secondary/50 p-1">
+            <button type="button" onClick={() => setTool("arrow")} className={`px-3 py-1.5 text-xs rounded-full flex items-center gap-1 transition-colors ${tool === "arrow" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>
               <ArrowUpRight className="w-3.5 h-3.5" /> Arrow
             </button>
-            <button type="button" onClick={() => setTool("circle")} className={`px-3 py-1.5 text-xs flex items-center gap-1 border-l border-border ${tool === "circle" ? "bg-primary text-primary-foreground" : "bg-background"}`}>
+            <button type="button" onClick={() => setTool("circle")} className={`px-3 py-1.5 text-xs rounded-full flex items-center gap-1 transition-colors ${tool === "circle" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>
               <CircleIcon className="w-3.5 h-3.5" /> Circle
             </button>
-            <button type="button" onClick={() => setTool("text")} className={`px-3 py-1.5 text-xs flex items-center gap-1 border-l border-border ${tool === "text" ? "bg-primary text-primary-foreground" : "bg-background"}`}>
+            <button type="button" onClick={() => setTool("text")} className={`px-3 py-1.5 text-xs rounded-full flex items-center gap-1 transition-colors ${tool === "text" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>
               <Type className="w-3.5 h-3.5" /> Text
             </button>
           </div>

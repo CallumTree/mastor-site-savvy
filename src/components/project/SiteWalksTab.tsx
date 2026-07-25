@@ -6,6 +6,7 @@ import { matchFindingToScopeElement } from "@/lib/matchFinding.functions";
 import { getOrCreateOpenValuation, formatValuationNumber } from "@/lib/openValuation";
 import { Button } from "@/components/ui/button";
 import { LoadingDot } from "@/components/ui/loading-dot";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -954,9 +955,9 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     status === "idle" ? "Ready" : status.charAt(0).toUpperCase() + status.slice(1);
   const statusColor =
     status === "recording"
-      ? "border-red-500/40 text-red-600 bg-red-500/10 animate-pulse"
+      ? "border-red-200 text-red-700 bg-red-50 animate-pulse"
       : status === "paused"
-      ? "border-amber-500/40 text-amber-600 bg-amber-500/10"
+      ? "border-amber-200 text-amber-700 bg-amber-50"
       : status === "finished"
       ? "border-gold/40 text-gold bg-gold/10"
       : "border-border text-muted-foreground";
@@ -1131,7 +1132,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       )}
 
       {/* Recorder */}
-      <section className="rounded-sm border border-border bg-card p-5 space-y-5">
+      <section className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-5">
         <div className="flex items-center justify-between gap-2">
           <div>
             <h3 className="label-mono">
@@ -1146,7 +1147,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               <span
                 className={`flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${
                   voiceActive
-                    ? "border-red-500/40 text-red-600 bg-red-500/10"
+                    ? "border-red-200 text-red-700 bg-red-50"
                     : "border-border text-muted-foreground"
                 }`}
               >
@@ -1216,7 +1217,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 onPointerUp={cancelHoldStop}
                 onPointerLeave={cancelHoldStop}
                 onPointerCancel={cancelHoldStop}
-                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-sm bg-destructive text-destructive-foreground font-medium overflow-hidden"
+                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-full bg-destructive text-destructive-foreground font-medium overflow-hidden"
               >
                 <Square className="w-5 h-5 relative z-10" /> <span className="relative z-10">Hold to Stop</span>
                 {stopProgress > 0 && (
@@ -1236,7 +1237,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 onPointerUp={cancelHoldStop}
                 onPointerLeave={cancelHoldStop}
                 onPointerCancel={cancelHoldStop}
-                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-sm bg-destructive text-destructive-foreground font-medium overflow-hidden"
+                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-full bg-destructive text-destructive-foreground font-medium overflow-hidden"
               >
                 <Square className="w-5 h-5 relative z-10" /> <span className="relative z-10">Hold to Stop</span>
                 {stopProgress > 0 && (
@@ -1407,12 +1408,11 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
         {loading ? (
           <LoadingDot label="Loading" />
         ) : walks.length === 0 ? (
-          <div className="p-8 rounded-xl border border-dashed border-border text-center">
-            <p className="text-sm font-medium text-foreground">No Site Diary Entries Yet</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Start your first site diary entry to begin building project records.
-            </p>
-          </div>
+          <EmptyState
+            icon={Mic}
+            title="No site diary entries yet"
+            description="Start your first site diary entry to begin building project records."
+          />
         ) : (
           <div className="space-y-2">
             {walks.map((w) => {
@@ -1421,7 +1421,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               return (
                 <div
                   key={w.id}
-                  className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-card border border-border hover:border-gold/40 transition-colors"
+                  className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-card border border-border shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-foreground truncate flex items-center gap-2">
@@ -1494,7 +1494,7 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
               return (
                 <div
                   key={a.id}
-                  className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg bg-card border border-border"
+                  className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-card border border-border shadow-sm"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium truncate">
@@ -2023,7 +2023,7 @@ function AnalysisViewer({
           {hs.map((item, i) => (
             <li
               key={`hs-${i}`}
-              className="rounded-sm border border-rose-500/30 bg-rose-500/5 p-2.5 text-sm text-rose-300"
+              className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-sm text-rose-700"
             >
               {item}
             </li>
@@ -2068,7 +2068,7 @@ function RoomCard({
     {
       label: "Health & Safety",
       items: room.health_and_safety ?? [],
-      tone: "text-rose-400",
+      tone: "text-rose-600",
     },
     { label: "Valuation Notes", items: room.valuation_notes ?? [] },
   ];
@@ -2089,10 +2089,10 @@ function RoomCard({
               const pct = Math.max(0, Math.min(100, Math.round(item.completion_percent)));
               const pctTone =
                 pct >= 90
-                  ? "bg-emerald-500/15 text-emerald-400"
+                  ? "bg-emerald-50 text-emerald-700"
                   : pct >= 50
-                    ? "bg-amber-500/15 text-amber-400"
-                    : "bg-rose-500/15 text-rose-400";
+                    ? "bg-amber-50 text-amber-700"
+                    : "bg-rose-50 text-rose-700";
               return (
                 <li
                   key={`prog-${i}`}
