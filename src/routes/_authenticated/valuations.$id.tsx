@@ -14,10 +14,11 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { ArrowLeft, CheckCircle2, FileText, Pencil, Trash2, X, Download } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, FileText, Trash2, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getCurrentProfile, getLogoDataUrl, type Profile } from "@/lib/profile";
+import { formatValuationNumber } from "@/lib/openValuation";
 
 export const Route = createFileRoute("/_authenticated/valuations/$id")({
   component: ValuationPage,
@@ -48,6 +49,7 @@ type LineItem = {
   claimed_qty: number | null;
   claimed_value: number | null;
   scope_element_id: string | null;
+  status: string | null;
 };
 
 const GBP = new Intl.NumberFormat("en-GB", {
@@ -76,7 +78,6 @@ function ValuationPage() {
   const [previouslyClaimed, setPreviouslyClaimed] = useState(0);
   const [loading, setLoading] = useState(true);
   const [finalising, setFinalising] = useState(false);
-  const [editMode, setEditMode] = useState(false);
   const [removing, setRemoving] = useState<LineItem | null>(null);
   const [reason, setReason] = useState<string>("");
   const [reasonNotes, setReasonNotes] = useState("");
@@ -109,7 +110,7 @@ function ValuationPage() {
           .maybeSingle(),
         supabase
           .from("valuation_items")
-          .select("id,work_package_name,description,unit_rate,claimed_qty,claimed_value,scope_element_id")
+          .select("id,work_package_name,description,unit_rate,claimed_qty,claimed_value,scope_element_id,status")
           .eq("valuation_id", id),
         supabase
           .from("valuations")
@@ -185,6 +186,37 @@ function ValuationPage() {
         .eq("id", itemId);
       if (error) showError("Valuation", error);
     }, 400);
+  };
+
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  const confirmTick = async (item: LineItem) => {
+    if (item.status === "Confirmed" || isInvoiced) return;
+    setConfirmingId(item.id);
+    if (item.scope_element_id && valuation) {
+      const { error: sErr } = await (supabase as any)
+        .from("scope_elements")
+        .update({
+          status: "Claimed",
+          claimed_in_valuation: {
+            id: valuation.id,
+            number: formatValuationNumber(valuation.valuation_number ?? 0),
+          },
+        })
+        .eq("id", item.scope_element_id);
+      if (sErr) {
+        setConfirmingId(null);
+        return showError("Valuation", sErr);
+      }
+    }
+    const { error } = await supabase
+      .from("valuation_items")
+      .update({ status: "Confirmed" })
+      .eq("id", item.id);
+    setConfirmingId(null);
+    if (error) return showError("Valuation", error);
+    setItems((prev) => prev.map((it) => (it.id === item.id ? { ...it, status: "Confirmed" } : it)));
+    toast.success("Line confirmed");
   };
 
   const openRemove = (item: LineItem) => {
@@ -440,7 +472,7 @@ function ValuationPage() {
   const isApproved = valuation.status === "Approved";
   // Lock based on whether the valuation has been invoiced — not on Approved status alone.
   const isLocked = isInvoiced;
-  const canRemove = !isLocked && editMode;
+  const canReview = !isLocked;
   const thisClaim = items.reduce((s, it) => s + Number(it.claimed_value ?? 0), 0);
   const projectValue = Number(project.gross_value ?? project.contract_value ?? 0);
   const totalClaimed = previouslyClaimed + thisClaim;
@@ -472,23 +504,6 @@ function ValuationPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {!isLocked && (
-            <Button
-              size="sm"
-              variant={editMode ? "default" : "outline"}
-              onClick={() => setEditMode((m) => !m)}
-            >
-              {editMode ? (
-                <>
-                  <X className="w-3.5 h-3.5 mr-1" /> Done Editing
-                </>
-              ) : (
-                <>
-                  <Pencil className="w-3.5 h-3.5 mr-1" /> Edit Valuation
-                </>
-              )}
-            </Button>
-          )}
           {isLocked && (
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground self-center">
               Invoiced — locked
@@ -514,13 +529,13 @@ function ValuationPage() {
                 <th className="text-right py-2 px-3 w-28">Unit Rate</th>
                 <th className="text-right py-2 px-3 w-24">Quantity</th>
                 <th className="text-right py-2 px-3 w-28">Value</th>
-                {canRemove && <th className="w-10" />}
+                {canReview && <th className="w-20" />}
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={canRemove ? 6 : 5} className="py-4 px-3 text-center text-muted-foreground">
+                  <td colSpan={canReview ? 6 : 5} className="py-4 px-3 text-center text-muted-foreground">
                     No line items.
                   </td>
                 </tr>
@@ -562,16 +577,35 @@ function ValuationPage() {
                     <td className="py-2 px-3 text-right font-medium tabular-nums">
                       {it.claimed_value != null ? GBP.format(Number(it.claimed_value)) : "—"}
                     </td>
-                    {canRemove && (
+                    {canReview && (
                       <td className="py-2 px-1 text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-11 w-11 p-0 text-destructive hover:text-destructive"
-                          onClick={() => openRemove(it)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          {it.status === "Confirmed" ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-emerald-600">
+                              <Check className="w-3.5 h-3.5" /> Confirmed
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-11 w-11 p-0 text-emerald-600 hover:text-emerald-600"
+                              onClick={() => confirmTick(it)}
+                              disabled={confirmingId === it.id}
+                              aria-label="Confirm line"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-11 w-11 p-0 text-destructive hover:text-destructive"
+                            onClick={() => openRemove(it)}
+                            aria-label="Remove line"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -581,7 +615,7 @@ function ValuationPage() {
             {items.length > 0 && (
               <tfoot className="bg-secondary/30">
                 <tr className="border-t border-border">
-                  <td colSpan={canRemove ? 5 : 4} className="py-2 px-3 text-right text-muted-foreground uppercase tracking-wider text-[10px]">
+                  <td colSpan={canReview ? 5 : 4} className="py-2 px-3 text-right text-muted-foreground uppercase tracking-wider text-[10px]">
                     Total
                   </td>
                   <td className="py-2 px-3 text-right font-semibold text-primary tabular-nums">
@@ -614,16 +648,34 @@ function ValuationPage() {
                         </div>
                       )}
                     </div>
-                    {canRemove && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-11 w-11 p-0 text-destructive hover:text-destructive shrink-0"
-                        onClick={() => openRemove(it)}
-                        aria-label="Remove item"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    {canReview && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        {it.status === "Confirmed" ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-emerald-600 px-2">
+                            <Check className="w-3.5 h-3.5" /> Confirmed
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-11 w-11 p-0 text-emerald-600 hover:text-emerald-600"
+                            onClick={() => confirmTick(it)}
+                            disabled={confirmingId === it.id}
+                            aria-label="Confirm item"
+                          >
+                            <Check className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-11 w-11 p-0 text-destructive hover:text-destructive"
+                          onClick={() => openRemove(it)}
+                          aria-label="Remove item"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     )}
                   </div>
                   <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
@@ -690,7 +742,7 @@ function ValuationPage() {
           className="w-full"
           size="lg"
           onClick={finalise}
-          disabled={finalising || isApproved || editMode}
+          disabled={finalising || isApproved}
         >
           <CheckCircle2 className="w-4 h-4 mr-2" />
           {isApproved ? "Valuation Finalised" : finalising ? "Finalising…" : "Finalise Valuation"}

@@ -122,29 +122,30 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
       };
     }
 
-    // Fetch contract items (BoQ) to help the model map progress to rates.
-    const { data: ciRows } = await supabaseAdmin
-      .from("contract_items")
-      .select("code, description, total_qty, unit, unit_rate")
+    // Fetch scope items (parsed BoQ) to help the model map progress to rates.
+    const { data: scopeRowsForPrompt } = await supabaseAdmin
+      .from("scope_elements")
+      .select("source_reference, title, description, quantity, unit, unit_rate")
       .eq("project_id", data.projectId);
-    const contractItems = (ciRows ?? []) as Array<{
-      code: string | null;
+    const scopeItemsForPrompt = (scopeRowsForPrompt ?? []) as Array<{
+      source_reference: string | null;
+      title: string;
       description: string | null;
-      total_qty: number | null;
+      quantity: number | null;
       unit: string | null;
       unit_rate: number | null;
     }>;
     let userMessage = `Transcript:\n\n${data.transcript}`;
-    if (contractItems.length > 0) {
-      const lines = contractItems.map((c) => {
-        const code = c.code ?? "—";
-        const desc = c.description ?? "";
-        const qty = c.total_qty ?? "";
+    if (scopeItemsForPrompt.length > 0) {
+      const lines = scopeItemsForPrompt.map((c) => {
+        const code = c.source_reference ?? "—";
+        const desc = c.title ?? c.description ?? "";
+        const qty = c.quantity ?? "";
         const unit = c.unit ?? "";
         const rate = c.unit_rate != null ? Number(c.unit_rate).toFixed(2) : "";
         return `[${code}] ${desc} — ${qty} ${unit} @ £${rate}`.trim();
       });
-      userMessage += `\n\nCONTRACT ITEMS (BoQ):\n${lines.join("\n")}`;
+      userMessage += `\n\nSCOPE ITEMS (BoQ):\n${lines.join("\n")}`;
     }
 
     // Call Anthropic
