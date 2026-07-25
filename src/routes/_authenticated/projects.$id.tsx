@@ -31,6 +31,7 @@ import { WorkPackagesTab } from "@/components/project/WorkPackagesTab";
 import { InvoicesTab } from "@/components/project/InvoicesTab";
 import { VariationsTab } from "@/components/project/VariationsTab";
 import { ProcurementTab } from "@/components/project/ProcurementTab";
+import { ShareProjectSheet } from "@/components/project/ShareProjectSheet";
 
 type Project = {
   id: string;
@@ -150,6 +151,12 @@ function ProjectDetail() {
           >
             <ChevronLeft className="w-4 h-4" /> Back
           </Link>
+          <div className="absolute top-4 right-4">
+            <ShareProjectSheet
+              projectId={project.id}
+              triggerClassName="gap-1.5 border-transparent bg-black/35 backdrop-blur-sm text-white hover:bg-black/55 hover:text-white"
+            />
+          </div>
           <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-gold">{project.status}</p>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white drop-shadow-sm mt-1">{project.name}</h1>

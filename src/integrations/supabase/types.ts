@@ -1164,6 +1164,50 @@ export type Database = {
           },
         ]
       }
+      project_shares: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          last_viewed_at: string | null
+          project_id: string
+          revoked_at: string | null
+          show_contract_value: boolean
+          show_valuations: boolean
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          last_viewed_at?: string | null
+          project_id: string
+          revoked_at?: string | null
+          show_contract_value?: boolean
+          show_valuations?: boolean
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          last_viewed_at?: string | null
+          project_id?: string
+          revoked_at?: string | null
+          show_contract_value?: boolean
+          show_valuations?: boolean
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_shares_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           client: string | null

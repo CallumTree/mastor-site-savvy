@@ -23,6 +23,7 @@ import { Route as AuthenticatedProjectsIdRouteImport } from './routes/_authentic
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedValuationsIdInvoiceRouteImport } from './routes/_authenticated/valuations.$id.invoice'
+import { Route as ShareTokenRouteImport } from './routes/share.$token'
 
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
@@ -98,6 +99,11 @@ const AuthenticatedValuationsIdInvoiceRoute =
     path: '/invoice',
     getParentRoute: () => AuthenticatedValuationsIdRoute,
   } as any)
+const ShareTokenRoute = ShareTokenRouteImport.update({
+  id: '/share/$token',
+  path: '/share/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/valuations/$id': typeof AuthenticatedValuationsIdRouteWithChildren
   '/api/public/inngest': typeof ApiPublicInngestRoute
   '/valuations/$id/invoice': typeof AuthenticatedValuationsIdInvoiceRoute
+  '/share/$token': typeof ShareTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByTo {
   '/valuations/$id': typeof AuthenticatedValuationsIdRouteWithChildren
   '/api/public/inngest': typeof ApiPublicInngestRoute
   '/valuations/$id/invoice': typeof AuthenticatedValuationsIdInvoiceRoute
+  '/share/$token': typeof ShareTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -145,6 +153,7 @@ export interface FileRoutesById {
   '/_authenticated/valuations/$id': typeof AuthenticatedValuationsIdRouteWithChildren
   '/api/public/inngest': typeof ApiPublicInngestRoute
   '/_authenticated/valuations/$id/invoice': typeof AuthenticatedValuationsIdInvoiceRoute
+  '/share/$token': typeof ShareTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | '/valuations/$id'
     | '/api/public/inngest'
     | '/valuations/$id/invoice'
+    | '/share/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/valuations/$id'
     | '/api/public/inngest'
     | '/valuations/$id/invoice'
+    | '/share/$token'
   id:
     | '__root__'
     | '/'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/_authenticated/valuations/$id'
     | '/api/public/inngest'
     | '/_authenticated/valuations/$id/invoice'
+    | '/share/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -205,6 +217,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicInngestRoute: typeof ApiPublicInngestRoute
+  ShareTokenRoute: typeof ShareTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -307,6 +320,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedValuationsIdInvoiceRouteImport
       parentRoute: typeof AuthenticatedValuationsIdRoute
     }
+    '/share/$token': {
+      id: '/share/$token'
+      path: '/share/$token'
+      fullPath: '/share/$token'
+      preLoaderRoute: typeof ShareTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -354,6 +374,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicInngestRoute: ApiPublicInngestRoute,
+  ShareTokenRoute: ShareTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
