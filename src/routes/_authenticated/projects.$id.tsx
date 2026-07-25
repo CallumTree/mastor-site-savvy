@@ -19,6 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
+import { signPhotoUrl } from "@/lib/site-walk-photos";
 
 import { ValuationsTab } from "@/components/project/ValuationsTab";
 import { LoadingDot } from "@/components/ui/loading-dot";
@@ -67,11 +68,12 @@ function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("scope-documents");
   const [moreOpen, setMoreOpen] = useState(false);
+  const [coverPhoto, setCoverPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: p, error: pe }, { data: vars }, { data: procs }, { data: openVals }] = await Promise.all([
+      const [{ data: p, error: pe }, { data: vars }, { data: procs }, { data: openVals }, { data: latestPhoto }] = await Promise.all([
         supabase.from("projects").select("*").eq("id", id).maybeSingle(),
         supabase.from("variations").select("status").eq("project_id", id),
         (supabase as any).from("procurement_items").select("status, estimated_cost").eq("project_id", id),
@@ -80,9 +82,19 @@ function ProjectDetail() {
           .select("id, valuation_number, created_at, valuation_items(claimed_value), invoices(id)")
           .eq("project_id", id)
           .order("created_at", { ascending: false }),
+        supabase
+          .from("site_walk_photos")
+          .select("storage_path, annotated_storage_path")
+          .eq("project_id", id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
       if (pe) showError("Project", pe);
       setProject((p as Project) ?? null);
+      const photoRow = latestPhoto as { storage_path: string | null; annotated_storage_path: string | null } | null;
+      const photoPath = photoRow?.annotated_storage_path || photoRow?.storage_path;
+      setCoverPhoto(photoPath ? await signPhotoUrl(photoPath) : null);
       const openVariations = (vars ?? []).filter((v: any) => v.status !== "Approved" && v.status !== "Rejected").length;
       const procurementOutstanding = (procs ?? []).filter((x: any) => x.status === "Required" || x.status === "Quoted").length;
       const openVal = (openVals ?? []).find(
@@ -122,16 +134,30 @@ function ProjectDetail() {
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-5 pb-20">
-      <Link to="/dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-gold mb-4">
-        <ChevronLeft className="w-4 h-4" /> Back
-      </Link>
-
       <header className="mb-6">
-        <p className="label-mono text-gold">{project.status}</p>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground mt-1">{project.name}</h1>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-          {project.client && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{project.client}</span>}
-          {project.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location}</span>}
+        <div className="relative -mx-4 sm:mx-0 sm:rounded-3xl overflow-hidden aspect-[16/9] sm:aspect-[21/9] bg-secondary">
+          {coverPhoto ? (
+            <img src={coverPhoto} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-gold/20 via-secondary to-secondary flex items-center justify-center">
+              <Building2 className="w-10 h-10 text-muted-foreground/40" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/10" />
+          <Link
+            to="/dashboard"
+            className="absolute top-4 left-4 inline-flex items-center gap-1 text-sm text-white bg-black/35 backdrop-blur-sm rounded-full pl-2.5 pr-3.5 py-1.5 hover:bg-black/55 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" /> Back
+          </Link>
+          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gold">{project.status}</p>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white drop-shadow-sm mt-1">{project.name}</h1>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-white/80">
+              {project.client && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{project.client}</span>}
+              {project.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location}</span>}
+            </div>
+          </div>
         </div>
         <PoNumberField
           projectId={project.id}
