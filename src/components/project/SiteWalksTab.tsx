@@ -411,6 +411,12 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     setInterim("");
   };
 
+  // Returns undefined (rather than guessing) when nothing on the candidate
+  // list is supported — e.g. Safari, where isTypeSupported() rejects every
+  // webm variant. Forcing an unsupported mimeType into the MediaRecorder
+  // constructor throws synchronously and was silently killing the whole
+  // recording flow on those browsers; letting the browser pick its own
+  // default is the only thing that reliably works there.
   const pickVideoMime = () => {
     const candidates = [
       "video/webm;codecs=vp9,opus",
@@ -419,9 +425,9 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       "video/mp4",
     ];
     for (const m of candidates) {
-      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m)) return m;
+      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported?.(m)) return m;
     }
-    return "video/webm";
+    return undefined;
   };
 
   const startVideoRecorder = async (withDualCamera = false) => {
@@ -432,7 +438,10 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: withDualCamera ? { facingMode: { ideal: "environment" } } : true,
+        // Always request the rear/environment camera for the main stream —
+        // without a facingMode constraint, mobile browsers commonly default
+        // to the front/selfie camera.
+        video: { facingMode: { ideal: "environment" } },
         audio: true,
       });
     } catch (e: any) {
@@ -465,16 +474,37 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
       }
     }
 
-    const mime = pickVideoMime();
-    videoMimeRef.current = mime;
-    const ext = mime.includes("mp4") ? "mp4" : "webm";
+    const preferredMime = pickVideoMime();
     const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     videoSessionPathRef.current = `${projectId}/${sessionId}`;
     videoChunkIndexRef.current = 0;
     setChunksUploaded(0);
     setChunksUploading(0);
 
-    const recorder = new MediaRecorder(stream, { mimeType: mime });
+    let recorder: MediaRecorder;
+    try {
+      recorder = preferredMime
+        ? new MediaRecorder(stream, { mimeType: preferredMime })
+        : new MediaRecorder(stream);
+    } catch (e) {
+      console.error("MediaRecorder construction failed", e);
+      toast.error("This device can't record video. Try an Audio Site Diary instead.");
+      stream.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+      if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
+      if (withDualCamera) {
+        frontStreamRef.current?.getTracks().forEach((t) => t.stop());
+        frontStreamRef.current = null;
+        if (frontVideoRef.current) frontVideoRef.current.srcObject = null;
+      }
+      return false;
+    }
+    // The browser may have picked a different mimeType than we asked for
+    // (or picked its own default when we didn't specify one) — read back
+    // what it actually negotiated rather than trusting our request.
+    const mime = recorder.mimeType || preferredMime || "video/webm";
+    videoMimeRef.current = mime;
+    const ext = mime.includes("mp4") ? "mp4" : "webm";
     mediaRecorderRef.current = recorder;
     recorder.ondataavailable = async (e: BlobEvent) => {
       if (!e.data || e.data.size === 0) return;
@@ -1103,9 +1133,10 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 onPointerUp={cancelHoldStop}
                 onPointerLeave={cancelHoldStop}
                 onPointerCancel={cancelHoldStop}
+                onContextMenu={(e) => e.preventDefault()}
                 aria-label="Hold to stop recording"
                 title="Hold 2s to stop"
-                className="relative h-14 w-14 rounded-full bg-red-600 text-white shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform overflow-hidden"
+                className="relative h-14 w-14 rounded-full bg-red-600 text-white shadow-lg shadow-black/40 flex items-center justify-center active:scale-95 transition-transform overflow-hidden select-none touch-none [-webkit-touch-callout:none]"
               >
                 <Square className="w-6 h-6 fill-current relative z-10" strokeWidth={2.5} />
                 {stopProgress > 0 && (
@@ -1217,7 +1248,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 onPointerUp={cancelHoldStop}
                 onPointerLeave={cancelHoldStop}
                 onPointerCancel={cancelHoldStop}
-                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-full bg-destructive text-destructive-foreground font-medium overflow-hidden"
+                onContextMenu={(e) => e.preventDefault()}
+                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-full bg-destructive text-destructive-foreground font-medium overflow-hidden select-none touch-none [-webkit-touch-callout:none]"
               >
                 <Square className="w-5 h-5 relative z-10" /> <span className="relative z-10">Hold to Stop</span>
                 {stopProgress > 0 && (
@@ -1237,7 +1269,8 @@ export function SiteWalksTab({ projectId }: { projectId: string }) {
                 onPointerUp={cancelHoldStop}
                 onPointerLeave={cancelHoldStop}
                 onPointerCancel={cancelHoldStop}
-                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-full bg-destructive text-destructive-foreground font-medium overflow-hidden"
+                onContextMenu={(e) => e.preventDefault()}
+                className="relative inline-flex items-center justify-center gap-2 h-14 px-6 text-base rounded-full bg-destructive text-destructive-foreground font-medium overflow-hidden select-none touch-none [-webkit-touch-callout:none]"
               >
                 <Square className="w-5 h-5 relative z-10" /> <span className="relative z-10">Hold to Stop</span>
                 {stopProgress > 0 && (
