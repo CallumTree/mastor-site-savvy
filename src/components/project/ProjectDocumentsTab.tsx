@@ -6,6 +6,7 @@ import { Upload, FileText, Trash2, Sparkles, Eye, Loader2, ChevronDown, ChevronR
 import { useServerFn } from "@tanstack/react-start";
 import { startParseJob, getParseJob } from "@/lib/parseDocument.functions";
 import { LoadingDot } from "@/components/ui/loading-dot";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type Doc = {
   id: string;
@@ -289,16 +290,20 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
       {loading ? (
         <LoadingDot label="Loading" />
       ) : docs.length === 0 ? (
-        <div className="p-6 rounded-sm border border-dashed border-border text-center text-sm text-muted-foreground">
-          No documents uploaded yet. Accepted formats: {ACCEPTED_LABEL}.
-        </div>
+        <EmptyState
+          icon={FileText}
+          title="No documents yet"
+          description={`Accepted formats: ${ACCEPTED_LABEL}.`}
+          actionLabel="Upload a document"
+          onAction={onPickFile}
+        />
       ) : (
         <div className="space-y-2">
           {docs.map((d) => (
-            <div key={d.id} className="p-3 rounded-sm bg-card border border-border">
+            <div key={d.id} className="p-4 rounded-xl border border-border bg-card shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex items-start gap-2">
-                  <FileText className="w-4 h-4 mt-0.5 shrink-0 text-gold-foreground/70" />
+                  <FileText className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
                     <div className="text-sm text-foreground truncate">{d.file_name}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">
@@ -308,7 +313,7 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1 shrink-0 justify-end">
-                  <Button size="sm" variant="ghost" onClick={() => onView(d)}>
+                  <Button size="sm" variant="ghost" onClick={() => onView(d)} title="View">
                     <Eye className="w-3 h-3" />
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => onParse(d)} disabled={parsingId === d.id}>
@@ -319,7 +324,13 @@ export function ProjectDocumentsTab({ projectId }: { projectId: string }) {
                     )}
                     Parse Scope
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => onDelete(d)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => onDelete(d)}
+                    title="Delete"
+                  >
                     <Trash2 className="w-3 h-3" />
                   </Button>
                 </div>
@@ -354,12 +365,12 @@ function ParsedScopeView({
   if (elements.length === 0 && docs.length === 0) return null;
 
   return (
-    <section className="space-y-3 pt-4 border-t border-border">
+    <section className="space-y-3 divider-heavy pt-4">
       <div className="flex justify-between items-center gap-2">
         <h3 className="label-mono">Parsed Scope</h3>
         {docs.length > 0 && (
           <select
-            className="h-8 px-2 rounded-md border border-input bg-background text-xs"
+            className="h-8 px-2 rounded-lg border border-input bg-card text-xs shadow-sm"
             value={filterDocId}
             onChange={(e) => setFilterDocId(e.target.value as any)}
           >
@@ -374,21 +385,23 @@ function ParsedScopeView({
       </div>
 
       {elements.length === 0 ? (
-        <div className="p-6 rounded-sm border border-dashed border-border text-center text-sm text-muted-foreground">
-          Nothing parsed yet. Upload a document and click "Parse Scope".
-        </div>
+        <EmptyState
+          icon={Sparkles}
+          title="Nothing parsed yet"
+          description='Upload a document above and click "Parse Scope" to break it down.'
+        />
       ) : (
         TYPE_ORDER.map((t) => {
           const items = elements.filter((e) => e.element_type === t);
           if (items.length === 0) return null;
           const isOpen = open[t] !== false;
           return (
-            <div key={t} className="rounded-sm bg-card border border-border">
+            <div key={t} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
               <button
-                className="w-full px-3 py-2 flex items-center justify-between text-left"
+                className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-secondary transition-colors"
                 onClick={() => setOpen((o) => ({ ...o, [t]: !isOpen }))}
               >
-                <span className="text-xs font-semibold uppercase tracking-wider text-gold">
+                <span className="text-xs font-semibold uppercase tracking-wide text-gold">
                   {TYPE_LABEL[t]} <span className="text-muted-foreground font-normal ml-1">({items.length})</span>
                 </span>
                 {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
@@ -413,7 +426,7 @@ function ClaimedInBadge({ item }: { item: ScopeElement }) {
   const number = item.claimed_in_valuation?.number;
   if (!number) return null;
   return (
-    <span className="shrink-0 h-fit text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-gold/40 bg-gold/10 text-gold">
+    <span className="shrink-0 h-fit text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full border border-gold/40 bg-gold/10 text-gold">
       {number}
     </span>
   );
@@ -490,15 +503,15 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
 
   if (editing) {
     return (
-      <div className="px-3 py-3 bg-muted/20 space-y-2">
+      <div className="px-4 py-3 bg-secondary/50 space-y-2">
         <input
-          className="w-full h-8 px-2 text-sm rounded border border-input bg-background"
+          className="w-full h-9 px-3 text-sm rounded-lg border border-input bg-card shadow-sm"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title"
         />
         <textarea
-          className="w-full px-2 py-1 text-xs rounded border border-input bg-background min-h-[50px]"
+          className="w-full px-3 py-2 text-xs rounded-lg border border-input bg-card shadow-sm min-h-[50px]"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Description"
@@ -507,13 +520,13 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
           <input
             type="number"
             inputMode="decimal"
-            className="h-8 px-2 text-xs rounded border border-input bg-background"
+            className="h-9 px-3 text-xs rounded-lg border border-input bg-card shadow-sm"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             placeholder="Qty"
           />
           <input
-            className="h-8 px-2 text-xs rounded border border-input bg-background"
+            className="h-9 px-3 text-xs rounded-lg border border-input bg-card shadow-sm"
             value={unit}
             onChange={(e) => setUnit(e.target.value)}
             placeholder="Unit"
@@ -521,13 +534,13 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
           <input
             type="number"
             inputMode="decimal"
-            className="h-8 px-2 text-xs rounded border border-input bg-background"
+            className="h-9 px-3 text-xs rounded-lg border border-input bg-card shadow-sm"
             value={unitRate}
             onChange={(e) => setUnitRate(e.target.value)}
             placeholder="Rate"
           />
         </div>
-        <div className="flex justify-end gap-1">
+        <div className="flex justify-end gap-2">
           <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => setEditing(false)} disabled={saving}>
             Cancel
           </Button>
@@ -540,7 +553,7 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
   }
 
   return (
-    <div className="px-3 py-2 group">
+    <div className="px-4 py-3 group hover:bg-secondary/50 transition-colors">
       <div className="flex justify-between gap-3">
         <div className="min-w-0">
           <div className="text-sm text-foreground">{item.title}</div>
@@ -561,11 +574,11 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <ClaimedInBadge item={item} />
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditing(true)} title="Edit">
+          <div className="flex gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditing(true)} title="Edit">
               <FileText className="w-3 h-3" />
             </Button>
-            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive hover:text-destructive" onClick={remove} title="Delete">
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={remove} title="Delete">
               <Trash2 className="w-3 h-3" />
             </Button>
           </div>
