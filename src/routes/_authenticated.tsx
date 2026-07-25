@@ -48,13 +48,13 @@ function AuthedLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 bg-card text-foreground border-b border-border">
+      <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-md text-foreground border-b border-border">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-2.5">
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-sm bg-gold">
-              <span className="font-display font-bold text-gold-foreground">M</span>
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary">
+              <span className="font-semibold text-primary-foreground">M</span>
             </span>
-            <span className="font-display text-lg font-semibold tracking-[0.08em] uppercase">
+            <span className="text-base font-semibold tracking-tight">
               Mastor
             </span>
           </Link>
@@ -64,7 +64,7 @@ function AuthedLayout() {
               size="sm"
               variant="ghost"
               onClick={handleSignOut}
-              className="text-foreground hover:bg-white/5"
+              className="text-foreground"
             >
               <LogOut className="w-4 h-4" />
               <span className="sr-only">Sign out</span>

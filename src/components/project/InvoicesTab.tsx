@@ -3,10 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { FileText, Receipt } from "lucide-react";
+import { ChevronRight, FileText, Receipt } from "lucide-react";
 import { LoadingDot } from "@/components/ui/loading-dot";
 import { EmptyState } from "@/components/ui/empty-state";
-import { DisplayMetric } from "@/components/ui/display-metric";
 
 type Invoice = {
   id: string;
@@ -55,9 +54,11 @@ export function InvoicesTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-3">
       {invoices.map((inv) => (
-        <div
+        <Link
           key={inv.id}
-          className="rounded-sm bg-card border border-border p-4 flex items-center justify-between gap-4"
+          to="/valuations/$id/invoice"
+          params={{ id: inv.valuation_id }}
+          className="rounded-2xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center justify-between gap-4"
         >
           <div className="flex items-center gap-3 min-w-0">
             <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -68,18 +69,14 @@ export function InvoicesTab({ projectId }: { projectId: string }) {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-4 shrink-0">
-            <span className="label-mono">{inv.status}</span>
-            <DisplayMetric value={GBP.format(Number(inv.total_amount))} className="items-end" />
-            <Link
-              to="/valuations/$id/invoice"
-              params={{ id: inv.valuation_id }}
-              className="text-xs text-gold hover:underline"
-            >
-              View
-            </Link>
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex flex-col items-end gap-1">
+              <span className="label-mono">{inv.status}</span>
+              <span className="hero-number text-xl">{GBP.format(Number(inv.total_amount))}</span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   );

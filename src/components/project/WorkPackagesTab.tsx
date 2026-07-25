@@ -151,8 +151,8 @@ export function WorkPackagesTab({ projectId }: { projectId: string }) {
 
   if (packages.length === 0) {
     return (
-      <div className="p-6 rounded-sm border border-dashed border-border text-center text-sm text-muted-foreground">
-        No work packages yet. Upload a scope document and click <span className="font-medium">Parse Scope</span> — Mastor will group tasks into commercial packages.
+      <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
+        No work packages yet. Upload a scope document and click <span className="font-medium text-foreground">Parse Scope</span> — Mastor will group tasks into commercial packages.
       </div>
     );
   }
@@ -169,13 +169,13 @@ export function WorkPackagesTab({ projectId }: { projectId: string }) {
           const detail = details[pkg.id];
           const progress = STATUS_PROGRESS[pkg.status] ?? 0;
           return (
-            <div key={pkg.id} className="rounded-sm bg-card border border-border">
+            <div key={pkg.id} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
               <button
-                className="w-full px-3 py-3 flex items-start justify-between text-left gap-3"
+                className="w-full px-4 py-3 flex items-start justify-between text-left gap-3 hover:bg-secondary/50 transition-colors"
                 onClick={() => onToggle(pkg)}
               >
                 <div className="flex items-start gap-2 min-w-0 flex-1">
-                  <Package className="w-4 h-4 mt-0.5 shrink-0 text-gold-foreground/70" />
+                  <Package className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-foreground">{pkg.package_name}</div>
                     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
@@ -197,22 +197,26 @@ export function WorkPackagesTab({ projectId }: { projectId: string }) {
                   <Badge variant={STATUS_VARIANT[pkg.status] ?? "outline"} className="text-[10px]">
                     {pkg.status}
                   </Badge>
-                  {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  {isOpen ? (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  )}
                 </div>
               </button>
 
               {isOpen && (
-                <div className="border-t border-border p-3 space-y-3">
+                <div className="border-t border-border p-4 space-y-3">
                   {pkg.description && <p className="text-xs text-muted-foreground">{pkg.description}</p>}
 
-                  <div className="flex flex-wrap items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="label-mono mr-1">Status:</span>
                     {STATUSES.map((s) => (
                       <Button
                         key={s}
                         size="sm"
                         variant={pkg.status === s ? "default" : "outline"}
-                        className="h-6 text-[10px] px-2"
+                        className="h-7 text-[10px] px-3"
                         onClick={(e) => {
                           e.stopPropagation();
                           onUpdateStatus(pkg, s);
@@ -253,9 +257,9 @@ export function WorkPackagesTab({ projectId }: { projectId: string }) {
 
 function DetailList({ title, items }: { title: string; items: LinkedItem[] }) {
   return (
-    <div className="rounded border border-border p-2">
-      <div className="label-mono mb-1">
-        {title} <span className="text-foreground/60">({items.length})</span>
+    <div className="rounded-lg border border-border bg-secondary/30 p-3">
+      <div className="label-mono mb-1.5">
+        {title} <span className="text-muted-foreground/70">({items.length})</span>
       </div>
       {items.length === 0 ? (
         <div className="text-[11px] text-muted-foreground italic">None</div>

@@ -4,9 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { Upload } from "lucide-react";
+import { ChevronDown, Upload } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -41,6 +43,7 @@ function AuthPage() {
   const [town, setTown] = useState("");
   const [postcode, setPostcode] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [addressOpen, setAddressOpen] = useState(false);
 
   // If session appears (e.g. after sign in event), bounce to dashboard (or `next` if provided)
   useEffect(() => {
@@ -134,44 +137,45 @@ function AuthPage() {
     <div className="min-h-screen flex flex-col bg-background">
       <main className="flex-1 flex flex-col justify-center px-6 py-12">
         <div className="max-w-md mx-auto w-full">
-          <h1 className="font-display font-bold tracking-tight text-foreground leading-[0.85] text-[3.75rem] sm:text-[5.5rem]">
-            MASTOR
-          </h1>
-          <div className="h-1 w-16 bg-gold mt-4 mb-8" />
+          <div className="flex items-center gap-2.5 mb-8">
+            <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-primary shrink-0">
+              <span className="font-semibold text-primary-foreground text-lg">M</span>
+            </span>
+            <span className="text-xl font-semibold tracking-tight text-foreground">Mastor</span>
+          </div>
 
-          <p className="label-mono">
-            {mode === "login" ? "Sign in to your site" : "Start your 14-day trial"}
-          </p>
-          <h2 className="font-display text-2xl font-semibold text-foreground mt-2">
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">
             {mode === "login" ? "Welcome back" : "Create your account"}
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-muted-foreground mt-1.5">
             {mode === "login"
               ? "Sign in to your Mastor dashboard."
-              : "No credit card required."}
+              : "Start your 14-day trial — no credit card required."}
           </p>
 
-          {/* Tab toggle */}
-          <div className="mt-6 flex gap-6 border-b border-border text-sm">
+          {/* Segmented mode toggle */}
+          <div className="mt-6 inline-flex p-1 rounded-full bg-secondary w-full">
             <button
               type="button"
               onClick={() => setMode("login")}
-              className={`pb-2 -mb-px border-b-2 transition-colors ${
+              className={cn(
+                "flex-1 rounded-full py-2 text-sm font-medium transition-colors",
                 mode === "login"
-                  ? "border-gold text-gold font-medium"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
             >
               Sign in
             </button>
             <button
               type="button"
               onClick={() => setMode("signup")}
-              className={`pb-2 -mb-px border-b-2 transition-colors ${
+              className={cn(
+                "flex-1 rounded-full py-2 text-sm font-medium transition-colors",
                 mode === "signup"
-                  ? "border-gold text-gold font-medium"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
             >
               Sign up
             </button>
@@ -197,12 +201,7 @@ function AuthPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </Field>
-              <Button
-                type="submit"
-                size="lg"
-                disabled={busy}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
+              <Button type="submit" size="lg" disabled={busy} className="w-full">
                 {busy ? "Signing in…" : "Sign in"}
               </Button>
             </form>
@@ -243,63 +242,69 @@ function AuthPage() {
                   onChange={(e) => setCompanyName(e.target.value)}
                 />
               </Field>
-              <Field label="Company Address — Line 1">
-                <Input
-                  autoComplete="address-line1"
-                  placeholder="Street address"
-                  value={addressLine1}
-                  onChange={(e) => setAddressLine1(e.target.value)}
-                />
-              </Field>
-              <Field label="Company Address — Line 2">
-                <Input
-                  autoComplete="address-line2"
-                  placeholder="Apt, suite, building (optional)"
-                  value={addressLine2}
-                  onChange={(e) => setAddressLine2(e.target.value)}
-                />
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Town">
-                  <Input
-                    autoComplete="address-level2"
-                    value={town}
-                    onChange={(e) => setTown(e.target.value)}
-                  />
-                </Field>
-                <Field label="Postcode">
-                  <Input
-                    autoComplete="postal-code"
-                    value={postcode}
-                    onChange={(e) => setPostcode(e.target.value.toUpperCase())}
-                  />
-                </Field>
-              </div>
 
-              <div className="space-y-2">
-                <Label className="label-mono">
-                  Company Logo <span className="normal-case text-[10px]">(optional)</span>
-                </Label>
-                <label className="flex items-center gap-3 rounded-md border border-dashed border-input px-3 py-3 cursor-pointer hover:border-gold transition-colors">
-                  <Upload className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground truncate">
-                    {logoFile ? logoFile.name : "Tap to upload (PNG, JPG, SVG)"}
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                    className="hidden"
-                    onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
-                  />
-                </label>
-              </div>
+              <Collapsible open={addressOpen} onOpenChange={setAddressOpen}>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
+                  >
+                    <span>Company address &amp; logo (optional)</span>
+                    <ChevronDown className={cn("w-4 h-4 transition-transform", addressOpen && "rotate-180")} />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-3">
+                  <Field label="Address — Line 1">
+                    <Input
+                      autoComplete="address-line1"
+                      placeholder="Street address"
+                      value={addressLine1}
+                      onChange={(e) => setAddressLine1(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Address — Line 2">
+                    <Input
+                      autoComplete="address-line2"
+                      placeholder="Apt, suite, building"
+                      value={addressLine2}
+                      onChange={(e) => setAddressLine2(e.target.value)}
+                    />
+                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Town">
+                      <Input
+                        autoComplete="address-level2"
+                        value={town}
+                        onChange={(e) => setTown(e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Postcode">
+                      <Input
+                        autoComplete="postal-code"
+                        value={postcode}
+                        onChange={(e) => setPostcode(e.target.value.toUpperCase())}
+                      />
+                    </Field>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="label-mono">Company Logo</Label>
+                    <label className="flex items-center gap-3 rounded-lg border border-dashed border-input bg-card px-3 py-3 cursor-pointer hover:border-ring transition-colors">
+                      <Upload className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm text-muted-foreground truncate">
+                        {logoFile ? logoFile.name : "Tap to upload (PNG, JPG, SVG)"}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                        className="hidden"
+                        onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+                      />
+                    </label>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
-              <Button
-                type="submit"
-                size="lg"
-                disabled={busy}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
+              <Button type="submit" size="lg" disabled={busy} className="w-full">
                 {busy ? "Creating account…" : "Start free trial"}
               </Button>
               <p className="text-[11px] text-muted-foreground text-center">

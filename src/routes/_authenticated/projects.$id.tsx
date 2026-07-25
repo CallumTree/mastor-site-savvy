@@ -113,7 +113,7 @@ function ProjectDetail() {
         <Link to="/dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-gold mb-4">
           <ChevronLeft className="w-4 h-4" /> Back
         </Link>
-        <div className="p-6 rounded-sm border border-dashed border-border text-center text-sm text-muted-foreground">
+        <div className="p-6 rounded-2xl border border-dashed border-border text-center text-sm text-muted-foreground">
           Project not found.
         </div>
       </main>
@@ -127,8 +127,8 @@ function ProjectDetail() {
       </Link>
 
       <header className="mb-6">
-        <p className="label-mono text-gold/80">{project.status}</p>
-        <h1 className="text-2xl font-bold text-foreground mt-1">{project.name}</h1>
+        <p className="label-mono text-gold">{project.status}</p>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground mt-1">{project.name}</h1>
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
           {project.client && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{project.client}</span>}
           {project.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location}</span>}
@@ -138,16 +138,16 @@ function ProjectDetail() {
           initial={project.po_number}
           onSaved={(v) => setProject((p) => (p ? { ...p, po_number: v } : p))}
         />
-        <div className="mt-4 border border-border bg-card">
+        <div className="mt-4 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border">
             <div className="flex-1 p-4">
               <div className="label-mono">Contract Value</div>
-              <div className="hero-number text-4xl mt-1">
+              <div className="hero-number text-3xl mt-1">
                 {project.contract_value ? GBP.format(Number(project.contract_value)) : "—"}
               </div>
               <div className="mt-3 flex items-center gap-2">
-                <div className="flex-1 h-1.5 bg-secondary overflow-hidden">
-                  <div className="h-full bg-gold" style={{ width: `${project.progress ?? 0}%` }} />
+                <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full rounded-full bg-gold" style={{ width: `${project.progress ?? 0}%` }} />
                 </div>
                 <span className="text-xs font-medium text-foreground tabular-nums shrink-0">
                   {project.progress ?? 0}%
@@ -156,16 +156,16 @@ function ProjectDetail() {
             </div>
             <div className="flex-1 p-4">
               <div className="label-mono">Potential Claim</div>
-              <div className="hero-number text-4xl mt-1">{GBP.format(stats.potentialClaim)}</div>
+              <div className="hero-number text-3xl mt-1">{GBP.format(stats.potentialClaim)}</div>
               <div className="mt-3 flex gap-4 text-xs">
                 <span
-                  className={stats.openVariations > 0 ? "text-amber-400" : "text-muted-foreground"}
+                  className={stats.openVariations > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}
                 >
                   {stats.openVariations} Variation{stats.openVariations === 1 ? "" : "s"}
                 </span>
                 <span
                   className={
-                    stats.procurementOutstanding > 0 ? "text-amber-400" : "text-muted-foreground"
+                    stats.procurementOutstanding > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"
                   }
                 >
                   {stats.procurementOutstanding} Procurement
@@ -252,7 +252,7 @@ function ProjectBottomNav({
   const moreActive = MORE_NAV.some((i) => i.value === active);
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-30 bg-card border-t border-border"
+      className="fixed bottom-0 inset-x-0 z-30 bg-card/90 backdrop-blur-md border-t border-border"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Project sections"
     >
@@ -308,10 +308,10 @@ function ProjectBottomNav({
                         setMoreOpen(false);
                       }}
                       className={cn(
-                        "flex items-center gap-3 px-4 py-3 rounded-sm border text-left transition-colors",
+                        "flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors",
                         isActive
-                          ? "border-gold/60 bg-gold/10 text-gold"
-                          : "border-border text-muted-foreground hover:bg-white/5",
+                          ? "border-gold/40 bg-gold/10 text-gold"
+                          : "border-border text-muted-foreground hover:bg-secondary",
                       )}
                     >
                       <Icon className="w-5 h-5" />
@@ -362,7 +362,7 @@ function PoNumberField({
         onBlur={save}
         disabled={saving}
         placeholder="Optional — appears on invoices"
-        className="h-7 px-2 rounded border border-input bg-background text-xs flex-1 max-w-xs"
+        className="h-7 px-2 rounded-md border border-input bg-card text-xs flex-1 max-w-xs"
       />
     </div>
   );
@@ -372,7 +372,7 @@ function PoNumberField({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground divider-heavy pt-3">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground divider-heavy pt-3">
         {title}
       </h2>
       {children}
@@ -382,7 +382,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Placeholder({ message }: { message: string }) {
   return (
-    <div className="p-6 rounded-md border border-dashed border-border text-center text-sm text-muted-foreground">
+    <div className="p-6 rounded-2xl border border-dashed border-border text-center text-sm text-muted-foreground">
       {message}
     </div>
   );

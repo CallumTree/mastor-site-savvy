@@ -93,9 +93,9 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
         vals.map((v) => {
           const isOpen = expanded === v.id;
           return (
-            <div key={v.id} className="rounded-sm bg-card border border-border">
+            <div key={v.id} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
               <button
-                className="w-full p-3 flex justify-between items-start text-left"
+                className="w-full p-4 flex justify-between items-start text-left hover:bg-secondary transition-colors"
                 onClick={() => setExpanded(isOpen ? null : v.id)}
               >
                 <div className="flex items-start gap-2">
@@ -110,12 +110,12 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
                   </div>
                 </div>
                 <span className="flex items-center gap-1.5 label-mono">
-                  <span className={`w-1.5 h-1.5 rounded-full ${v.status === "Draft" ? "bg-gold" : "bg-emerald-400"}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${v.status === "Draft" ? "bg-gold" : "bg-emerald-500"}`} />
                   {v.status}
                 </span>
               </button>
               {isOpen && (
-                <div className="px-3 pb-3 border-t border-border pt-3">
+                <div className="px-4 pb-4 border-t border-border pt-4">
                   <ValuationItemsList projectId={projectId} valuationId={v.id} readOnly={v.status !== "Draft"} />
                 </div>
               )}
@@ -205,7 +205,7 @@ function ValuationItemsList({
   }
 
   return (
-    <div className="border border-border rounded-sm overflow-hidden">
+    <div className="rounded-xl border border-border overflow-hidden">
       <div className="divide-y divide-border">
         {items.map((it) => (
           <div key={it.id} className="flex items-start justify-between gap-3 p-3">

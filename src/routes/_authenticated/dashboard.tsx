@@ -110,10 +110,10 @@ function Dashboard() {
 
       {/* Quick Check */}
       <section className="mb-6">
-        <div className="border border-border bg-card overflow-hidden">
-          <div className="bg-primary text-primary-foreground px-4 py-2.5 flex items-center gap-2">
-            <ClipboardCheck className="w-4 h-4" />
-            <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">Quick Check</h2>
+        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+          <div className="px-4 py-3 flex items-center gap-2 border-b border-border">
+            <ClipboardCheck className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick Check</h2>
           </div>
           <div className="grid grid-cols-3 divide-x divide-border">
             <Stat icon={<HardHat className="w-4 h-4" />} label="Active Sites" value={activeSites} />
@@ -125,10 +125,10 @@ function Dashboard() {
 
       {/* AI Activity */}
       <section className="mb-8">
-        <div className="border border-border bg-card overflow-hidden">
-          <div className="bg-primary text-primary-foreground px-4 py-2.5 flex items-center gap-2">
-            <Sparkles className="w-4 h-4" />
-            <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">AI Activity</h2>
+        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+          <div className="px-4 py-3 flex items-center gap-2 border-b border-border">
+            <Sparkles className="w-4 h-4 text-gold" />
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">AI Activity</h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-y sm:divide-y-0 divide-border">
             <Stat icon={<Inbox className="w-4 h-4" />} label="Awaiting Review" value={ai.awaiting} />
@@ -150,11 +150,11 @@ function Dashboard() {
                 key={p.id}
                 to="/projects/$id"
                 params={{ id: p.id }}
-                className="shrink-0 w-48 border border-border bg-card hover:border-gold/50 transition-colors p-3"
+                className="shrink-0 w-48 rounded-2xl border border-border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all p-3"
               >
-                <h3 className="font-display text-base text-foreground truncate">{p.name}</h3>
+                <h3 className="text-base font-semibold text-foreground truncate">{p.name}</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">{p.client ?? "—"}</p>
-                <div className="mt-3 flex items-center gap-1 text-[10px] text-gold">
+                <div className="mt-3 flex items-center gap-1 text-[11px] font-medium text-gold">
                   <Footprints className="w-3 h-3" />
                   {healthMap[p.id]?.daysSinceWalk === 0 ? "Today" : `${healthMap[p.id]?.daysSinceWalk}d ago`}
                 </div>
@@ -167,7 +167,7 @@ function Dashboard() {
       {/* Projects header */}
       <section>
         <div className="flex items-center justify-between mb-4 divider-heavy pt-4">
-          <h2 className="font-display text-2xl text-foreground">Projects</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Projects</h2>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button size="sm">
@@ -195,12 +195,12 @@ function Dashboard() {
                 key={p.id}
                 to="/projects/$id"
                 params={{ id: p.id }}
-                className="group block border border-border bg-card hover:border-gold/50 transition-colors overflow-hidden"
+                className="group block rounded-2xl border border-border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden"
               >
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="font-display text-lg text-foreground truncate">{p.name}</h3>
+                      <h3 className="text-lg font-semibold text-foreground truncate">{p.name}</h3>
                       <p className="text-xs text-muted-foreground mt-0.5">{p.client ?? "—"}</p>
                     </div>
                     <span className="shrink-0 flex items-center gap-1.5 label-mono">
@@ -218,17 +218,17 @@ function Dashboard() {
                       <span className="label-mono">Progress</span>
                       <span className="font-medium text-foreground">{p.progress}%</span>
                     </div>
-                    <div className="h-1.5 bg-secondary overflow-hidden">
-                      <div className="h-full bg-gold" style={{ width: `${p.progress}%` }} />
+                    <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                      <div className="h-full rounded-full bg-gold" style={{ width: `${p.progress}%` }} />
                     </div>
                   </div>
                   {(() => {
                     const h = healthMap[p.id];
                     if (!h) return null;
-                    const walkColor = h.daysSinceWalk === null || h.daysSinceWalk > 7 ? "bg-red-500/15 text-red-400 border-red-500/30" : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+                    const walkColor = h.daysSinceWalk === null || h.daysSinceWalk > 7 ? "bg-red-50 text-red-700 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200";
                     const walkLabel = h.daysSinceWalk === null ? "No walk" : `${h.daysSinceWalk}d`;
-                    const varColor = h.draftVariations > 0 ? "bg-amber-500/15 text-amber-400 border-amber-500/30" : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
-                    const procColor = h.staleProcurement > 0 ? "bg-red-500/15 text-red-400 border-red-500/30" : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+                    const varColor = h.draftVariations > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-emerald-50 text-emerald-700 border-emerald-200";
+                    const procColor = h.staleProcurement > 0 ? "bg-red-50 text-red-700 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200";
                     return (
                       <div className="mt-3 flex flex-wrap gap-2">
                         <HealthPill icon={<Footprints className="w-3 h-3" />} label={walkLabel} classes={walkColor} />
@@ -239,7 +239,7 @@ function Dashboard() {
                   })()}
                   <div className="mt-4 pt-3 border-t border-border flex justify-between items-end">
                     <span className="label-mono">Contract</span>
-                    <span className="hero-number text-4xl">
+                    <span className="hero-number text-3xl">
                       {p.contract_value ? GBP.format(Number(p.contract_value)) : "—"}
                     </span>
                   </div>
@@ -257,7 +257,7 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
   return (
     <div className="p-4 text-center">
       <div className="flex justify-center text-gold mb-1.5">{icon}</div>
-      <div className="hero-number text-4xl">{value}</div>
+      <div className="hero-number text-3xl">{value}</div>
       <div className="label-mono mt-2">{label}</div>
     </div>
   );
@@ -265,7 +265,7 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
 
 function HealthPill({ icon, label, classes }: { icon: React.ReactNode; label: string; classes: string }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-[10px] font-semibold ${classes}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold ${classes}`}>
       {icon}
       {label}
     </span>
@@ -308,7 +308,7 @@ function NewProjectDialog({ onCreated }: { onCreated: () => void }) {
   return (
     <DialogContent className="max-w-md">
       <DialogHeader>
-        <DialogTitle className="font-display text-primary">New Project</DialogTitle>
+        <DialogTitle>New Project</DialogTitle>
       </DialogHeader>
       <form onSubmit={submit} className="space-y-3">
         <div className="space-y-1.5">
@@ -332,7 +332,7 @@ function NewProjectDialog({ onCreated }: { onCreated: () => void }) {
           <Textarea id="np-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Optional" />
         </div>
         <DialogFooter>
-          <Button type="submit" disabled={busy} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+          <Button type="submit" disabled={busy} className="w-full">
             {busy ? "Creating…" : "Create project"}
           </Button>
         </DialogFooter>

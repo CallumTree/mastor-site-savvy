@@ -25,12 +25,12 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "rounded-sm border border-border bg-card p-10 text-center flex flex-col items-center gap-4",
+        "rounded-2xl border border-dashed border-border bg-card p-10 text-center flex flex-col items-center gap-4",
         className,
       )}
     >
-      <Icon size={48} className="text-gold" strokeWidth={1.25} />
-      <h3 className="font-display text-2xl text-primary">{title}</h3>
+      <Icon size={40} className="text-muted-foreground" strokeWidth={1.5} />
+      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
       {description && (
         <p className="text-sm text-muted-foreground max-w-sm">{description}</p>
       )}

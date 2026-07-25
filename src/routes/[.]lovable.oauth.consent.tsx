@@ -86,10 +86,10 @@ function Consent() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6 bg-background">
-      <div className="max-w-md w-full space-y-6 border border-border rounded-lg p-6 bg-card">
+      <div className="max-w-md w-full space-y-6 border border-border rounded-2xl p-6 bg-card shadow-sm">
         <div>
           <p className="label-mono">Connect app</p>
-          <h1 className="font-display text-2xl font-semibold text-foreground mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground mt-1">
             Connect {clientName} to Mastor
           </h1>
         </div>
@@ -110,7 +110,7 @@ function Consent() {
         )}
         <div className="flex gap-3">
           <Button
-            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+            className="flex-1"
             disabled={busy}
             onClick={() => decide(true)}
           >

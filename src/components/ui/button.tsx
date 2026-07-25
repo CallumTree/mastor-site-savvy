@@ -5,22 +5,21 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        // Sharp-cornered primary, hairline gold border on hover
+        // Full pill, solid fill — the system "default button" pattern
         default:
-          "rounded-none bg-primary text-primary-foreground shadow-sm border border-transparent hover:border-gold hover:bg-primary",
+          "rounded-full bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:opacity-80",
         destructive:
-          "rounded-none bg-destructive text-destructive-foreground shadow-sm border border-transparent hover:border-gold",
-        // Pill-shaped ghost secondary
+          "rounded-full bg-destructive text-destructive-foreground shadow-sm hover:opacity-90 active:opacity-80",
         outline:
-          "rounded-full border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "rounded-full border border-input bg-card hover:bg-secondary",
         secondary:
-          "rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/70",
         ghost:
-          "rounded-full hover:bg-accent hover:text-accent-foreground",
+          "rounded-full hover:bg-secondary",
         link: "rounded-none text-primary underline-offset-4 hover:underline",
       },
       size: {
