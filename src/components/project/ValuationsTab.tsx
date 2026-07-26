@@ -214,15 +214,24 @@ function ValuationItemsList({
               <div className="text-[11px] text-muted-foreground">
                 {it.work_package_name ?? "—"}
               </div>
-              <div className="flex gap-3 text-[11px] text-muted-foreground tabular-nums">
-                <span>Qty {it.claimed_qty ?? "—"}</span>
-                <span>@ {it.unit_rate != null ? GBP.format(num(it.unit_rate)) : "—"}</span>
+              <div className="flex items-center gap-4 rounded-lg bg-secondary/70 px-3 py-2">
+                <div>
+                  <div className="label-mono">Qty</div>
+                  <div className="text-sm font-semibold text-foreground tabular-nums mt-0.5">{it.claimed_qty ?? "—"}</div>
+                </div>
+                <div>
+                  <div className="label-mono">Rate</div>
+                  <div className="text-sm font-semibold text-foreground tabular-nums mt-0.5">
+                    {it.unit_rate != null ? GBP.format(num(it.unit_rate)) : "—"}
+                  </div>
+                </div>
+                <div className="ml-auto text-right">
+                  <div className="label-mono">Value</div>
+                  <div className="text-sm font-bold text-gold tabular-nums mt-0.5">{GBP.format(num(it.claimed_value))}</div>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <div className="text-sm font-semibold text-foreground tabular-nums">
-                {GBP.format(num(it.claimed_value))}
-              </div>
               {!readOnly && (
                 <Button
                   size="sm"

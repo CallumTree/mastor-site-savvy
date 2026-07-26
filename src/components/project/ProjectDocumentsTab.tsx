@@ -517,28 +517,37 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
           placeholder="Description"
         />
         <div className="grid grid-cols-3 gap-2">
-          <input
-            type="number"
-            inputMode="decimal"
-            className="h-9 px-3 text-xs rounded-lg border border-input bg-card shadow-sm"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            placeholder="Qty"
-          />
-          <input
-            className="h-9 px-3 text-xs rounded-lg border border-input bg-card shadow-sm"
-            value={unit}
-            onChange={(e) => setUnit(e.target.value)}
-            placeholder="Unit"
-          />
-          <input
-            type="number"
-            inputMode="decimal"
-            className="h-9 px-3 text-xs rounded-lg border border-input bg-card shadow-sm"
-            value={unitRate}
-            onChange={(e) => setUnitRate(e.target.value)}
-            placeholder="Rate"
-          />
+          <label className="block">
+            <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Qty</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              className="w-full h-10 px-3 text-sm rounded-lg border border-input bg-card shadow-sm"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="0"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Unit</span>
+            <input
+              className="w-full h-10 px-3 text-sm rounded-lg border border-input bg-card shadow-sm"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              placeholder="e.g. SM"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Rate (£)</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              className="w-full h-10 px-3 text-sm rounded-lg border border-input bg-card shadow-sm"
+              value={unitRate}
+              onChange={(e) => setUnitRate(e.target.value)}
+              placeholder="0.00"
+            />
+          </label>
         </div>
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => setEditing(false)} disabled={saving}>
@@ -552,25 +561,55 @@ function ScopeElementRow({ item, docs }: { item: ScopeElement; docs: Doc[] }) {
     );
   }
 
+  const hasQty = item.quantity != null && item.quantity > 0;
+  const hasRate = item.unit_rate != null;
+  const total = hasQty && hasRate ? Number(item.quantity) * Number(item.unit_rate) : null;
+
   return (
     <div className="px-4 py-3 group hover:bg-secondary/50 transition-colors">
       <div className="flex justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="text-sm text-foreground">{item.title}</div>
           {item.description && (
             <div className="text-xs text-muted-foreground mt-0.5">{item.description}</div>
           )}
-          <div className="text-[10px] text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-            {item.quantity != null && item.quantity > 0 && (
-              <span>
-                Qty: {item.quantity} {item.unit || ""}
-              </span>
-            )}
-            {item.unit_rate != null && <span>Rate: £{Number(item.unit_rate).toLocaleString()}</span>}
-            {item.location && <span>{item.location}</span>}
-            {item.source_reference && <span>Ref: {item.source_reference}</span>}
-            {docName && <span>Doc: {docName}</span>}
-          </div>
+
+          {(hasQty || hasRate) && (
+            <div className="mt-2 flex items-center gap-4 rounded-lg bg-secondary/70 px-3 py-2">
+              {hasQty && (
+                <div>
+                  <div className="label-mono">Qty</div>
+                  <div className="text-sm font-semibold text-foreground tabular-nums mt-0.5">
+                    {item.quantity} {item.unit || ""}
+                  </div>
+                </div>
+              )}
+              {hasRate && (
+                <div>
+                  <div className="label-mono">Rate</div>
+                  <div className="text-sm font-semibold text-foreground tabular-nums mt-0.5">
+                    £{Number(item.unit_rate).toLocaleString()}
+                  </div>
+                </div>
+              )}
+              {total != null && (
+                <div className="ml-auto text-right">
+                  <div className="label-mono">Total</div>
+                  <div className="text-sm font-bold text-gold tabular-nums mt-0.5">
+                    £{total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {(item.location || item.source_reference || docName) && (
+            <div className="text-[10px] text-muted-foreground mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+              {item.location && <span>{item.location}</span>}
+              {item.source_reference && <span>Ref: {item.source_reference}</span>}
+              {docName && <span className="truncate">Doc: {docName}</span>}
+            </div>
+          )}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <ClaimedInBadge item={item} />

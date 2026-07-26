@@ -491,11 +491,36 @@ export function VariationsTab({ projectId }: { projectId: string }) {
                       )}
                     </div>
                     <div className="text-sm text-foreground leading-relaxed">{v.description ?? "—"}</div>
-                    <div className="text-[11px] text-muted-foreground mt-1 flex flex-wrap gap-x-3">
-                      {v.qty != null && <span>Qty: {v.qty}{v.unit ? ` ${v.unit}` : ""}</span>}
-                      {v.rate != null && <span>Rate: £{Number(v.rate).toLocaleString()}</span>}
-                      {value != null && <span>Value: £{value.toLocaleString()}</span>}
-                      <span>{new Date(v.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                    {(v.qty != null || v.rate != null) && (
+                      <div className="mt-2 flex items-center gap-4 rounded-lg bg-secondary/70 px-3 py-2">
+                        {v.qty != null && (
+                          <div>
+                            <div className="label-mono">Qty</div>
+                            <div className="text-sm font-semibold text-foreground tabular-nums mt-0.5">
+                              {v.qty}{v.unit ? ` ${v.unit}` : ""}
+                            </div>
+                          </div>
+                        )}
+                        {v.rate != null && (
+                          <div>
+                            <div className="label-mono">Rate</div>
+                            <div className="text-sm font-semibold text-foreground tabular-nums mt-0.5">
+                              £{Number(v.rate).toLocaleString()}
+                            </div>
+                          </div>
+                        )}
+                        {value != null && (
+                          <div className="ml-auto text-right">
+                            <div className="label-mono">Value</div>
+                            <div className="text-sm font-bold text-gold tabular-nums mt-0.5">
+                              £{value.toLocaleString()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="text-[11px] text-muted-foreground mt-1.5">
+                      {new Date(v.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                     </div>
                   </div>
                   <Badge variant="outline" className={`text-[10px] uppercase tracking-wider shrink-0 ${STATUS_STYLES[v.status] ?? ""}`}>
