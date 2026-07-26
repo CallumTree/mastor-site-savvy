@@ -17,6 +17,7 @@ import { LoadingDot } from "@/components/ui/loading-dot";
 import { CircularProgress } from "@/components/ui/circular-progress";
 import { getCurrentProfile, getLogoSignedUrl } from "@/lib/profile";
 import { signManyPhotoUrls } from "@/lib/site-walk-photos";
+import { signManyProjectCoverUrls } from "@/lib/projectCover";
 
 
 type Project = {
@@ -27,6 +28,7 @@ type Project = {
   contract_value: number | null;
   status: string;
   progress: number;
+  cover_photo_path: string | null;
 };
 
 type ProjectHealth = {
@@ -115,6 +117,16 @@ function Dashboard() {
       const url = signedByPath[path];
       if (url) coverByProject[projectId] = url;
     }
+
+    // A project's own custom cover photo (set in Project Settings) wins
+    // over the auto-picked latest site walk photo.
+    const customPathByProject: Record<string, string> = {};
+    for (const p of projList) {
+      if (p.cover_photo_path) customPathByProject[p.id] = p.cover_photo_path;
+    }
+    const customByProject = await signManyProjectCoverUrls(customPathByProject);
+    Object.assign(coverByProject, customByProject);
+
     setCoverPhotos(coverByProject);
 
     setLoading(false);

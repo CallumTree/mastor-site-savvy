@@ -1213,6 +1213,7 @@ export type Database = {
           client: string | null
           client_name: string | null
           contract_value: number | null
+          cover_photo_path: string | null
           created_at: string
           gross_value: number | null
           id: string
@@ -1229,6 +1230,7 @@ export type Database = {
           client?: string | null
           client_name?: string | null
           contract_value?: number | null
+          cover_photo_path?: string | null
           created_at?: string
           gross_value?: number | null
           id?: string
@@ -1245,6 +1247,7 @@ export type Database = {
           client?: string | null
           client_name?: string | null
           contract_value?: number | null
+          cover_photo_path?: string | null
           created_at?: string
           gross_value?: number | null
           id?: string

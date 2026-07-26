@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
 import { signPhotoUrl } from "@/lib/site-walk-photos";
 
@@ -32,6 +31,8 @@ import { InvoicesTab } from "@/components/project/InvoicesTab";
 import { VariationsTab } from "@/components/project/VariationsTab";
 import { ProcurementTab } from "@/components/project/ProcurementTab";
 import { ShareProjectSheet } from "@/components/project/ShareProjectSheet";
+import { ProjectSettingsSheet } from "@/components/project/ProjectSettingsSheet";
+import { signProjectCoverUrl } from "@/lib/projectCover";
 
 type Project = {
   id: string;
@@ -42,6 +43,7 @@ type Project = {
   status: string;
   progress: number;
   po_number: string | null;
+  cover_photo_path: string | null;
 };
 
 
@@ -70,6 +72,7 @@ function ProjectDetail() {
   const [activeTab, setActiveTab] = useState("scope-documents");
   const [moreOpen, setMoreOpen] = useState(false);
   const [coverPhoto, setCoverPhoto] = useState<string | null>(null);
+  const [siteWalkCoverUrl, setSiteWalkCoverUrl] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -92,10 +95,14 @@ function ProjectDetail() {
           .maybeSingle(),
       ]);
       if (pe) showError("Project", pe);
-      setProject((p as Project) ?? null);
+      const proj = (p as Project) ?? null;
+      setProject(proj);
       const photoRow = latestPhoto as { storage_path: string | null; annotated_storage_path: string | null } | null;
       const photoPath = photoRow?.annotated_storage_path || photoRow?.storage_path;
-      setCoverPhoto(photoPath ? await signPhotoUrl(photoPath) : null);
+      const siteWalkUrl = photoPath ? await signPhotoUrl(photoPath) : null;
+      setSiteWalkCoverUrl(siteWalkUrl);
+      const customUrl = proj?.cover_photo_path ? await signProjectCoverUrl(proj.cover_photo_path) : null;
+      setCoverPhoto(customUrl ?? siteWalkUrl);
       const openVariations = (vars ?? []).filter((v: any) => v.status !== "Approved" && v.status !== "Rejected").length;
       const procurementOutstanding = (procs ?? []).filter((x: any) => x.status === "Required" || x.status === "Quoted").length;
       const openVal = (openVals ?? []).find(
@@ -151,10 +158,22 @@ function ProjectDetail() {
           >
             <ChevronLeft className="w-4 h-4" /> Back
           </Link>
-          <div className="absolute top-4 right-4">
+          <div className="absolute top-4 right-4 flex items-center gap-2">
             <ShareProjectSheet
               projectId={project.id}
               triggerClassName="gap-1.5 border-transparent bg-black/35 backdrop-blur-sm text-white hover:bg-black/55 hover:text-white"
+            />
+            <ProjectSettingsSheet
+              project={project}
+              fallbackCoverUrl={siteWalkCoverUrl}
+              triggerClassName="border-transparent bg-black/35 backdrop-blur-sm text-white hover:bg-black/55 hover:text-white"
+              onSaved={async (patch) => {
+                setProject((prev) => (prev ? { ...prev, ...patch } : prev));
+                if ("cover_photo_path" in patch) {
+                  const url = patch.cover_photo_path ? await signProjectCoverUrl(patch.cover_photo_path) : null;
+                  setCoverPhoto(url ?? siteWalkCoverUrl);
+                }
+              }}
             />
           </div>
           <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
@@ -166,11 +185,6 @@ function ProjectDetail() {
             </div>
           </div>
         </div>
-        <PoNumberField
-          projectId={project.id}
-          initial={project.po_number}
-          onSaved={(v) => setProject((p) => (p ? { ...p, po_number: v } : p))}
-        />
         <div className="mt-4 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border">
             <div className="flex-1 p-4">
@@ -360,47 +374,6 @@ function ProjectBottomNav({
     </nav>
   );
 }
-
-function PoNumberField({
-  projectId,
-  initial,
-  onSaved,
-}: {
-  projectId: string;
-  initial: string | null;
-  onSaved: (v: string | null) => void;
-}) {
-  const [value, setValue] = useState(initial ?? "");
-  const [saving, setSaving] = useState(false);
-  const save = async () => {
-    const trimmed = value.trim() || null;
-    if (trimmed === (initial ?? null)) return;
-    setSaving(true);
-    const { error } = await supabase
-      .from("projects")
-      .update({ po_number: trimmed } as any)
-      .eq("id", projectId);
-    setSaving(false);
-    if (error) return showError("Project", error);
-    onSaved(trimmed);
-    toast.success("PO number saved");
-  };
-  return (
-    <div className="mt-3 flex items-center gap-2 text-xs">
-      <label className="text-muted-foreground uppercase tracking-wider">PO Number</label>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={save}
-        disabled={saving}
-        placeholder="Optional — appears on invoices"
-        className="h-7 px-2 rounded-md border border-input bg-card text-xs flex-1 max-w-xs"
-      />
-    </div>
-  );
-}
-
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
