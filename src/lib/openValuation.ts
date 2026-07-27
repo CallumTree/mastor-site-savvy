@@ -3,33 +3,35 @@ import { supabase } from "@/integrations/supabase/client";
 export type OpenValuation = { id: string; valuation_number: number };
 
 /**
- * The "open" valuation for a project = most recent valuation with NO row
- * in `invoices` referencing it. Status is informational; the authoritative
- * signal is whether an invoice has been generated.
+ * Single source of truth for whether a valuation's line items can still be
+ * edited. A valuation locks the moment it's Approved (that's what
+ * "Finalise" means) — being invoiced on top of that is a stronger, also-
+ * locked state, not a separate condition. Used by both the valuations list
+ * and the valuation detail page so they never disagree again.
+ */
+export function isValuationLocked(status: string, hasInvoice: boolean): boolean {
+  return hasInvoice || status === "Approved";
+}
+
+/**
+ * The "open" valuation for a project = the Draft valuation, if one exists.
+ * Approved valuations (invoiced or not) are locked, so a newly-approved
+ * variation should never silently land in one — it should start a fresh
+ * Draft instead.
  */
 export async function findOpenValuation(
   projectId: string,
 ): Promise<OpenValuation | null> {
-  const { data: vals, error } = await supabase
+  const { data: val, error } = await supabase
     .from("valuations")
-    .select("id, valuation_number, created_at")
+    .select("id, valuation_number")
     .eq("project_id", projectId)
-    .order("created_at", { ascending: false });
+    .eq("status", "Draft")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
   if (error) throw error;
-  if (!vals || vals.length === 0) return null;
-
-  const ids = vals.map((v) => v.id);
-  const { data: invs, error: iErr } = await supabase
-    .from("invoices")
-    .select("valuation_id")
-    .in("valuation_id", ids);
-  if (iErr) throw iErr;
-
-  const invoiced = new Set((invs ?? []).map((r) => r.valuation_id));
-  const open = vals.find((v) => !invoiced.has(v.id));
-  return open
-    ? { id: open.id, valuation_number: open.valuation_number ?? 0 }
-    : null;
+  return val ? { id: val.id, valuation_number: val.valuation_number ?? 0 } : null;
 }
 
 export async function getOrCreateOpenValuation(

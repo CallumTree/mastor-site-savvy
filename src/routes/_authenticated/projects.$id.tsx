@@ -26,7 +26,6 @@ import { SiteWalksTab } from "@/components/project/SiteWalksTab";
 
 import { ProjectDocumentsTab } from "@/components/project/ProjectDocumentsTab";
 
-import { WorkPackagesTab } from "@/components/project/WorkPackagesTab";
 import { InvoicesTab } from "@/components/project/InvoicesTab";
 import { VariationsTab } from "@/components/project/VariationsTab";
 import { ProcurementTab } from "@/components/project/ProcurementTab";
@@ -83,7 +82,7 @@ function ProjectDetail() {
         (supabase as any).from("procurement_items").select("status, estimated_cost").eq("project_id", id),
         (supabase as any)
           .from("valuations")
-          .select("id, valuation_number, created_at, valuation_items(claimed_value), invoices(id)")
+          .select("id, valuation_number, created_at, valuation_items(claimed_value), invoices(id, status)")
           .eq("project_id", id)
           .order("created_at", { ascending: false }),
         supabase
@@ -106,7 +105,7 @@ function ProjectDetail() {
       const openVariations = (vars ?? []).filter((v: any) => v.status !== "Approved" && v.status !== "Rejected").length;
       const procurementOutstanding = (procs ?? []).filter((x: any) => x.status === "Required" || x.status === "Quoted").length;
       const openVal = (openVals ?? []).find(
-        (v: any) => !v.invoices || v.invoices.length === 0,
+        (v: any) => !v.invoices || v.invoices.every((i: any) => i.status === "Void"),
       );
       const potentialClaim = openVal
         ? (openVal.valuation_items ?? []).reduce(
@@ -228,9 +227,6 @@ function ProjectDetail() {
 
         <TabsContent value="scope-documents" className="mt-4 space-y-8">
           <p className="label-mono">Understand the Job</p>
-          <Section title="Work Packages">
-            <WorkPackagesTab projectId={project.id} />
-          </Section>
           <Section title="Project Documents">
             <ProjectDocumentsTab projectId={project.id} />
           </Section>

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, HardHat, ClipboardCheck, AlertTriangle, MapPin, Sparkles, Inbox, CheckCircle2, FileEdit, Package, ShieldAlert, FolderPlus, Footprints, TriangleAlert, ShoppingCart } from "lucide-react";
+import { Plus, HardHat, MapPin, Sparkles, Inbox, CheckCircle2, FileEdit, Package, ShieldAlert, FolderPlus, Footprints, TriangleAlert, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -172,21 +172,6 @@ function Dashboard() {
         <h1 className="hero-number text-5xl sm:text-6xl mt-5">
           {activeSites} {activeSites === 1 ? "Site" : "Sites"} Live
         </h1>
-      </section>
-
-      {/* Quick Check */}
-      <section className="mb-6">
-        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
-          <div className="px-4 py-3 flex items-center gap-2 border-b border-border">
-            <ClipboardCheck className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick Check</h2>
-          </div>
-          <div className="grid grid-cols-3 divide-x divide-border">
-            <Stat icon={<HardHat className="w-4 h-4" />} label="Active Sites" value={activeSites} />
-            <Stat icon={<AlertTriangle className="w-4 h-4" />} label="Open RFIs" value={7} />
-            <Stat icon={<ClipboardCheck className="w-4 h-4" />} label="Valuations Due" value={3} />
-          </div>
-        </div>
       </section>
 
       {/* AI Activity */}

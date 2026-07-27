@@ -53,31 +53,52 @@ export function InvoicesTab({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-3">
-      {invoices.map((inv) => (
-        <Link
-          key={inv.id}
-          to="/valuations/$id/invoice"
-          params={{ id: inv.valuation_id }}
-          className="rounded-2xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center justify-between gap-4"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
-            <div className="min-w-0">
-              <div className="font-mono text-sm font-semibold text-foreground truncate">{inv.invoice_number}</div>
-              <div className="text-xs text-muted-foreground">
-                {new Date(inv.created_at).toLocaleDateString("en-GB")}
+      {invoices.map((inv) => {
+        const isVoid = inv.status === "Void";
+        const content = (
+          <>
+            <div className="flex items-center gap-3 min-w-0">
+              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <div className={`font-mono text-sm font-semibold truncate ${isVoid ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                  {inv.invoice_number}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {new Date(inv.created_at).toLocaleDateString("en-GB")}
+                  {isVoid && " · number retained, not reused"}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="flex flex-col items-end gap-1">
-              <span className="label-mono">{inv.status}</span>
-              <span className="hero-number text-xl">{GBP.format(Number(inv.total_amount))}</span>
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="flex flex-col items-end gap-1">
+                <span className="label-mono">{inv.status}</span>
+                {!isVoid && <span className="hero-number text-xl">{GBP.format(Number(inv.total_amount))}</span>}
+              </div>
+              {!isVoid && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
             </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          </div>
-        </Link>
-      ))}
+          </>
+        );
+        if (isVoid) {
+          return (
+            <div
+              key={inv.id}
+              className="rounded-2xl border border-dashed border-border bg-card/60 p-4 flex items-center justify-between gap-4 opacity-70"
+            >
+              {content}
+            </div>
+          );
+        }
+        return (
+          <Link
+            key={inv.id}
+            to="/valuations/$id/invoice"
+            params={{ id: inv.valuation_id }}
+            className="rounded-2xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center justify-between gap-4"
+          >
+            {content}
+          </Link>
+        );
+      })}
     </div>
   );
 }

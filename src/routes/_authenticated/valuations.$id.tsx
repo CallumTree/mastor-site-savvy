@@ -14,10 +14,11 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { showError } from "@/lib/toast-error";
-import { ArrowLeft, CheckCircle2, FileText, Pencil, Trash2, X, Download } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FileText, Lock, LockOpen, Pencil, Trash2, X, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getCurrentProfile, getLogoDataUrl, type Profile } from "@/lib/profile";
+import { isValuationLocked } from "@/lib/openValuation";
 
 export const Route = createFileRoute("/_authenticated/valuations/$id")({
   component: ValuationPage,
@@ -76,6 +77,7 @@ function ValuationPage() {
   const [previouslyClaimed, setPreviouslyClaimed] = useState(0);
   const [loading, setLoading] = useState(true);
   const [finalising, setFinalising] = useState(false);
+  const [reopening, setReopening] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [removing, setRemoving] = useState<LineItem | null>(null);
   const [reason, setReason] = useState<string>("");
@@ -117,14 +119,17 @@ function ValuationPage() {
           .eq("project_id", val.project_id)
           .eq("status", "Approved")
           .neq("id", id),
-        supabase.from("invoices").select("id").eq("valuation_id", id).limit(1),
+        supabase.from("invoices").select("id, status").eq("valuation_id", id),
         getCurrentProfile().catch(() => null),
       ]);
 
     setProject((proj as Project) ?? null);
     setItems((lines ?? []) as LineItem[]);
     setProfile(profileData as Profile | null);
-    setIsInvoiced((invRows ?? []).length > 0);
+    // A voided invoice doesn't count — its number is preserved but it no
+    // longer represents a real, sent invoice, so it shouldn't keep the
+    // valuation locked.
+    setIsInvoiced((invRows ?? []).some((r: any) => r.status !== "Void"));
 
     const priorIds = (priorVals ?? []).map((v) => v.id);
     if (priorIds.length) {
@@ -261,6 +266,24 @@ function ValuationPage() {
     if (error) return showError("Valuation", error);
     toast.success("Valuation finalised");
     setEditMode(false);
+    load();
+  };
+
+  const reopen = async () => {
+    if (
+      !confirm(
+        "Reopen this valuation for editing?\n\nIt will go back to Draft status until you finalise it again.",
+      )
+    )
+      return;
+    setReopening(true);
+    const { error } = await supabase
+      .from("valuations")
+      .update({ status: "Draft" })
+      .eq("id", id);
+    setReopening(false);
+    if (error) return showError("Valuation", error);
+    toast.success("Valuation reopened");
     load();
   };
 
@@ -438,8 +461,8 @@ function ValuationPage() {
   }
 
   const isApproved = valuation.status === "Approved";
-  // Lock based on whether the valuation has been invoiced — not on Approved status alone.
-  const isLocked = isInvoiced;
+  const isLocked = isValuationLocked(valuation.status, isInvoiced);
+  const canReopen = isApproved && !isInvoiced;
   const canRemove = !isLocked && editMode;
   const thisClaim = items.reduce((s, it) => s + Number(it.claimed_value ?? 0), 0);
   const projectValue = Number(project.gross_value ?? project.contract_value ?? 0);
@@ -495,9 +518,15 @@ function ValuationPage() {
             </Button>
           )}
           {isLocked && (
-            <span className="label-mono self-center inline-flex items-center px-3 py-1.5 rounded-full bg-secondary">
-              Invoiced — locked
+            <span className="label-mono self-center inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary">
+              <Lock className="w-3 h-3" />
+              {isInvoiced ? "Invoiced — locked" : "Finalised — locked"}
             </span>
+          )}
+          {canReopen && (
+            <Button size="sm" variant="outline" onClick={reopen} disabled={reopening}>
+              <LockOpen className="w-3.5 h-3.5 mr-1" /> {reopening ? "Reopening…" : "Reopen"}
+            </Button>
           )}
           <Button size="sm" variant="outline" onClick={exportPdf}>
             <Download className="w-3.5 h-3.5 mr-1" /> Export PDF

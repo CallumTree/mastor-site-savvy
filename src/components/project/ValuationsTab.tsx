@@ -6,6 +6,7 @@ import { showError } from "@/lib/toast-error";
 import { ChevronDown, ChevronRight, Plus, Receipt, Trash2 } from "lucide-react";
 import { LoadingDot } from "@/components/ui/loading-dot";
 import { EmptyState } from "@/components/ui/empty-state";
+import { isValuationLocked } from "@/lib/openValuation";
 
 type Valuation = {
   id: string;
@@ -116,7 +117,7 @@ export function ValuationsTab({ projectId }: { projectId: string }) {
               </button>
               {isOpen && (
                 <div className="px-4 pb-4 border-t border-border pt-4">
-                  <ValuationItemsList projectId={projectId} valuationId={v.id} readOnly={v.status !== "Draft"} />
+                  <ValuationItemsList projectId={projectId} valuationId={v.id} readOnly={isValuationLocked(v.status, false)} />
                 </div>
               )}
             </div>

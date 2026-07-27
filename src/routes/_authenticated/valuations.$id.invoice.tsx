@@ -116,6 +116,7 @@ function InvoicePage() {
           .from("invoices")
           .select("*")
           .eq("valuation_id", id)
+          .neq("status", "Void")
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
@@ -507,7 +508,7 @@ function DeleteInvoiceButton({
   const handle = async () => {
     if (
       !confirm(
-        "Delete this invoice?\n\nThe valuation and its line items will be kept and unlocked for editing. The invoice itself will be removed.",
+        `Void invoice ${invoice.invoice_number}?\n\nThe valuation and its line items will be kept and unlocked for editing. The invoice number itself is never reused — generating a new invoice for this valuation will get the next number.`,
       )
     )
       return;
@@ -519,10 +520,12 @@ function DeleteInvoiceButton({
       .from("scope_elements")
       .update({ status: "Claimed", invoiced_in: null })
       .contains("invoiced_in", { id: invoice.id });
-    const { error } = await supabase.from("invoices").delete().eq("id", invoice.id);
+    // Void, don't delete — the row (and its number) stays, so the number
+    // can never be reused for a different invoice.
+    const { error } = await supabase.from("invoices").update({ status: "Void" }).eq("id", invoice.id);
     setBusy(false);
     if (error) return showError("Invoice", error);
-    toast.success("Invoice deleted — valuation unlocked");
+    toast.success("Invoice voided — valuation unlocked");
     onDeleted();
   };
   return (
@@ -533,7 +536,7 @@ function DeleteInvoiceButton({
       disabled={busy}
     >
       <Trash2 className="w-4 h-4 mr-2" />
-      {busy ? "Deleting…" : "Delete Invoice"}
+      {busy ? "Voiding…" : "Void Invoice"}
     </Button>
   );
 }
