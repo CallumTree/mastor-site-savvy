@@ -25,9 +25,9 @@ export const matchFindingToScopeElement = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data }) => {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
-      return { ok: false as const, error: "ANTHROPIC_API_KEY is not configured." };
+      return { ok: false as const, error: "LOVABLE_API_KEY is not configured." };
     }
     if (data.scope_elements.length === 0) {
       return {
@@ -47,30 +47,32 @@ ${data.scope_elements
   )
   .join("\n")}`;
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 500,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userMsg }],
+        model: "google/gemini-3.6-flash",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMsg },
+        ],
       }),
     });
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => "");
-      console.error("[matchFindingToScopeElement] Anthropic error", res.status, errBody);
-      return { ok: false as const, error: `Anthropic request failed (${res.status})` };
+      console.error("[matchFindingToScopeElement] Gateway error", res.status, errBody);
+      if (res.status === 429) return { ok: false as const, error: "AI rate limit reached." };
+      if (res.status === 402) return { ok: false as const, error: "AI credits exhausted." };
+      return { ok: false as const, error: `AI request failed (${res.status})` };
     }
 
     const body = await res.json();
-    const text: string | undefined = body?.content?.[0]?.text;
-    if (!text) return { ok: false as const, error: "Anthropic returned no content." };
+    const text: string | undefined = body?.choices?.[0]?.message?.content;
+    if (!text) return { ok: false as const, error: "AI returned no content." };
 
     try {
       const cleaned = text
@@ -82,6 +84,6 @@ ${data.scope_elements
       return { ok: true as const, result };
     } catch (e) {
       console.error("[matchFindingToScopeElement] JSON parse failed", e, text.slice(0, 300));
-      return { ok: false as const, error: "Anthropic returned invalid JSON." };
+      return { ok: false as const, error: "AI returned invalid JSON." };
     }
   });

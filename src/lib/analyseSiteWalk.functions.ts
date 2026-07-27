@@ -85,9 +85,9 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
-      return { ok: false as const, error: "ANTHROPIC_API_KEY is not configured." };
+      return { ok: false as const, error: "LOVABLE_API_KEY is not configured." };
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -144,19 +144,17 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
       userMessage += `\n\nSCOPE OF WORKS (BoQ):\n${lines.join("\n")}`;
     }
 
-    // Call Anthropic
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    // Call Lovable AI Gateway (Gemini)
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 8000,
-        system: SYSTEM_PROMPT,
+        model: "google/gemini-3.6-flash",
         messages: [
+          { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userMessage },
         ],
       }),
@@ -164,17 +162,23 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => "");
-      console.error("[analyseSiteWalk] Anthropic error", res.status, errBody);
+      console.error("[analyseSiteWalk] Gateway error", res.status, errBody);
+      if (res.status === 429) {
+        return { ok: false as const, error: "AI rate limit reached. Please try again in a moment." };
+      }
+      if (res.status === 402) {
+        return { ok: false as const, error: "AI credits exhausted. Add credits in Settings → Plans & credits." };
+      }
       return {
         ok: false as const,
-        error: `Anthropic request failed (${res.status}): ${errBody.slice(0, 500)}`,
+        error: `AI request failed (${res.status}): ${errBody.slice(0, 500)}`,
       };
     }
 
     const body = await res.json();
-    const text: string | undefined = body?.content?.[0]?.text;
+    const text: string | undefined = body?.choices?.[0]?.message?.content;
     if (!text) {
-      return { ok: false as const, error: "Anthropic returned no content." };
+      return { ok: false as const, error: "AI returned no content." };
     }
 
     let analysis: any;
@@ -187,7 +191,7 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
       analysis = JSON.parse(cleaned);
     } catch (e) {
       console.error("[analyseSiteWalk] JSON parse failed", e, text.slice(0, 500));
-      return { ok: false as const, error: "Anthropic returned invalid JSON." };
+      return { ok: false as const, error: "AI returned invalid JSON." };
     }
 
     // Save analysis_results

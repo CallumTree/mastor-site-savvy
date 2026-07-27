@@ -42,14 +42,7 @@ Return this exact structure:
 Be concise. Keep description and comments fields as short as possible while preserving meaning. Do not pad or repeat information from other fields.
 `;
 
-const ANTHROPIC_HEADERS = (apiKey: string) => ({
-  "content-type": "application/json",
-  "x-api-key": apiKey,
-  "anthropic-version": "2023-06-01",
-});
-
-const MAX_POLLS = 120; // 120 * 15s = 30 min
-const PARSER_VERSION = "anthropic-batch-v2";
+const PARSER_VERSION = "lovable-gemini-v1";
 
 export const parseBoQJob = inngest.createFunction(
   { id: "parse-boq-job", retries: 1, triggers: [{ event: "boq/parse.requested" }] },
@@ -64,7 +57,7 @@ export const parseBoQJob = inngest.createFunction(
     // Load job
     const { data: job, error: loadErr } = await supabaseAdmin
       .from("parse_jobs")
-      .select("id, document_id, project_id, document_text, anthropic_batch_id")
+      .select("id, document_id, project_id, document_text")
       .eq("id", jobId)
       .single();
     if (loadErr || !job) throw new Error(`parse_jobs load failed: ${loadErr?.message}`);
@@ -82,172 +75,62 @@ export const parseBoQJob = inngest.createFunction(
         .eq("id", job.document_id);
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
-      await failJob(jobId, job.document_id, "ANTHROPIC_API_KEY is not configured.");
+      await failJob(jobId, job.document_id, "LOVABLE_API_KEY is not configured.");
       return { ok: false };
     }
 
-    // 1) Submit batch, or resume an existing batch when Inngest retries this job.
-    let batchId = job.anthropic_batch_id;
-    if (batchId) {
-      console.log(
-        `[parseBoQJob] ${PARSER_VERSION} resuming existing batch`,
-        batchId,
-        "for job",
-        jobId,
-      );
-    } else {
-      try {
-        batchId = await step.run("submit-batch", async () => {
-          const res = await fetch("https://api.anthropic.com/v1/messages/batches", {
-            method: "POST",
-            headers: ANTHROPIC_HEADERS(apiKey),
-            body: JSON.stringify({
-              requests: [
-                {
-                  custom_id: jobId,
-                  params: {
-                    model: "claude-sonnet-4-6",
-                    max_tokens: 32000,
-                    system: SYSTEM_PROMPT,
-                    messages: [
-                      {
-                        role: "user",
-                        content: `Parse every line item from this document:\n\n${job.document_text}`,
-                      },
-                    ],
-                  },
-                },
-              ],
-            }),
-          });
-          if (!res.ok) {
-            const body = await res.text().catch(() => "");
-            throw new Error(`Anthropic batch submit ${res.status}: ${body.slice(0, 500)}`);
-          }
-          const data = (await res.json()) as { id: string };
-          return data.id;
+    // Call Lovable AI Gateway (Gemini) inside a step so Inngest can retry
+    let text = "";
+    let usage: { prompt_tokens?: number; completion_tokens?: number } = {};
+    let finishReason: string | undefined;
+    try {
+      const result = await step.run("gateway-call", async () => {
+        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3.6-flash",
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              {
+                role: "user",
+                content: `Parse every line item from this document:\n\n${job.document_text}`,
+              },
+            ],
+          }),
         });
-      } catch (e: any) {
-        const msg = `Failed to submit Anthropic batch: ${e?.message || e}`;
-        console.error("[parseBoQJob]", msg);
-        await failJob(jobId, job.document_id, msg);
-        return { ok: false };
-      }
-
-      console.log(`[parseBoQJob] ${PARSER_VERSION} submitted batch`, batchId, "for job", jobId);
-      await supabaseAdmin
-        .from("parse_jobs")
-        .update({ anthropic_batch_id: batchId, error: null })
-        .eq("id", jobId);
-    }
-
-    if (!batchId) {
-      await failJob(jobId, job.document_id, "Anthropic batch was not created.");
-      return { ok: false };
-    }
-
-    // 2) Poll batch status
-    let ended:
-      | { id: string; processing_status: string; results_url: string | null }
-      | undefined;
-    for (let i = 0; i < MAX_POLLS; i++) {
-      await step.sleep(`wait-${i}`, "15s");
-      const status = await step.run(`poll-${i}`, async () => {
-        const res = await fetch(
-          `https://api.anthropic.com/v1/messages/batches/${batchId}`,
-          { method: "GET", headers: ANTHROPIC_HEADERS(apiKey) },
-        );
         if (!res.ok) {
           const body = await res.text().catch(() => "");
-          throw new Error(`Anthropic batch poll ${res.status}: ${body.slice(0, 300)}`);
+          throw new Error(`AI gateway ${res.status}: ${body.slice(0, 500)}`);
         }
-        return (await res.json()) as {
-          id: string;
-          processing_status: string;
-          results_url: string | null;
+        const data = (await res.json()) as {
+          choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+          usage?: { prompt_tokens?: number; completion_tokens?: number };
+        };
+        return {
+          text: data.choices?.[0]?.message?.content ?? "",
+          finish_reason: data.choices?.[0]?.finish_reason,
+          usage: data.usage ?? {},
         };
       });
-      if (status.processing_status === "ended") {
-        ended = status;
-        break;
-      }
-    }
-
-    if (!ended) {
-      await failJob(
-        jobId,
-        job.document_id,
-        "Anthropic batch did not complete within 30 minutes.",
-      );
-      return { ok: false };
-    }
-
-    if (!ended.results_url) {
-      await failJob(jobId, job.document_id, "Anthropic batch ended without results_url.");
-      return { ok: false };
-    }
-
-    // 3) Fetch results JSONL
-    type BatchResult = {
-      custom_id: string;
-      result:
-        | {
-            type: "succeeded";
-            message: {
-              content: Array<{ type: string; text?: string }>;
-              stop_reason?: string;
-              usage?: { input_tokens?: number; output_tokens?: number };
-            };
-          }
-        | { type: "errored"; error: { type: string; message: string } }
-        | { type: "canceled" }
-        | { type: "expired" };
-    };
-
-    let resultRow: BatchResult;
-    try {
-      resultRow = await step.run("fetch-results", async () => {
-        const res = await fetch(ended!.results_url!, {
-          method: "GET",
-          headers: ANTHROPIC_HEADERS(apiKey),
-        });
-        if (!res.ok) {
-          const body = await res.text().catch(() => "");
-          throw new Error(`Anthropic batch results ${res.status}: ${body.slice(0, 300)}`);
-        }
-        const text = await res.text();
-        const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-        const match = lines
-          .map((l) => JSON.parse(l) as BatchResult)
-          .find((r) => r.custom_id === jobId);
-        if (!match) throw new Error("No matching custom_id in batch results JSONL.");
-        return match;
-      });
+      text = result.text;
+      usage = result.usage;
+      finishReason = result.finish_reason;
     } catch (e: any) {
-      const msg = `Failed to fetch Anthropic batch results: ${e?.message || e}`;
+      const msg = `AI gateway call failed: ${e?.message || e}`;
       console.error("[parseBoQJob]", msg);
       await failJob(jobId, job.document_id, msg);
       return { ok: false };
     }
 
-    if (resultRow.result.type !== "succeeded") {
-      const reason =
-        resultRow.result.type === "errored"
-          ? `${resultRow.result.error.type}: ${resultRow.result.error.message}`
-          : resultRow.result.type;
-      await failJob(jobId, job.document_id, `Anthropic batch result ${reason}`);
-      return { ok: false };
-    }
-
-    const message = resultRow.result.message;
-    const text = message.content.find((c) => c.type === "text")?.text ?? "";
-    const stopReason = message.stop_reason;
-    const usage = message.usage ?? {};
     console.log(
-      "[parseBoQJob] stop_reason:",
-      stopReason,
+      "[parseBoQJob] finish_reason:",
+      finishReason,
       "usage:",
       JSON.stringify(usage),
       "text len:",
@@ -255,7 +138,7 @@ export const parseBoQJob = inngest.createFunction(
     );
 
     if (!text) {
-      await failJob(jobId, job.document_id, "Anthropic returned no content.");
+      await failJob(jobId, job.document_id, "AI returned no content.");
       return { ok: false };
     }
 
@@ -268,8 +151,8 @@ export const parseBoQJob = inngest.createFunction(
         .replace(/```\s*$/, "");
       result = JSON.parse(cleaned);
     } catch (e: any) {
-      const msg = `Anthropic returned invalid JSON${
-        stopReason === "max_tokens" ? " (truncated by max_tokens)" : ""
+      const msg = `AI returned invalid JSON${
+        finishReason === "length" ? " (truncated by output length)" : ""
       }: ${e?.message || ""}`;
       console.error("[parseBoQJob]", msg);
       await supabaseAdmin
@@ -277,9 +160,9 @@ export const parseBoQJob = inngest.createFunction(
         .update({
           status: "failed",
           error: msg,
-          stop_reason: stopReason,
-          prompt_tokens: usage?.input_tokens ?? null,
-          completion_tokens: usage?.output_tokens ?? null,
+          stop_reason: finishReason,
+          prompt_tokens: usage?.prompt_tokens ?? null,
+          completion_tokens: usage?.completion_tokens ?? null,
           finished_at: new Date().toISOString(),
         })
         .eq("id", jobId);
@@ -297,9 +180,9 @@ export const parseBoQJob = inngest.createFunction(
       .update({
         status: "succeeded",
         result,
-        stop_reason: stopReason,
-        prompt_tokens: usage?.input_tokens ?? null,
-        completion_tokens: usage?.output_tokens ?? null,
+        stop_reason: finishReason,
+        prompt_tokens: usage?.prompt_tokens ?? null,
+        completion_tokens: usage?.completion_tokens ?? null,
         finished_at: new Date().toISOString(),
         error: null,
       })
