@@ -191,7 +191,7 @@ export const analyseSiteWalk = createServerFn({ method: "POST" })
       analysis = JSON.parse(cleaned);
     } catch (e) {
       console.error("[analyseSiteWalk] JSON parse failed", e, text.slice(0, 500));
-      return { ok: false as const, error: "Anthropic returned invalid JSON." };
+      return { ok: false as const, error: "AI returned invalid JSON." };
     }
 
     // Save analysis_results
