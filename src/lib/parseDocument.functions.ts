@@ -120,7 +120,7 @@ export const getParseJob = createServerFn({ method: "POST" })
     const { data: row, error } = await context.supabase
       .from("parse_jobs")
       .select(
-        "id, status, error, result, anthropic_batch_id, stop_reason, prompt_tokens, completion_tokens, started_at, finished_at",
+        "id, status, error, result, stop_reason, prompt_tokens, completion_tokens, started_at, finished_at",
       )
       .eq("id", data.jobId)
       .single();

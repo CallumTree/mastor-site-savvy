@@ -1837,7 +1837,7 @@ function AnalysisViewer({
       setBusyKey(null);
       return showError("Site Diary", fErr ?? new Error("Failed to save finding"));
     }
-    // Ask Anthropic (via server fn) to pick the best matching scope-of-works
+    // Ask the AI gateway (via server fn) to pick the best matching scope-of-works
     // line (the parsed BoQ). Only offer lines not already claimed elsewhere,
     // so an already-claimed BoQ item can't be double-claimed into a second
     // open valuation.
